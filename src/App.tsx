@@ -76,7 +76,7 @@ export default function App() {
           setAuthError(null);
           localStorage.setItem('blockcraft_yandex_user', JSON.stringify(yUser));
           syncYdbUser(yUser.uid, yUser.email, yUser.displayName).then((syncRes) => {
-            if (syncRes?.result?.tokens) {
+            if (syncRes?.result?.tokens !== undefined && typeof syncRes.result.tokens === 'number') {
               setUserTokens(syncRes.result.tokens);
             } else {
               getYdbUserTokens(yUser.uid, yUser.email).then((tok) => {
@@ -108,7 +108,7 @@ export default function App() {
         
         // Sync with YDB Serverless
         syncYdbUser(u.uid, u.email, u.displayName).then((syncRes) => {
-          if (syncRes?.result?.tokens) {
+          if (syncRes?.result?.tokens !== undefined && typeof syncRes.result.tokens === 'number') {
             setUserTokens(syncRes.result.tokens);
           } else {
             getYdbUserTokens(u.uid, u.email).then((tok) => {

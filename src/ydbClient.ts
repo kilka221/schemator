@@ -17,10 +17,15 @@ async function safeFetchJson(url: string, options?: RequestInit) {
     if (contentType.includes('application/json')) {
       return await res.json();
     }
-    return null;
-  } catch (e) {
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { success: res.ok, error: text || `HTTP ${res.status}` };
+    }
+  } catch (e: any) {
     console.warn('safeFetchJson error:', e);
-    return null;
+    return { success: false, error: e?.message || 'Ошибка сети' };
   }
 }
 
@@ -44,9 +49,9 @@ export async function getYdbUserTokens(uid: string, email?: string | null): Prom
       if ('low' in val && typeof val.low === 'number') return val.low;
     }
     const p = Number(val);
-    return isNaN(p) ? 1 : p;
+    return isNaN(p) ? 0 : p;
   }
-  return 1;
+  return 0;
 }
 
 export async function decrementYdbUserToken(uid: string): Promise<number> {
