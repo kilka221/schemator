@@ -1,7 +1,7 @@
 import ydbSdk from 'ydb-sdk';
 import type { Driver } from 'ydb-sdk';
 import crypto from 'crypto';
-import { sendVerificationEmail } from './mailer.ts';
+import { sendVerificationEmail } from './mailer.js';
 
 const { Driver: DriverClass, IamAuthService, TypedData, TypedValues, TableDescription, AlterTableDescription, Column, Types } = ydbSdk as any;
 
