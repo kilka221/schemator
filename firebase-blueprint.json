@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with token balance for flow-chart generation",
+      "type": "object",
+      "properties": {
+        "tokens": {
+          "type": "number",
+          "description": "Remaining available generation tokens"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user registered"
+        }
+      },
+      "required": ["tokens"]
+    },
+    "DiagramHistory": {
+      "title": "DiagramHistory",
+      "description": "Saved flowchart diagram item in user account history",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "ID of the user who owns this diagram"
+        },
+        "title": {
+          "type": "string",
+          "description": "User-defined or auto-generated title of the flowchart"
+        },
+        "code": {
+          "type": "string",
+          "description": "Source code for this flowchart"
+        },
+        "language": {
+          "type": "string",
+          "description": "Programming language (python or cpp)"
+        },
+        "isPinned": {
+          "type": "boolean",
+          "description": "Whether the diagram is pinned to the top of the history"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp in ISO format"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last updated timestamp in ISO format"
+        }
+      },
+      "required": ["userId", "title", "code", "language", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Collection of user profiles containing their token balance"
+    },
+    "/users/{userId}/diagrams/{diagramId}": {
+      "schema": "DiagramHistory",
+      "description": "Subcollection of saved flowcharts belonging to a specific user"
+    }
+  }
+}

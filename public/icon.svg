@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0066FF" />
+      <stop offset="100%" stop-color="#3B82F6" />
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF9900" />
+      <stop offset="100%" stop-color="#FF5500" />
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E676" />
+      <stop offset="100%" stop-color="#00B0FF" />
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9C27B0" />
+      <stop offset="100%" stop-color="#7C4DFF" />
+    </linearGradient>
+  </defs>
+
+  <!-- Dark connecting paths -->
+  <g stroke="#334155" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Vertical line from top block to diamond -->
+    <path d="M 256 120 L 256 180" />
+    <!-- Line from diamond left, down, and bottom curve -->
+    <path d="M 190 256 L 115 256 C 115 256, 115 410, 115 420 C 115 430, 125 430, 220 430 L 256 430" />
+    <!-- Line from diamond right, down, and bottom curve -->
+    <path d="M 322 256 L 397 256 C 397 256, 397 410, 397 420 C 397 430, 387 430, 292 430 L 256 430" />
+  </g>
+
+  <!-- Top Blue Block -->
+  <rect x="176" y="50" width="160" height="70" rx="22" fill="url(#blueGrad)" />
+
+  <!-- Center Orange Diamond Block -->
+  <g transform="translate(256, 256) rotate(45)">
+    <rect x="-48" y="-48" width="96" height="96" rx="16" fill="url(#orangeGrad)" />
+  </g>
+
+  <!-- Left Green Block -->
+  <rect x="60" y="300" width="110" height="65" rx="20" fill="url(#greenGrad)" />
+
+  <!-- Right Purple Block -->
+  <rect x="342" y="300" width="110" height="65" rx="20" fill="url(#purpleGrad)" />
+
+  <!-- Bottom Circle Node -->
+  <circle cx="256" cy="430" r="22" fill="#FFFFFF" stroke="#334155" stroke-width="16" />
+</svg>

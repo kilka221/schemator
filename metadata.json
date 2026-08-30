@@ -1,0 +1,6 @@
+{
+  "name": "Схематор",
+  "description": "Схематор — онлайн генератор блок-схем по ГОСТ 19.701-90. Автоматический визуализатор кода Python, C++ с экспорт и сохранением.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
