@@ -20,6 +20,10 @@ export function getTransporter(): nodemailer.Transporter | null {
         user,
         pass,
       },
+      tls: {
+        rejectUnauthorized: false
+      },
+      connectionTimeout: 10000,
     });
     console.log(`[Mailer] Configured SMTP transporter with host: ${host}:${port}, user: ${user}`);
     return transporter;

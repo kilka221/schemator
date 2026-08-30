@@ -462,9 +462,11 @@ export async function registerYdbUser(email: string, pass: string, displayName: 
 
       console.log(`[YDB Auth] Re-sent verification code for unverified user ${cleanEmail}: ${newCode}`);
       // Send real email with the 6-digit code
-      sendVerificationEmail(cleanEmail, newCode, displayName || cleanEmail.split('@')[0]).catch(err => {
+      try {
+        await sendVerificationEmail(cleanEmail, newCode, displayName || cleanEmail.split('@')[0]);
+      } catch (err) {
         console.error('[YDB Auth] Failed to dispatch verification email:', err);
-      });
+      }
 
       return {
         uid: userId,
@@ -510,9 +512,11 @@ export async function registerYdbUser(email: string, pass: string, displayName: 
     console.log(`[YDB Auth] Registered new unverified user: ${userId} (${cleanEmail}), code: ${verificationCode}`);
 
     // Send real email with the 6-digit code
-    sendVerificationEmail(cleanEmail, verificationCode, finalName).catch(err => {
+    try {
+      await sendVerificationEmail(cleanEmail, verificationCode, finalName);
+    } catch (err) {
       console.error('[YDB Auth] Failed to dispatch verification email:', err);
-    });
+    }
 
     return {
       uid: userId,
@@ -631,12 +635,14 @@ export async function resendYdbVerificationCode(email: string) {
     });
 
     console.log(`[YDB Auth] Resent verification code to ${cleanEmail}: ${newCode}`);
-
+ 
     // Send real email with the 6-digit code
-    sendVerificationEmail(cleanEmail, newCode, userObj.displayName).catch(err => {
+    try {
+      await sendVerificationEmail(cleanEmail, newCode, userObj.displayName);
+    } catch (err) {
       console.error('[YDB Auth] Failed to dispatch verification email:', err);
-    });
-
+    }
+ 
     return {
       email: cleanEmail,
     };
@@ -690,9 +696,11 @@ export async function loginYdbUser(email: string, pass: string) {
       }
 
       // Dispatch real email with the code
-      sendVerificationEmail(cleanEmail, code, userObj.displayName).catch(err => {
+      try {
+        await sendVerificationEmail(cleanEmail, code, userObj.displayName);
+      } catch (err) {
         console.error('[YDB Auth] Failed to dispatch verification email:', err);
-      });
+      }
 
       const err: any = new Error('Email не подтвержден. Пожалуйста, введите код подтверждения из письма перед входом.');
       err.requiresVerification = true;
