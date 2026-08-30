@@ -24,10 +24,7 @@ export interface AppUserProfile {
 
 import { ASTNode, FlowNode, FlowEdge, DEFAULT_CODE, parsePythonSourceWhole, buildGraphs, EdgePolyline, GostShape, getNodeHeight } from './logic';
 export default function App() {
-  const [code, setCode] = useState(() => {
-     const c = localStorage.getItem('blockcraft_code');
-     return c !== null ? c : "";
-  });
+  const [code, setCode] = useState("");
   const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light'|'dark'>(() => (localStorage.getItem('blockcraft_theme') as 'light'|'dark') || 'light');
@@ -56,6 +53,7 @@ export default function App() {
   };
   
   React.useEffect(() => {
+    localStorage.removeItem('blockcraft_code');
     // Check for Yandex OAuth response token in URL hash
     if (window.location.hash && window.location.hash.includes('access_token')) {
       const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
@@ -225,7 +223,6 @@ const [leftWidth, setLeftWidth] = useState(480);
 
   React.useEffect(() => { localStorage.setItem('blockcraft_history', JSON.stringify(history)); }, [history]);
   React.useEffect(() => { localStorage.setItem('blockcraft_historyIndex', historyIndex.toString()); }, [historyIndex]);
-  React.useEffect(() => { localStorage.setItem('blockcraft_code', code); }, [code]);
   React.useEffect(() => { localStorage.setItem('blockcraft_language', language); }, [language]);
   React.useEffect(() => { localStorage.setItem('blockcraft_theme', theme); }, [theme]);
   React.useEffect(() => { localStorage.setItem('blockcraft_font', fontFamily); }, [fontFamily]);
@@ -447,7 +444,6 @@ const [leftWidth, setLeftWidth] = useState(480);
   const handleSelectDiagramFromHistory = (loadedCode: string, loadedLang: 'python' | 'cpp') => {
     setCode(loadedCode);
     setLanguage(loadedLang);
-    localStorage.setItem('blockcraft_code', loadedCode);
     localStorage.setItem('blockcraft_language', loadedLang);
     setLastGeneratedCode(loadedCode);
     setLastGeneratedLanguage(loadedLang);
