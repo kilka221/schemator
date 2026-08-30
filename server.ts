@@ -12,7 +12,7 @@ import {
   verifyYdbUserCode,
   resendYdbVerificationCode,
   deleteYdbDiagram
-} from './src/server/ydb.js';
+} from './src/server/ydb.ts';
 
 process.on('unhandledRejection', (reason) => {
   console.warn('[YDB/Server Warning] Unhandled Rejection:', reason);

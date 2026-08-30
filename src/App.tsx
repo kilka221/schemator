@@ -71,16 +71,23 @@ export default function App() {
         }
 
         // ALWAYS authenticate and sync user in current window/tab as well!
-        fetchYandexProfileByToken(accessToken).then((yUser) => {
+        fetchYandexProfileByToken(accessToken).then((yUser: any) => {
           setUser(yUser);
           setAuthError(null);
+          if (typeof yUser.tokens === 'number') {
+            setUserTokens(yUser.tokens);
+          }
           localStorage.setItem('blockcraft_yandex_user', JSON.stringify(yUser));
           syncYdbUser(yUser.uid, yUser.email, yUser.displayName).then((syncRes) => {
             if (syncRes?.result?.tokens !== undefined && typeof syncRes.result.tokens === 'number') {
               setUserTokens(syncRes.result.tokens);
+              localStorage.setItem('blockcraft_yandex_user', JSON.stringify({ ...yUser, tokens: syncRes.result.tokens }));
             } else {
               getYdbUserTokens(yUser.uid, yUser.email).then((tok) => {
-                if (tok !== undefined) setUserTokens(tok);
+                if (tok !== null && tok !== undefined) {
+                  setUserTokens(tok);
+                  localStorage.setItem('blockcraft_yandex_user', JSON.stringify({ ...yUser, tokens: tok }));
+                }
               });
             }
           });
@@ -105,14 +112,21 @@ export default function App() {
         const u = JSON.parse(savedUser);
         setUser(u);
         setAuthError(null);
+        if (typeof u.tokens === 'number') {
+          setUserTokens(u.tokens);
+        }
         
         // Sync with YDB Serverless
         syncYdbUser(u.uid, u.email, u.displayName).then((syncRes) => {
           if (syncRes?.result?.tokens !== undefined && typeof syncRes.result.tokens === 'number') {
             setUserTokens(syncRes.result.tokens);
+            localStorage.setItem('blockcraft_yandex_user', JSON.stringify({ ...u, tokens: syncRes.result.tokens }));
           } else {
             getYdbUserTokens(u.uid, u.email).then((tok) => {
-              if (tok !== undefined) setUserTokens(tok);
+              if (tok !== null && tok !== undefined) {
+                setUserTokens(tok);
+                localStorage.setItem('blockcraft_yandex_user', JSON.stringify({ ...u, tokens: tok }));
+              }
             });
           }
         });
@@ -136,21 +150,31 @@ export default function App() {
       emailVerified: authUser.emailVerified !== false,
     };
     setUser(appUser);
-    localStorage.setItem('blockcraft_yandex_user', JSON.stringify(appUser));
+    if (typeof authUser.tokens === 'number') {
+      setUserTokens(authUser.tokens);
+    }
+    localStorage.setItem('blockcraft_yandex_user', JSON.stringify({ ...appUser, tokens: authUser.tokens }));
     
     // For Yandex OAuth accounts, sync to Yandex Database (YDB Serverless)
     if (authUser.uid?.startsWith('yandex_')) {
       const syncRes = await syncYdbUser(authUser.uid, authUser.email, authUser.displayName);
-      if (syncRes?.result?.tokens !== undefined) {
+      if (syncRes?.result?.tokens !== undefined && typeof syncRes.result.tokens === 'number') {
         setUserTokens(syncRes.result.tokens);
+        localStorage.setItem('blockcraft_yandex_user', JSON.stringify({ ...appUser, tokens: syncRes.result.tokens }));
       } else {
         const tok = await getYdbUserTokens(authUser.uid, authUser.email);
-        setUserTokens(tok ?? 1);
+        if (tok !== null && tok !== undefined) {
+          setUserTokens(tok);
+          localStorage.setItem('blockcraft_yandex_user', JSON.stringify({ ...appUser, tokens: tok }));
+        }
       }
     } else {
       // For local email accounts, get fresh token count from YDB
       const tok = await getYdbUserTokens(authUser.uid, authUser.email);
-      setUserTokens(tok ?? (authUser.tokens ?? 1));
+      if (tok !== null && tok !== undefined) {
+        setUserTokens(tok);
+        localStorage.setItem('blockcraft_yandex_user', JSON.stringify({ ...appUser, tokens: tok }));
+      }
     }
   };
 

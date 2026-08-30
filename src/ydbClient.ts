@@ -37,7 +37,7 @@ export async function syncYdbUser(uid: string, email?: string | null, displayNam
   });
 }
 
-export async function getYdbUserTokens(uid: string, email?: string | null): Promise<number> {
+export async function getYdbUserTokens(uid: string, email?: string | null): Promise<number | null> {
   const url = email 
     ? `/api/users/${encodeURIComponent(uid)}?email=${encodeURIComponent(email)}`
     : `/api/users/${encodeURIComponent(uid)}`;
@@ -47,11 +47,12 @@ export async function getYdbUserTokens(uid: string, email?: string | null): Prom
     if (typeof val === 'number') return val;
     if (typeof val === 'object' && val !== null) {
       if ('low' in val && typeof val.low === 'number') return val.low;
+      if ('value' in val && typeof val.value === 'number') return val.value;
     }
     const p = Number(val);
-    return isNaN(p) ? 0 : p;
+    return isNaN(p) ? null : p;
   }
-  return 0;
+  return null;
 }
 
 export async function decrementYdbUserToken(uid: string): Promise<number> {
