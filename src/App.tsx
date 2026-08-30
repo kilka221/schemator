@@ -1020,7 +1020,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   <div className="flex items-center gap-4 flex-wrap">
                       <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Режим деления:</span>
-                          <div className="flex bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-zinc-200 dark:border-zinc-700/60">
+                          <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-zinc-200 dark:border-zinc-700/60 gap-0.5">
                               <button
                                   onClick={() => {
                                       setSplitMode('auto');
@@ -1029,44 +1029,39 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                                   }}
                                   className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${splitMode === 'auto' ? 'bg-white dark:bg-zinc-700 text-zinc-950 dark:text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'}`}
                               >
-                                  Автоматический
+                                  Авто
                               </button>
                               <button
                                   onClick={() => {
-                                      setSplitMode('manual');
-                                      localStorage.setItem('blockcraft_split_mode', 'manual');
+                                      if (splitMode !== 'manual') {
+                                          setSplitMode('manual');
+                                          setIsScissorsMode(true);
+                                          localStorage.setItem('blockcraft_split_mode', 'manual');
+                                      } else {
+                                          setIsScissorsMode(!isScissorsMode);
+                                      }
                                   }}
-                                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${splitMode === 'manual' ? 'bg-white dark:bg-zinc-700 text-zinc-950 dark:text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'}`}
+                                  title={splitMode === 'manual' && isScissorsMode ? "Ножницы активны (нажмите на схему для разреза)" : "Ручной режим (ножницы)"}
+                                  className={`w-7 h-6 flex items-center justify-center text-xs rounded-md transition-all ${splitMode === 'manual' ? (isScissorsMode ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 shadow-sm ring-1 ring-red-300 dark:ring-red-800' : 'bg-white dark:bg-zinc-700 text-zinc-950 dark:text-white shadow-sm') : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'}`}
                               >
-                                  Ручной (Ножницы)
+                                  ✂️
                               </button>
                           </div>
-                      </div>
 
-                      {splitMode === 'manual' && (
-                          <div className="flex items-center gap-2">
+                          {splitMode === 'manual' && (customCuts[activeTab] || []).length > 0 && (
                               <button
-                                  onClick={() => setIsScissorsMode(!isScissorsMode)}
-                                  className={`flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md border transition-all ${isScissorsMode ? 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 shadow-sm' : 'bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700/80'}`}
+                                  onClick={() => {
+                                      const updated = { ...customCuts, [activeTab]: [] };
+                                      setCustomCuts(updated);
+                                      localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(updated));
+                                  }}
+                                  className="px-2.5 py-1 text-xs font-medium rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 transition ml-1"
+                                  title="Очистить все разрезы на этой вкладке"
                               >
-                                  <span>✂️</span>
-                                  <span>{isScissorsMode ? 'Ножницы: АКТИВНЫ (Нажмите на схему)' : 'Включить Ножницы'}</span>
+                                  Очистить всё
                               </button>
-                              {(customCuts[activeTab] || []).length > 0 && (
-                                  <button
-                                      onClick={() => {
-                                          const updated = { ...customCuts, [activeTab]: [] };
-                                          setCustomCuts(updated);
-                                          localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(updated));
-                                      }}
-                                      className="px-2 py-1 text-xs font-medium rounded bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 transition"
-                                      title="Очистить все разрезы"
-                                  >
-                                      Очистить всё
-                                  </button>
-                              )}
-                          </div>
-                      )}
+                          )}
+                      </div>
                   </div>
 
                   {/* Center: Pagination Controls */}
