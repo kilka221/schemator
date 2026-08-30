@@ -65,7 +65,7 @@ apiRouter.post('/auth/verify-code', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Email и код обязательны' });
     }
     const user = await verifyYdbUserCode(email, code);
-    res.json({ success: true, user, message: 'Почта успешно подтверждена! Начислен 1 бесплатный токен.' });
+    res.json({ success: true, user, message: 'Почта успешно подтверждена! Начислен 1 бесплатный Coin.' });
   } catch (e: any) {
     console.error('YDB Auth Verify error:', e);
     res.status(400).json({ success: false, error: e.message || 'Ошибка проверки кода' });

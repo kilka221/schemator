@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Lock, User as UserIcon, X, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, KeyRound, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, X, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, KeyRound, ShieldCheck, Check, Scale, Shield, CheckSquare2 } from 'lucide-react';
 import { openYandexOAuthPopup } from './yandexAuth';
 import { registerYdbUserApi, loginYdbUserApi, verifyYdbCodeApi, resendYdbCodeApi, syncYdbUser } from './ydbClient';
+import { SchematorLogo } from './SchematorLogo';
+import { LegalDocType } from './LegalModal';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (user: any) => void;
+  onOpenLegal?: (doc: LegalDocType) => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess, onOpenLegal }) => {
   const [tab, setTab] = useState<'yandex' | 'email'>('yandex');
   const [isSignUp, setIsSignUp] = useState(false);
   
@@ -23,6 +26,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   
+  // Agreements state (3 checkboxes)
+  const [agreeOffer, setAgreeOffer] = useState(false);
+  const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [agreeAge, setAgreeAge] = useState(false);
+  const [shakeAgreements, setShakeAgreements] = useState(false);
+
   // Status states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +47,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
       setEmail('');
       setPassword('');
       setName('');
+      setAgreeOffer(false);
+      setAgreePrivacy(false);
+      setAgreeAge(false);
+      setShakeAgreements(false);
       setError(null);
       setSuccessMsg(null);
     }
@@ -45,9 +58,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
   if (!isOpen) return null;
 
+  const allAgreed = agreeOffer && agreePrivacy && agreeAge;
+
+  const toggleAllAgreements = () => {
+    const nextState = !allAgreed;
+    setAgreeOffer(nextState);
+    setAgreePrivacy(nextState);
+    setAgreeAge(nextState);
+    if (nextState) {
+      setError(null);
+    }
+  };
+
+  const triggerShake = () => {
+    setShakeAgreements(true);
+    setTimeout(() => setShakeAgreements(false), 600);
+  };
+
   // Official Yandex OAuth Popup Trigger
   const handleYandexOAuth = async () => {
     setError(null);
+
+    if (!agreeOffer || !agreePrivacy || !agreeAge) {
+      setError('Для входа через Яндекс ID необходимо подтвердить все 3 обязательных согласия ниже.');
+      triggerShake();
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -81,6 +118,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     }
     if (password.length < 6) {
       setError('Пароль должен быть не менее 6 символов');
+      return;
+    }
+
+    // Require agreements only for new account registrations
+    if (isSignUp && (!agreeOffer || !agreePrivacy || !agreeAge)) {
+      setError('Для регистрации аккаунта необходимо подтвердить все 3 обязательных согласия ниже.');
+      triggerShake();
       return;
     }
 
@@ -126,7 +170,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     try {
       const verifiedUser = await verifyYdbCodeApi(verifyEmail, cleanCode);
       localStorage.setItem('blockcraft_yandex_user', JSON.stringify(verifiedUser));
-      setSuccessMsg('Email успешно подтвержден! Вам начислен 1 бесплатный токен.');
+      setSuccessMsg('Email успешно подтвержден! Вам начислен 1 бесплатный Coin.');
       setTimeout(() => {
         onSuccess(verifiedUser);
         onClose();
@@ -164,13 +208,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/30">
           <div className="flex items-center gap-2.5">
-            <img src="/icon.svg" alt="Схематор" className="w-8 h-8 rounded-xl object-contain shadow-sm select-none" />
+            <SchematorLogo className="w-8 h-8 rounded-xl shadow-sm select-none shrink-0" />
             <div>
               <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
                 {isVerifying ? 'Подтверждение Email' : 'Авторизация в Схематор'}
               </h3>
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                {isVerifying ? 'Активация 1 бесплатного токена' : '1 бесплатный токен для создания схем'}
+                {isVerifying ? 'Активация 1 бесплатного Coin' : '1 бесплатный Coin для создания схем'}
               </p>
             </div>
           </div>
@@ -273,7 +317,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                 disabled={loading || verifyCode.length !== 6}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 text-sm transition transform active:scale-[0.98]"
               >
-                <span>{loading ? 'Проверка...' : 'Подтвердить почту (+1 токен)'}</span>
+                <span>{loading ? 'Проверка...' : 'Подтвердить почту (+1 Coin)'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
@@ -302,6 +346,104 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
               {/* TAB 1: YANDEX ID AUTH */}
               {tab === 'yandex' && (
                 <div className="space-y-4">
+                  {/* 3 Agreement Checkboxes */}
+                  <div className={`p-3.5 rounded-xl border transition-all duration-200 ${
+                    shakeAgreements 
+                      ? 'border-red-400 dark:border-red-500 bg-red-50/50 dark:bg-red-950/20 ring-2 ring-red-400/30' 
+                      : 'border-zinc-200 dark:border-zinc-800/90 bg-zinc-50/80 dark:bg-zinc-900/50'
+                  }`}>
+                    <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-zinc-200/70 dark:border-zinc-800/70">
+                      <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300">
+                        Обязательные согласия
+                      </span>
+                      <button
+                        type="button"
+                        onClick={toggleAllAgreements}
+                        className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>{allAgreed ? 'Снять все' : 'Выбрать все'}</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {/* 1. Публичная оферта */}
+                      <label className="flex items-start gap-2.5 cursor-pointer group">
+                        <button
+                          type="button"
+                          onClick={() => { setAgreeOffer(!agreeOffer); setError(null); }}
+                          className={`w-4 h-4 mt-0.5 rounded-md border flex items-center justify-center shrink-0 transition ${
+                            agreeOffer 
+                              ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                              : 'border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-blue-500'
+                          }`}
+                        >
+                          {agreeOffer && <Check className="w-3 h-3 stroke-[3]" />}
+                        </button>
+                        <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 select-none">
+                          Я ознакомлен(-а) и принимаю условия{' '}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              onOpenLegal?.('offer');
+                            }}
+                            className="text-blue-600 dark:text-blue-400 font-semibold underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300 transition"
+                          >
+                            Публичной оферты
+                          </button>
+                        </span>
+                      </label>
+
+                      {/* 2. Политика обработки персональных данных (152-ФЗ) */}
+                      <label className="flex items-start gap-2.5 cursor-pointer group">
+                        <button
+                          type="button"
+                          onClick={() => { setAgreePrivacy(!agreePrivacy); setError(null); }}
+                          className={`w-4 h-4 mt-0.5 rounded-md border flex items-center justify-center shrink-0 transition ${
+                            agreePrivacy 
+                              ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                              : 'border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-blue-500'
+                          }`}
+                        >
+                          {agreePrivacy && <Check className="w-3 h-3 stroke-[3]" />}
+                        </button>
+                        <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 select-none">
+                          Даю согласие на{' '}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              onOpenLegal?.('privacy');
+                            }}
+                            className="text-blue-600 dark:text-blue-400 font-semibold underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300 transition"
+                          >
+                            обработку персональных данных (152-ФЗ)
+                          </button>
+                        </span>
+                      </label>
+
+                      {/* 3. Возраст 14+ */}
+                      <label className="flex items-start gap-2.5 cursor-pointer group">
+                        <button
+                          type="button"
+                          onClick={() => { setAgreeAge(!agreeAge); setError(null); }}
+                          className={`w-4 h-4 mt-0.5 rounded-md border flex items-center justify-center shrink-0 transition ${
+                            agreeAge 
+                              ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                              : 'border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-blue-500'
+                          }`}
+                        >
+                          {agreeAge && <Check className="w-3 h-3 stroke-[3]" />}
+                        </button>
+                        <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 select-none">
+                          Подтверждаю, что мой возраст составляет <strong className="font-semibold text-zinc-800 dark:text-zinc-100">14 лет или более</strong>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
                   <button
                     type="button"
                     onClick={handleYandexOAuth}
@@ -374,6 +516,106 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                       />
                     </div>
                   </div>
+
+                  {/* 3 Agreement Checkboxes for Registration */}
+                  {isSignUp && (
+                    <div className={`p-3.5 rounded-xl border transition-all duration-200 ${
+                      shakeAgreements 
+                        ? 'border-red-400 dark:border-red-500 bg-red-50/50 dark:bg-red-950/20 ring-2 ring-red-400/30' 
+                        : 'border-zinc-200 dark:border-zinc-800/90 bg-zinc-50/80 dark:bg-zinc-900/50'
+                    }`}>
+                      <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-zinc-200/70 dark:border-zinc-800/70">
+                        <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300">
+                          Обязательные согласия
+                        </span>
+                        <button
+                          type="button"
+                          onClick={toggleAllAgreements}
+                          className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>{allAgreed ? 'Снять все' : 'Выбрать все'}</span>
+                        </button>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {/* 1. Публичная оферта */}
+                        <label className="flex items-start gap-2.5 cursor-pointer group">
+                          <button
+                            type="button"
+                            onClick={() => { setAgreeOffer(!agreeOffer); setError(null); }}
+                            className={`w-4 h-4 mt-0.5 rounded-md border flex items-center justify-center shrink-0 transition ${
+                              agreeOffer 
+                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                                : 'border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-blue-500'
+                            }`}
+                          >
+                            {agreeOffer && <Check className="w-3 h-3 stroke-[3]" />}
+                          </button>
+                          <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 select-none">
+                            Я ознакомлен(-а) и принимаю условия{' '}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onOpenLegal?.('offer');
+                              }}
+                              className="text-blue-600 dark:text-blue-400 font-semibold underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300 transition"
+                            >
+                              Публичной оферты
+                            </button>
+                          </span>
+                        </label>
+
+                        {/* 2. Политика обработки персональных данных (152-ФЗ) */}
+                        <label className="flex items-start gap-2.5 cursor-pointer group">
+                          <button
+                            type="button"
+                            onClick={() => { setAgreePrivacy(!agreePrivacy); setError(null); }}
+                            className={`w-4 h-4 mt-0.5 rounded-md border flex items-center justify-center shrink-0 transition ${
+                              agreePrivacy 
+                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                                : 'border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-blue-500'
+                            }`}
+                          >
+                            {agreePrivacy && <Check className="w-3 h-3 stroke-[3]" />}
+                          </button>
+                          <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 select-none">
+                            Даю согласие на{' '}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onOpenLegal?.('privacy');
+                              }}
+                              className="text-blue-600 dark:text-blue-400 font-semibold underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300 transition"
+                            >
+                              обработку персональных данных (152-ФЗ)
+                            </button>
+                          </span>
+                        </label>
+
+                        {/* 3. Возраст 14+ */}
+                        <label className="flex items-start gap-2.5 cursor-pointer group">
+                          <button
+                            type="button"
+                            onClick={() => { setAgreeAge(!agreeAge); setError(null); }}
+                            className={`w-4 h-4 mt-0.5 rounded-md border flex items-center justify-center shrink-0 transition ${
+                              agreeAge 
+                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                                : 'border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-blue-500'
+                            }`}
+                          >
+                            {agreeAge && <Check className="w-3 h-3 stroke-[3]" />}
+                          </button>
+                          <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 select-none">
+                            Подтверждаю, что мой возраст составляет <strong className="font-semibold text-zinc-800 dark:text-zinc-100">14 лет или более</strong>
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
 
                   <button
                     type="submit"

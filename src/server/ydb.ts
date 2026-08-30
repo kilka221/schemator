@@ -404,7 +404,7 @@ export async function decrementYdbToken(userId: string): Promise<number> {
 
     const currentTokens = toJsNumber(user.tokens, 0);
     if (currentTokens <= 0) {
-      throw new Error('Недостаточно токенов. Пожалуйста, пополните баланс.');
+      throw new Error('Недостаточно Coins. Пожалуйста, пополните баланс.');
     }
     const newTokens = Math.max(0, currentTokens - 1);
 

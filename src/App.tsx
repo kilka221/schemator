@@ -13,6 +13,7 @@ import { Coins, LogIn, LogOut, Sparkles, AlertCircle } from 'lucide-react';
 import { AuthModal } from './AuthModal';
 import { DiagramHistory } from './DiagramHistory';
 import { LegalModal, LegalDocType } from './LegalModal';
+import { SchematorLogo } from './SchematorLogo';
 
 export interface AppUserProfile {
   uid: string;
@@ -372,7 +373,7 @@ const [leftWidth, setLeftWidth] = useState(480);
           return;
       }
       if (user.emailVerified === false && !user.uid.startsWith('yandex_')) {
-          setAuthError('Пожалуйста, подтвердите ваш e-mail для активации 1 бесплатного токена и создания схем.');
+          setAuthError('Пожалуйста, подтвердите ваш e-mail для активации 1 бесплатного Coin и создания схем.');
           return;
       }
       if (userTokens === null || userTokens <= 0) {
@@ -827,7 +828,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
       {!viewMode && (
         <header className="h-14 border-b border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#232328] flex items-center justify-between px-6 shrink-0 transition-colors duration-300">
           <div className="flex items-center gap-3">
-            <img src="/icon.svg" alt="Схематор" className="w-8 h-8 rounded-lg object-contain shadow-sm select-none" />
+            <SchematorLogo className="w-8 h-8 rounded-lg shadow-sm select-none shrink-0" />
             <h1 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-2">
               Схематор
             </h1>
@@ -839,7 +840,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               <div className="flex items-center gap-3 bg-zinc-100 dark:bg-zinc-800/60 p-1 pl-3 pr-2 rounded-full border border-zinc-200 dark:border-zinc-700/60 text-xs">
                 <div className="flex items-center gap-1.5 font-semibold text-zinc-800 dark:text-zinc-200">
                   <Coins className="w-4 h-4 text-amber-500" />
-                  <span>Баланс: <strong className="text-blue-600 dark:text-blue-400 font-bold">{userTokens !== null ? userTokens : '...'}</strong> токенов</span>
+                  <span>Баланс: <strong className="text-blue-600 dark:text-blue-400 font-bold">{userTokens !== null ? userTokens : '...'}</strong> Coins</span>
                 </div>
                 <button 
                   onClick={() => window.open('https://boosty.to/', '_blank')}
@@ -875,7 +876,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               >
                 <LogIn className="w-3.5 h-3.5" />
                 <span>Войти</span>
-                <span className="hidden sm:inline bg-white/20 px-1.5 py-0.5 rounded text-[10px] font-bold">+1 токен</span>
+                <span className="hidden sm:inline bg-white/20 px-1.5 py-0.5 rounded text-[10px] font-bold">+1 Coin</span>
               </button>
             )}
 
@@ -1222,10 +1223,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                     </div>
                     <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 text-center max-w-sm leading-tight">
-                      Недостаточно токенов
+                      Недостаточно Coins
                     </h2>
                     <p className="text-zinc-500 text-center text-sm">
-                        У вас закончились токены. Пополните баланс, чтобы продолжить.
+                        У вас закончились Coins. Пополните баланс, чтобы продолжить.
                     </p>
                     <button 
                       onClick={() => {
@@ -1491,7 +1492,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               {graphs.length === 0 && (
                 <div className="my-auto flex flex-col items-center justify-center text-center p-8 max-w-md">
                   <div className="w-16 h-16 bg-white dark:bg-zinc-800 rounded-2xl flex items-center justify-center mb-4 border border-zinc-200 dark:border-zinc-700/80 shadow-md p-2">
-                    <img src="/icon.svg" alt="Схематор" className="w-12 h-12 object-contain select-none" />
+                    <SchematorLogo className="w-12 h-12 select-none" />
                   </div>
                   <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">
                     Создание ГОСТ блок-схемы
@@ -1501,7 +1502,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   </p>
                   {!user ? (
                     <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                      При входе через Яндекс ID или Почту начисляется 1 токен бесплатно
+                      При входе через Яндекс ID или Почту начисляется 1 Coin бесплатно
                     </span>
                   ) : null}
                   {authError && (
@@ -1529,7 +1530,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               onClick={() => setLegalModalDoc('privacy')}
               className="text-zinc-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition cursor-pointer underline-offset-2 hover:underline"
             >
-              Политика конфиденциальности (152-ФЗ)
+              Политика обработки персональных данных (152-ФЗ)
             </button>
             <span className="text-zinc-300 dark:text-zinc-700">•</span>
             <button
@@ -1537,7 +1538,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               onClick={() => setLegalModalDoc('offer')}
               className="text-zinc-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition cursor-pointer underline-offset-2 hover:underline"
             >
-              Публичная оферта и токены
+              Публичная оферта и Coins
             </button>
           </div>
         </footer>
@@ -1560,11 +1561,12 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         </div>
       )}
 
-      {/* Auth Modal for VK / Email / Student */}
+      {/* Auth Modal for Yandex / Email */}
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
         onSuccess={handleAuthSuccess} 
+        onOpenLegal={(doc) => setLegalModalDoc(doc)}
       />
 
       {/* Legal Documents Modal */}

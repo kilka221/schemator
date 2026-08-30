@@ -68,7 +68,7 @@ export async function sendVerificationEmail(toEmail: string, verificationCode: s
       Здравствуйте${displayName ? ', ' + displayName : ''}!
     </p>
     <p style="font-size: 14px; color: #3f3f46; line-height: 1.6;">
-      Для завершения регистрации и получения <strong>1 бесплатного токена</strong> для создания блок-схем введите 6-значный код:
+      Для завершения регистрации и получения <strong>1 бесплатного Coin</strong> для создания блок-схем введите 6-значный код:
     </p>
 
     <div class="code-box">
@@ -93,7 +93,7 @@ export async function sendVerificationEmail(toEmail: string, verificationCode: s
         from: `"Схематор" <${sender}>`,
         to: cleanEmail,
         subject: `${verificationCode} — Ваш код подтверждения в Схематор`,
-        text: `Здравствуйте! Ваш код подтверждения для входа в Схематор: ${verificationCode}. Введите его для активации 1 токена.`,
+        text: `Здравствуйте! Ваш код подтверждения для входа в Схематор: ${verificationCode}. Введите его для активации 1 Coin.`,
         html: htmlContent,
       });
       console.log(`[Mailer] Verification email sent to ${cleanEmail}, messageId: ${info.messageId}`);
