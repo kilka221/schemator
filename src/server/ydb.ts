@@ -2,7 +2,7 @@ import ydbSdk from 'ydb-sdk';
 import type { Driver } from 'ydb-sdk';
 import crypto from 'crypto';
 
-const { Driver: DriverClass, IamAuthService, TypedData, TypedValues, TableDescription, Column, Types } = ydbSdk as any;
+const { Driver: DriverClass, IamAuthService, TypedData, TypedValues, TableDescription, AlterTableDescription, Column, Types } = ydbSdk as any;
 
 const RAW_DATABASE = process.env.YDB_DATABASE || '/ru-central1/b1guc5cn5a6d63lgsuiq/etnjqd1tqkrk2upndh4i';
 const RAW_ENDPOINT = process.env.YDB_ENDPOINT || 'grpcs://ydb.serverless.yandexcloud.net:2135';
@@ -12,6 +12,10 @@ export const ENDPOINT = RAW_ENDPOINT.trim();
 
 let driver: Driver | null = null;
 let tablesInitialized = false;
+
+// Delete conflicting environment variables that might interfere with YDB SDK driver URI building
+delete process.env.YDB_ENDPOINT;
+delete process.env.YDB_DATABASE;
 
 export function normalizePrivateKey(pemOrKey: string): string {
   if (!pemOrKey || typeof pemOrKey !== 'string') return '';
@@ -179,16 +183,27 @@ async function initTables(d: Driver) {
       }
     }
 
-    // Safely add columns to existing table if they don't exist yet
+    // Safely alter table to add any missing columns in existing deployments
     try {
-      await session.executeQuery('ALTER TABLE users ADD COLUMN emailVerified Bool;');
-      console.log('✅ Added `emailVerified` column to `users` table via ALTER');
-    } catch (_) {}
+      const desc = await session.describeTable('users');
+      const existingNames = new Set(desc.columns.map((c: any) => c.name));
+      const requiredColumns = [
+        new Column('emailVerified', Types.optional(Types.BOOL)),
+        new Column('verificationCode', Types.optional(Types.UTF8)),
+        new Column('passwordHash', Types.optional(Types.UTF8)),
+        new Column('authType', Types.optional(Types.UTF8)),
+      ];
 
-    try {
-      await session.executeQuery('ALTER TABLE users ADD COLUMN verificationCode Utf8;');
-      console.log('✅ Added `verificationCode` column to `users` table via ALTER');
-    } catch (_) {}
+      for (const col of requiredColumns) {
+        if (!existingNames.has(col.name)) {
+          const alter = new AlterTableDescription().withAddColumn(col);
+          await session.alterTable('users', alter);
+          console.log(`✅ Added missing column ${col.name} to users table`);
+        }
+      }
+    } catch (err: any) {
+      console.warn('Table users alter check notice:', err.message);
+    }
 
     // 2. Table diagrams
     try {
@@ -246,7 +261,7 @@ export async function getYdbUser(userId: string, email?: string) {
     // 1. Try by userId
     const query = `
       DECLARE $userId AS Utf8;
-      SELECT userId, email, displayName, tokens, createdAt, emailVerified, verificationCode
+      SELECT *
       FROM users
       WHERE userId = $userId;
     `;
@@ -260,10 +275,10 @@ export async function getYdbUser(userId: string, email?: string) {
       const obj = TypedData.createNativeObjects(resultSets[0])[0];
       if (obj) {
         obj.tokens = toJsNumber(obj.tokens, 0);
-        if (userId.startsWith('yandex_')) {
+        if (userId.startsWith('yandex_') || obj.authType === 'yandex') {
           obj.emailVerified = true;
         } else {
-          obj.emailVerified = obj.emailVerified === true;
+          obj.emailVerified = obj.emailVerified === true || obj.emailVerified === 1;
         }
       }
       return obj;
@@ -274,7 +289,7 @@ export async function getYdbUser(userId: string, email?: string) {
     if (cleanEmail) {
       const emailQuery = `
         DECLARE $email AS Utf8;
-        SELECT userId, email, displayName, tokens, createdAt, emailVerified, verificationCode
+        SELECT *
         FROM users
         WHERE email = $email;
       `;
@@ -287,10 +302,10 @@ export async function getYdbUser(userId: string, email?: string) {
         const obj = TypedData.createNativeObjects(emailRes.resultSets[0])[0];
         if (obj) {
           obj.tokens = toJsNumber(obj.tokens, 0);
-          if (String(obj.userId).startsWith('yandex_')) {
+          if (String(obj.userId).startsWith('yandex_') || obj.authType === 'yandex') {
             obj.emailVerified = true;
           } else {
-            obj.emailVerified = obj.emailVerified === true;
+            obj.emailVerified = obj.emailVerified === true || obj.emailVerified === 1;
           }
         }
         return obj;
@@ -310,7 +325,7 @@ export async function upsertYdbUser(userId: string, email: string, displayName: 
     // 1. Check existing tokens by userId
     const checkUserQuery = `
       DECLARE $userId AS Utf8;
-      SELECT tokens, emailVerified FROM users WHERE userId = $userId;
+      SELECT * FROM users WHERE userId = $userId;
     `;
     const prepCheck = await session.prepareQuery(checkUserQuery);
     const checkUserRes = await session.executeQuery(prepCheck, {
@@ -327,7 +342,7 @@ export async function upsertYdbUser(userId: string, email: string, displayName: 
     if (cleanEmail) {
       const checkEmailQuery = `
         DECLARE $email AS Utf8;
-        SELECT userId, tokens, email FROM users WHERE email = $email;
+        SELECT * FROM users WHERE email = $email;
       `;
       const prepEmail = await session.prepareQuery(checkEmailQuery);
       const checkEmailRes = await session.executeQuery(prepEmail, {
@@ -353,9 +368,10 @@ export async function upsertYdbUser(userId: string, email: string, displayName: 
       DECLARE $tokens AS Int64;
       DECLARE $createdAt AS Utf8;
       DECLARE $emailVerified AS Bool;
+      DECLARE $authType AS Utf8;
 
-      UPSERT INTO users (userId, email, displayName, tokens, createdAt, emailVerified)
-      VALUES ($userId, $email, $displayName, $tokens, $createdAt, $emailVerified);
+      UPSERT INTO users (userId, email, displayName, tokens, createdAt, emailVerified, authType)
+      VALUES ($userId, $email, $displayName, $tokens, $createdAt, $emailVerified, $authType);
     `;
     const prepUpsert = await session.prepareQuery(upsertQuery);
     await session.executeQuery(prepUpsert, {
@@ -365,8 +381,10 @@ export async function upsertYdbUser(userId: string, email: string, displayName: 
       $tokens: TypedValues.int64(tokensToKeep),
       $createdAt: TypedValues.utf8(new Date().toISOString()),
       $emailVerified: TypedValues.bool(true),
+      $authType: TypedValues.utf8('yandex'),
     });
 
+    console.log(`[YDB Auth] Successfully synced Yandex user: ${userId} (${cleanEmail}), tokens: ${tokensToKeep}`);
     return { tokens: tokensToKeep };
   });
 }
@@ -411,7 +429,7 @@ export async function registerYdbUser(email: string, pass: string, displayName: 
 
     const checkQuery = `
       DECLARE $userId AS Utf8;
-      SELECT userId, email, emailVerified, verificationCode FROM users WHERE userId = $userId;
+      SELECT * FROM users WHERE userId = $userId;
     `;
     const prepCheck = await session.prepareQuery(checkQuery);
     const checkRes = await session.executeQuery(prepCheck, {
@@ -421,7 +439,7 @@ export async function registerYdbUser(email: string, pass: string, displayName: 
     const rows = checkRes.resultSets[0]?.rows;
     if (rows && rows.length > 0) {
       const existingUser = TypedData.createNativeObjects(checkRes.resultSets[0])[0];
-      if (existingUser?.emailVerified) {
+      if (existingUser?.emailVerified === true || existingUser?.emailVerified === 1) {
         throw new Error('Пользователь с таким email уже зарегистрирован и подтвержден. Пожалуйста, войдите.');
       }
       // If not yet verified, generate a fresh verification code and allow resending verification
@@ -506,7 +524,7 @@ export async function verifyYdbUserCode(email: string, code: string) {
 
     const query = `
       DECLARE $userId AS Utf8;
-      SELECT userId, email, displayName, tokens, passwordHash, emailVerified, verificationCode FROM users WHERE userId = $userId;
+      SELECT * FROM users WHERE userId = $userId;
     `;
     const prep = await session.prepareQuery(query);
     const res = await session.executeQuery(prep, {
@@ -519,7 +537,7 @@ export async function verifyYdbUserCode(email: string, code: string) {
     }
 
     const userObj = TypedData.createNativeObjects(res.resultSets[0])[0];
-    if (userObj.emailVerified) {
+    if (userObj.emailVerified === true || userObj.emailVerified === 1) {
       return {
         uid: String(userObj.userId),
         email: String(userObj.email || cleanEmail),
@@ -573,7 +591,7 @@ export async function resendYdbVerificationCode(email: string) {
 
     const checkQuery = `
       DECLARE $userId AS Utf8;
-      SELECT userId, email, emailVerified FROM users WHERE userId = $userId;
+      SELECT * FROM users WHERE userId = $userId;
     `;
     const prepCheck = await session.prepareQuery(checkQuery);
     const res = await session.executeQuery(prepCheck, {
@@ -586,7 +604,7 @@ export async function resendYdbVerificationCode(email: string) {
     }
 
     const userObj = TypedData.createNativeObjects(res.resultSets[0])[0];
-    if (userObj.emailVerified) {
+    if (userObj.emailVerified === true || userObj.emailVerified === 1) {
       throw new Error('Email уже подтвержден. Вы можете войти в аккаунт.');
     }
 
@@ -618,7 +636,7 @@ export async function loginYdbUser(email: string, pass: string) {
 
     const query = `
       DECLARE $userId AS Utf8;
-      SELECT userId, email, displayName, tokens, passwordHash, emailVerified, verificationCode FROM users WHERE userId = $userId;
+      SELECT * FROM users WHERE userId = $userId;
     `;
     const prep = await session.prepareQuery(query);
     const res = await session.executeQuery(prep, {
@@ -640,7 +658,7 @@ export async function loginYdbUser(email: string, pass: string) {
     }
 
     // Check if email is verified
-    if (!userObj.emailVerified) {
+    if (userObj.emailVerified !== true && userObj.emailVerified !== 1) {
       let code = String(userObj.verificationCode || '');
       if (!code) {
         code = Math.floor(100000 + Math.random() * 900000).toString();
