@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Play, Code, Layout, ArrowRight, Maximize, Minimize } from 'lucide-react';
+import { Play, Code, Layout, ArrowRight, Maximize, Minimize, Trash2, X } from 'lucide-react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
@@ -44,6 +44,8 @@ export default function App() {
   });
   const [lastGeneratedLanguage, setLastGeneratedLanguage] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [previousBackup, setPreviousBackup] = useState<{ code: string; language: 'python' | 'cpp'; title?: string } | null>(null);
+  const sessionGeneratedCodesRef = React.useRef<Set<string>>(new Set());
   const [legalModalDoc, setLegalModalDoc] = useState<LegalDocType | null>(null);
 
   const showToast = (msg: string) => {
@@ -359,15 +361,41 @@ const [leftWidth, setLeftWidth] = useState(480);
   
   const graphs = useMemo(() => {
       try {
-          if (code !== lastGeneratedCode) return [];
+          const trimmedCode = code?.trim() || '';
+          if (!trimmedCode) return [];
+          
+          // Scheme is displayed if current code matches last generated OR is in session cache
+          const isGenerated = trimmedCode === lastGeneratedCode?.trim() || sessionGeneratedCodesRef.current.has(trimmedCode);
+          if (!isGenerated) return [];
+
           return buildGraphs(code, language, overrides, splitMode, customCuts, isScissorsMode);
       } catch (e) {
-          console.error(e);
+          console.error('buildGraphs error:', e);
           return [];
       }
-  }, [lastGeneratedCode, language, overrides, splitMode, customCuts, isScissorsMode]);
+  }, [code, lastGeneratedCode, language, overrides, splitMode, customCuts, isScissorsMode]);
 
   const handleGenerateClick = async () => {
+      const trimmedCode = code?.trim() || '';
+      if (!trimmedCode) {
+          showToast('Введите исходный код для создания блок-схемы');
+          return;
+      }
+
+      // If already generated for this exact code, do not deduct coins again!
+      if (trimmedCode === lastGeneratedCode?.trim() && graphs.length > 0) {
+          showToast('Блок-схема для этого кода уже создана');
+          return;
+      }
+
+      // If code was already generated in this session, restore without deducting coins
+      if (sessionGeneratedCodesRef.current.has(trimmedCode)) {
+          setLastGeneratedCode(code);
+          setLastGeneratedLanguage(language);
+          showToast('Блок-схема восстановлена из кэша сессии');
+          return;
+      }
+
       if (!user) {
           handleLogin();
           return;
@@ -387,11 +415,12 @@ const [leftWidth, setLeftWidth] = useState(480);
           const nextCount = await decrementYdbUserToken(user.uid);
           setUserTokens(nextCount);
           
+          sessionGeneratedCodesRef.current.add(trimmedCode);
           setLastGeneratedCode(code);
           setLastGeneratedLanguage(language);
 
           // Auto-save generated diagram to user's history in YDB
-          if (code.trim()) {
+          if (trimmedCode) {
             try {
               const diagId = `diag_${Date.now()}`;
               const now = new Date().toISOString();
@@ -442,12 +471,47 @@ const [leftWidth, setLeftWidth] = useState(480);
       }
   };
 
-  const handleSelectDiagramFromHistory = (loadedCode: string, loadedLang: 'python' | 'cpp') => {
+  const handleSelectDiagramFromHistory = (loadedCode: string, loadedLang: 'python' | 'cpp', diagramTitle?: string) => {
+    const trimmedLoaded = loadedCode?.trim() || '';
+    const trimmedCurrent = code?.trim() || '';
+
+    // If current code has unsaved work, backup it so user can undo accidental click
+    if (trimmedCurrent && trimmedCurrent !== trimmedLoaded) {
+      setPreviousBackup({
+        code: code,
+        language: (language === 'cpp' ? 'cpp' : 'python'),
+        title: 'Предыдущий код'
+      });
+    }
+
+    sessionGeneratedCodesRef.current.add(trimmedLoaded);
     setCode(loadedCode);
     setLanguage(loadedLang);
     localStorage.setItem('blockcraft_language', loadedLang);
     setLastGeneratedCode(loadedCode);
     setLastGeneratedLanguage(loadedLang);
+    setActiveTab(0);
+    setActivePage(0);
+    setHighlightedNodeId(null);
+    setHoveredLineIndex(null);
+    setSelectedElement(null);
+    setEditingNode(null);
+  };
+
+  const handleRestorePreviousCode = () => {
+    if (!previousBackup) return;
+    const { code: prevCode, language: prevLang } = previousBackup;
+    const trimmedPrev = prevCode?.trim() || '';
+    if (trimmedPrev) {
+      sessionGeneratedCodesRef.current.add(trimmedPrev);
+    }
+    setCode(prevCode);
+    setLanguage(prevLang);
+    localStorage.setItem('blockcraft_language', prevLang);
+    setLastGeneratedCode(prevCode);
+    setLastGeneratedLanguage(prevLang);
+    setPreviousBackup(null);
+    showToast('Предыдущий код и блок-схема успешно возвращены');
   };
 
 
@@ -945,6 +1009,24 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     <Play className="w-3.5 h-3.5 fill-white" />
                     <span>{isGenerating ? "Генерация..." : "Создать схему"}</span>
                   </button>
+                  {code.trim() && (
+                    <button
+                      onClick={() => {
+                        setPreviousBackup({
+                          code,
+                          language: (language === 'cpp' ? 'cpp' : 'python'),
+                          title: 'Очищенный код'
+                        });
+                        setCode('');
+                        setLastGeneratedCode('');
+                        showToast('Код очищен (можно восстановить)');
+                      }}
+                      title="Очистить код и холст"
+                      className="p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                     <button onClick={() => setShowSidebar(false)} className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 p-1" title="Hide Editor">
@@ -1183,12 +1265,18 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                             setOverrides({});
                             setHistory([{}]);
                             setHistoryIndex(0);
+                            setCustomCuts({});
                             localStorage.removeItem('blockcraft_overrides');
                             localStorage.removeItem('blockcraft_history');
                             localStorage.removeItem('blockcraft_historyIndex');
+                            localStorage.removeItem('blockcraft_custom_cuts');
+                            if (!code?.trim()) {
+                              setLastGeneratedCode('');
+                            }
+                            showToast('Кэш перемещений и разрезов сброшен');
                         }}
                         className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-md hover:bg-red-100 dark:hover:bg-red-900/40 text-xs font-semibold transition"
-                        title="Сбросить все перемещения узлов"
+                        title="Сбросить все перемещения узлов и разрезы"
                       >
                         <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -1554,8 +1642,28 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         onNotify={showToast}
       />
 
+      {/* Accidental Click / Restore Previous Code Floating Banner */}
+      {previousBackup && (
+        <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 text-xs font-semibold rounded-2xl shadow-2xl backdrop-blur border border-zinc-700/80 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <span className="text-zinc-300">Загружена схема из истории. Случайно нажали?</span>
+          <button
+            onClick={handleRestorePreviousCode}
+            className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
+          >
+            Вернуть старый код
+          </button>
+          <button
+            onClick={() => setPreviousBackup(null)}
+            className="text-zinc-400 hover:text-white p-0.5"
+            title="Закрыть"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Floating Toast Notification */}
-      {toastMessage && (
+      {toastMessage && !previousBackup && (
         <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-zinc-900/90 dark:bg-zinc-100/95 text-white dark:text-zinc-900 text-xs font-semibold rounded-full shadow-xl backdrop-blur border border-white/10 dark:border-black/10 animate-in fade-in slide-in-from-bottom-2 duration-150">
           {toastMessage}
         </div>
