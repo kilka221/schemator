@@ -17,7 +17,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyEmail, setVerifyEmail] = useState('');
   const [verifyCode, setVerifyCode] = useState('');
-  const [devHintCode, setDevHintCode] = useState<string | null>(null);
 
   // Email form state
   const [email, setEmail] = useState('');
@@ -76,10 +75,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         const res = await registerYdbUserApi(cleanEmail, password.trim(), name.trim());
         setVerifyEmail(cleanEmail);
         setIsVerifying(true);
-        if (res.devCode) {
-          setDevHintCode(res.devCode);
-        }
-        setSuccessMsg(res.message || 'Код подтверждения отправлен на вашу почту.');
+        setSuccessMsg(res.message || '6-значный код подтверждения отправлен на вашу почту.');
       } else {
         const loggedUser = await loginYdbUserApi(cleanEmail, password.trim());
         localStorage.setItem('blockcraft_yandex_user', JSON.stringify(loggedUser));
@@ -91,10 +87,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
       if (err.requiresVerification) {
         setVerifyEmail(err.email || cleanEmail);
         setIsVerifying(true);
-        if (err.devCode) {
-          setDevHintCode(err.devCode);
-        }
-        setError(err.message || 'Почта еще не подтверждена. Пожалуйста, введите код подтверждения.');
+        setError(err.message || 'Почта еще не подтверждена. Пожалуйста, введите код подтверждения из письма.');
       } else {
         setError(err.message || 'Ошибка авторизации. Попробуйте еще раз.');
       }
@@ -109,8 +102,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     setSuccessMsg(null);
 
     const cleanCode = verifyCode.trim();
-    if (!cleanCode) {
-      setError('Пожалуйста, введите 6-значный код подтверждения');
+    if (!cleanCode || cleanCode.length !== 6) {
+      setError('Пожалуйста, введите 6-значный код подтверждения из письма');
       return;
     }
 
@@ -125,7 +118,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
       }, 700);
     } catch (err: any) {
       console.warn('Verify code error:', err);
-      setError(err.message || 'Неверный код подтверждения. Попробуйте снова.');
+      setError(err.message || 'Неверный код подтверждения. Пожалуйста, проверьте код из письма и попробуйте снова.');
     } finally {
       setLoading(false);
     }
@@ -138,10 +131,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     setLoading(true);
 
     try {
-      const res = await resendYdbCodeApi(verifyEmail);
-      if (res?.devCode) {
-        setDevHintCode(res.devCode);
-      }
+      await resendYdbCodeApi(verifyEmail);
       setSuccessMsg('Новый код подтверждения успешно отправлен на вашу почту.');
     } catch (err: any) {
       setError(err.message || 'Не удалось отправить код повторно.');
@@ -243,7 +233,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5 text-center">
-                  Введите 6 цифр кода
+                  Введите 6 цифр кода из письма
                 </label>
                 <div className="relative max-w-[220px] mx-auto">
                   <KeyRound className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -258,26 +248,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                     className="w-full pl-10 pr-4 py-2.5 bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-700/80 rounded-xl text-center text-lg tracking-[0.25em] font-mono font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
                   />
                 </div>
+                <p className="text-[11px] text-zinc-400 text-center mt-2">
+                  Проверьте папку «Входящие» и «Спам»
+                </p>
               </div>
-
-              {devHintCode && (
-                <div className="p-2.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/80 rounded-xl text-center">
-                  <p className="text-[11px] text-blue-700 dark:text-blue-300 mb-1 font-medium">
-                    Код подтверждения: <strong className="font-mono text-xs font-bold tracking-widest">{devHintCode}</strong>
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setVerifyCode(devHintCode)}
-                    className="text-[11px] bg-blue-600 hover:bg-blue-700 text-white font-semibold px-2.5 py-1 rounded-lg transition"
-                  >
-                    Вставить код {devHintCode}
-                  </button>
-                </div>
-              )}
 
               <button
                 type="submit"
-                disabled={loading || verifyCode.length < 4}
+                disabled={loading || verifyCode.length !== 6}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 text-sm transition transform active:scale-[0.98]"
               >
                 <span>{loading ? 'Проверка...' : 'Подтвердить почту (+1 токен)'}</span>

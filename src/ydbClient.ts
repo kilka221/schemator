@@ -89,7 +89,6 @@ export async function loginYdbUserApi(email: string, pass: string) {
     if (res?.requiresVerification) {
       err.requiresVerification = true;
       err.email = res.email || email;
-      err.devCode = res.devCode;
     }
     throw err;
   }

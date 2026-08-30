@@ -50,7 +50,6 @@ apiRouter.post('/auth/register', async (req, res) => {
       success: true, 
       requiresVerification: true,
       email: result.email,
-      devCode: result.verificationCode,
       message: 'Код подтверждения отправлен на вашу почту.' 
     });
   } catch (e: any) {
@@ -79,8 +78,8 @@ apiRouter.post('/auth/resend-code', async (req, res) => {
     if (!email) {
       return res.status(400).json({ success: false, error: 'Email обязателен' });
     }
-    const result = await resendYdbVerificationCode(email);
-    res.json({ success: true, devCode: result.verificationCode, message: 'Новый код подтверждения отправлен на почту.' });
+    await resendYdbVerificationCode(email);
+    res.json({ success: true, message: 'Новый код подтверждения отправлен на почту.' });
   } catch (e: any) {
     console.error('YDB Auth Resend error:', e);
     res.status(400).json({ success: false, error: e.message || 'Ошибка отправки кода' });
@@ -103,7 +102,6 @@ apiRouter.post('/auth/login', async (req, res) => {
         success: false, 
         requiresVerification: true, 
         email: e.email || reqEmail || '', 
-        devCode: e.verificationCode,
         error: e.message || 'Почта не подтверждена. Пожалуйста, подтвердите email перед входом.' 
       });
     }

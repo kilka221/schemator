@@ -138,11 +138,17 @@ export default function App() {
     setUser(appUser);
     localStorage.setItem('blockcraft_yandex_user', JSON.stringify(appUser));
     
-    // Sync to Yandex Database (YDB Serverless)
-    const syncRes = await syncYdbUser(authUser.uid, authUser.email, authUser.displayName);
-    if (syncRes?.result?.tokens !== undefined) {
-      setUserTokens(syncRes.result.tokens);
+    // For Yandex OAuth accounts, sync to Yandex Database (YDB Serverless)
+    if (authUser.uid?.startsWith('yandex_')) {
+      const syncRes = await syncYdbUser(authUser.uid, authUser.email, authUser.displayName);
+      if (syncRes?.result?.tokens !== undefined) {
+        setUserTokens(syncRes.result.tokens);
+      } else {
+        const tok = await getYdbUserTokens(authUser.uid, authUser.email);
+        setUserTokens(tok ?? 1);
+      }
     } else {
+      // For local email accounts, get fresh token count from YDB
       const tok = await getYdbUserTokens(authUser.uid, authUser.email);
       setUserTokens(tok ?? (authUser.tokens ?? 1));
     }

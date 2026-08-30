@@ -1,6 +1,7 @@
 import ydbSdk from 'ydb-sdk';
 import type { Driver } from 'ydb-sdk';
 import crypto from 'crypto';
+import { sendVerificationEmail } from './mailer.ts';
 
 const { Driver: DriverClass, IamAuthService, TypedData, TypedValues, TableDescription, AlterTableDescription, Column, Types } = ydbSdk as any;
 
@@ -361,6 +362,7 @@ export async function upsertYdbUser(userId: string, email: string, displayName: 
     }
 
     // 3. Upsert into users for current userId (Yandex ID is automatically verified)
+    const determinedAuthType = userId.startsWith('yandex_') ? 'yandex' : 'local';
     const upsertQuery = `
       DECLARE $userId AS Utf8;
       DECLARE $email AS Utf8;
@@ -381,10 +383,10 @@ export async function upsertYdbUser(userId: string, email: string, displayName: 
       $tokens: TypedValues.int64(tokensToKeep),
       $createdAt: TypedValues.utf8(new Date().toISOString()),
       $emailVerified: TypedValues.bool(true),
-      $authType: TypedValues.utf8('yandex'),
+      $authType: TypedValues.utf8(determinedAuthType),
     });
 
-    console.log(`[YDB Auth] Successfully synced Yandex user: ${userId} (${cleanEmail}), tokens: ${tokensToKeep}`);
+    console.log(`[YDB Auth] Successfully synced user: ${userId} (${cleanEmail}), authType: ${determinedAuthType}, tokens: ${tokensToKeep}`);
     return { tokens: tokensToKeep };
   });
 }
@@ -459,13 +461,17 @@ export async function registerYdbUser(email: string, pass: string, displayName: 
       });
 
       console.log(`[YDB Auth] Re-sent verification code for unverified user ${cleanEmail}: ${newCode}`);
+      // Send real email with the 6-digit code
+      sendVerificationEmail(cleanEmail, newCode, displayName || cleanEmail.split('@')[0]).catch(err => {
+        console.error('[YDB Auth] Failed to dispatch verification email:', err);
+      });
+
       return {
         uid: userId,
         email: cleanEmail,
         displayName: displayName || cleanEmail.split('@')[0],
         tokens: 0,
         emailVerified: false,
-        verificationCode: newCode,
         requiresVerification: true,
       };
     }
@@ -503,13 +509,17 @@ export async function registerYdbUser(email: string, pass: string, displayName: 
 
     console.log(`[YDB Auth] Registered new unverified user: ${userId} (${cleanEmail}), code: ${verificationCode}`);
 
+    // Send real email with the 6-digit code
+    sendVerificationEmail(cleanEmail, verificationCode, finalName).catch(err => {
+      console.error('[YDB Auth] Failed to dispatch verification email:', err);
+    });
+
     return {
       uid: userId,
       email: cleanEmail,
       displayName: finalName,
       tokens: 0,
       emailVerified: false,
-      verificationCode,
       requiresVerification: true,
     };
   });
@@ -621,9 +631,14 @@ export async function resendYdbVerificationCode(email: string) {
     });
 
     console.log(`[YDB Auth] Resent verification code to ${cleanEmail}: ${newCode}`);
+
+    // Send real email with the 6-digit code
+    sendVerificationEmail(cleanEmail, newCode, userObj.displayName).catch(err => {
+      console.error('[YDB Auth] Failed to dispatch verification email:', err);
+    });
+
     return {
       email: cleanEmail,
-      verificationCode: newCode,
     };
   });
 }
@@ -674,10 +689,14 @@ export async function loginYdbUser(email: string, pass: string) {
         });
       }
 
-      const err: any = new Error('Email не подтвержден. Пожалуйста, введите код подтверждения перед входом.');
+      // Dispatch real email with the code
+      sendVerificationEmail(cleanEmail, code, userObj.displayName).catch(err => {
+        console.error('[YDB Auth] Failed to dispatch verification email:', err);
+      });
+
+      const err: any = new Error('Email не подтвержден. Пожалуйста, введите код подтверждения из письма перед входом.');
       err.requiresVerification = true;
       err.email = cleanEmail;
-      err.verificationCode = code;
       throw err;
     }
 
