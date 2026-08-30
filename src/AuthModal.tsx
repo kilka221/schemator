@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Lock, User as UserIcon, X, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, KeyRound, ShieldCheck } from 'lucide-react';
 import { openYandexOAuthPopup } from './yandexAuth';
 import { registerYdbUserApi, loginYdbUserApi, verifyYdbCodeApi, resendYdbCodeApi, syncYdbUser } from './ydbClient';
@@ -27,6 +27,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTab('yandex');
+      setIsSignUp(false);
+      setIsVerifying(false);
+      setVerifyEmail('');
+      setVerifyCode('');
+      setEmail('');
+      setPassword('');
+      setName('');
+      setError(null);
+      setSuccessMsg(null);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

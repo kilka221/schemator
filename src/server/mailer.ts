@@ -9,7 +9,7 @@ export function getTransporter(): nodemailer.Transporter | null {
   const port = parseInt(process.env.SMTP_PORT || '465', 10) || 465;
   const secure = port === 465;
   const user = (process.env.SMTP_USER || process.env.YANDEX_SMTP_USER || 'schemator.off@yandex.ru').trim();
-  const pass = (process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.YANDEX_SMTP_PASSWORD || 'qmnkvijhcwgklcl').trim();
+  const pass = (process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.SMPT_PASSWORD || process.env.YANDEX_SMTP_PASSWORD || 'qmnkvijhcwgklcl').trim();
 
   if (user && pass) {
     transporter = nodemailer.createTransport({
@@ -32,7 +32,7 @@ export function getTransporter(): nodemailer.Transporter | null {
 export async function sendVerificationEmail(toEmail: string, verificationCode: string, displayName?: string): Promise<{ success: boolean; sentViaSmtp: boolean; error?: string }> {
   const cleanEmail = toEmail.trim().toLowerCase();
   const mailTransporter = getTransporter();
-  const sender = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@schemator.ru';
+  const sender = (process.env.SMTP_USER || process.env.YANDEX_SMTP_USER || 'schemator.off@yandex.ru').trim(); // Force sender to match the authenticated user to prevent Yandex 553 errors
 
   const htmlContent = `
 <!DOCTYPE html>
