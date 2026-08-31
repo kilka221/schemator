@@ -652,6 +652,7 @@ export function parsePythonSourceWhole(code: string) {
     function isCodeLine(line: string) {
         const trimmed = line.trim();
         if (trimmed === '' || trimmed.startsWith('#')) return false;
+        if (trimmed.startsWith('@') && !trimmed.startsWith('@print')) return false;
         
         const normalized = trimmed.replace(/^[frFR]/, '');
         if ((normalized.startsWith('"""') && normalized.endsWith('"""')) ||

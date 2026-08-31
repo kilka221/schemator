@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Play, Code, Layout, ArrowRight, Maximize, Minimize, Trash2, X } from 'lucide-react';
+import { Play, Code, Layout, ArrowRight, Maximize, Minimize, Trash2, X, HelpCircle, Lightbulb } from 'lucide-react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
@@ -14,6 +14,7 @@ import { AuthModal } from './AuthModal';
 import { DiagramHistory } from './DiagramHistory';
 import { LegalModal, LegalDocType } from './LegalModal';
 import { TariffModal } from './TariffModal';
+import { TipsModal } from './TipsModal';
 import { SchematorLogo } from './SchematorLogo';
 
 export interface AppUserProfile {
@@ -40,6 +41,7 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isTariffModalOpen, setIsTariffModalOpen] = useState(false);
+  const [isTipsModalOpen, setIsTipsModalOpen] = useState(false);
   const [lastGeneratedCode, setLastGeneratedCode] = useState(() => {
      return "";
   });
@@ -427,13 +429,11 @@ const [leftWidth, setLeftWidth] = useState(480);
               const now = new Date().toISOString();
               
               // Smart title generation
-              let autoTitle = `Схема ${language === 'cpp' ? 'C++' : 'Python'}`;
+              let autoTitle = 'Схема Python';
               const lines = code.split('\n').map(l => l.trim()).filter(Boolean);
               for (const line of lines) {
                 const pyMatch = line.match(/^def\s+([a-zA-Z0-9_]+)\s*\(/);
                 if (pyMatch) { autoTitle = `Функция ${pyMatch[1]}()`; break; }
-                const cppMatch = line.match(/^(?:int|void|double|float|bool|string|auto)\s+([a-zA-Z0-9_]+)\s*\(/);
-                if (cppMatch) { autoTitle = `Функция ${cppMatch[1]}()`; break; }
               }
 
               if (user) {
@@ -956,6 +956,15 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               </div>
             )}
 
+            <button
+              onClick={() => setIsTipsModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/70 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 text-xs font-semibold transition shadow-xs cursor-pointer"
+              title="Шпаргалка: ножницы, символ @, перемещение и экспорт"
+            >
+              <Lightbulb className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+              <span className="hidden sm:inline">Подсказки</span>
+            </button>
+
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Theme:</span>
               <button 
@@ -1002,17 +1011,9 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               <div className="px-4 py-3 bg-white dark:bg-[#232328] border-b border-zinc-200 dark:border-zinc-800/80 flex justify-between items-center shadow-sm z-10 transition-colors duration-300">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Код</span>
-                  <select 
-                    className="bg-zinc-100 dark:bg-zinc-800 border-none rounded px-2 py-1 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
-                    value={language} 
-                    onChange={(e) => {
-                      const newLang = e.target.value;
-                      setLanguage(newLang);
-                    }}
-                  >
-                    <option value="python">Python</option>
-                    <option value="cpp">C++</option>
-                  </select>
+                  <span className="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60 text-xs font-bold font-mono">
+                    Python
+                  </span>
                   <button 
                     onClick={handleGenerateClick} 
                     disabled={isGenerating || !code.trim()} 
@@ -1039,6 +1040,13 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
+                  <button
+                    onClick={() => setIsTipsModalOpen(true)}
+                    title="Справка по синтаксису: собачка @, def, циклы, ввод/вывод"
+                    className="p-1.5 text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition"
+                  >
+                    <HelpCircle className="w-3.5 h-3.5" />
+                  </button>
                 </div>
                 <div className="flex items-center gap-2">
                     <button onClick={() => setShowSidebar(false)} className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 p-1" title="Hide Editor">
@@ -1168,6 +1176,14 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                                   ✂️
                               </button>
                           </div>
+
+                          <button
+                              onClick={() => setIsTipsModalOpen(true)}
+                              className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-zinc-200/80 hover:bg-amber-100 text-zinc-600 hover:text-amber-700 dark:bg-zinc-700 dark:hover:bg-amber-950/60 dark:text-zinc-300 dark:hover:text-amber-400 transition cursor-pointer"
+                              title="Как работает режим ножниц и деление на страницы"
+                          >
+                              ?
+                          </button>
 
                           {splitMode === 'manual' && (customCuts[activeTab] || []).length > 0 && (
                               <button
@@ -1313,6 +1329,28 @@ const downloadDrawio = (title: string, fontFamily: string) => {
           )}
 
           <div className="flex-1 w-full h-full overflow-y-auto relative z-10 p-4 shrink-0 flex flex-col items-center justify-start">
+              {isScissorsMode && splitMode === 'manual' && (
+                <div className="sticky top-2 z-30 mb-2 px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 text-white text-xs font-semibold rounded-2xl shadow-xl shadow-rose-500/20 backdrop-blur border border-rose-400/40 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base leading-none">✂️</span>
+                    <span>Режим ножниц активен: кликните на схему в месте, где хотите разделить страницы</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 ml-auto">
+                    <button
+                      onClick={() => setIsScissorsMode(false)}
+                      className="px-2.5 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-[11px] font-bold transition cursor-pointer"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      onClick={() => setIsTipsModalOpen(true)}
+                      className="px-2.5 py-1 bg-black/20 hover:bg-black/30 rounded-lg text-[11px] font-bold transition cursor-pointer"
+                    >
+                      Справка
+                    </button>
+                  </div>
+                </div>
+              )}
               {activeGraph && activeGraphPage && (
                 <>
                   <svg 
@@ -1677,6 +1715,16 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         onOpenLogin={handleLogin}
         onOpenLegal={(doc) => setLegalModalDoc(doc)}
         onNotify={showToast}
+      />
+
+      {/* Hints, Tips and Syntax Guide Modal */}
+      <TipsModal
+        isOpen={isTipsModalOpen}
+        onClose={() => setIsTipsModalOpen(false)}
+        onInsertCode={(sampleCode) => {
+          setCode(sampleCode);
+          showToast('Пример кода успешно вставлен в редактор');
+        }}
       />
     </div>
     </div>

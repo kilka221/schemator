@@ -150,9 +150,6 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
     for (const line of lines) {
       const pyFunc = line.match(/^def\s+([a-zA-Z0-9_]+)\s*\(/);
       if (pyFunc) return `Функция ${pyFunc[1]}()`;
-      
-      const cppFunc = line.match(/^(?:int|void|double|float|bool|string|auto)\s+([a-zA-Z0-9_]+)\s*\(/);
-      if (cppFunc) return `Функция ${cppFunc[1]}()`;
     }
     
     if (lines[0]) {
@@ -161,7 +158,7 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
     }
 
     const dateStr = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-    return `Схема ${lang === 'cpp' ? 'C++' : 'Python'} (${dateStr})`;
+    return `Схема Python (${dateStr})`;
   };
 
   const handleTogglePin = async (diagram: SavedDiagram, e: React.MouseEvent) => {
@@ -429,12 +426,8 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
                             Закреплено
                           </span>
                         )}
-                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded uppercase shrink-0 ${
-                          diag.language === 'cpp' 
-                            ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300' 
-                            : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
-                        }`}>
-                          {diag.language}
+                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded uppercase shrink-0 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
+                          Python
                         </span>
                         <span className="text-[10px] text-zinc-400 truncate">
                           {formatDate(diag.updatedAt || diag.createdAt)}
