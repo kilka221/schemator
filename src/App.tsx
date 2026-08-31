@@ -963,7 +963,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
     <div className={`w-full h-screen ${theme === 'dark' ? 'dark' : ''}`}>
       <div className="w-full h-screen bg-zinc-50 dark:bg-[#1C1C1F] flex flex-col font-sans overflow-hidden transition-colors duration-300">
       {!viewMode && (
-        <header className="h-14 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-[#202024]/95 backdrop-blur flex items-center justify-between px-5 shrink-0 transition-colors duration-300 z-30">
+        <header className="h-14 border-b-2 border-zinc-300 dark:border-zinc-700 bg-white/95 dark:bg-[#202024]/95 backdrop-blur flex items-center justify-between px-5 shrink-0 transition-colors duration-300 z-30">
           {/* Brand Logo & Name */}
           <div className="flex items-center gap-3">
             <SchematorLogo className="w-8 h-8 rounded-lg shadow-sm select-none shrink-0" />
@@ -1100,9 +1100,9 @@ const downloadDrawio = (title: string, fontFamily: string) => {
       <main className="flex-grow flex flex-col md:flex-row overflow-hidden relative">
         {showSidebar && !viewMode && (
           <>
-            <section className="w-full md:w-auto border-b md:border-b-0 md:border-r border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-[#1C1C1F] flex flex-col shrink-0 relative z-20 shadow-[1px_0_10px_rgba(0,0,0,0.03)] dark:shadow-[1px_0_10px_rgba(0,0,0,0.2)] transition-colors duration-300"
+            <section className="w-full md:w-auto border-b-2 md:border-b-0 md:border-r-2 border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-[#1C1C1F] flex flex-col shrink-0 relative z-20 shadow-[1px_0_10px_rgba(0,0,0,0.03)] dark:shadow-[1px_0_10px_rgba(0,0,0,0.2)] transition-colors duration-300"
                      style={{ width: leftWidth }}>
-              <div className="px-3.5 py-2.5 bg-white dark:bg-[#232328] border-b border-zinc-200 dark:border-zinc-800/80 flex justify-between items-center shadow-xs z-10 transition-colors duration-300">
+              <div className="px-3.5 py-2.5 bg-white dark:bg-[#232328] border-b-2 border-zinc-300 dark:border-zinc-700 flex justify-between items-center shadow-xs z-10 transition-colors duration-300">
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/60 text-[11px] font-bold font-mono">
                     Python
@@ -1227,7 +1227,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
         <section className="flex-grow bg-[#eef2f6] dark:bg-[#121214] relative flex flex-col items-center overflow-hidden transition-colors duration-300">
           {!viewMode && graphs.length > 0 && (
-            <div className="w-full bg-white dark:bg-[#232328] border-b border-zinc-200 dark:border-zinc-800/80 z-20 flex px-4 pt-4 shadow-sm flex-col shrink-0 overflow-visible transition-colors duration-300">
+            <div className="w-full bg-white dark:bg-[#232328] border-b-2 border-zinc-300 dark:border-zinc-700 z-20 flex px-4 pt-4 shadow-sm flex-col shrink-0 overflow-visible transition-colors duration-300">
               <div className="flex flex-wrap gap-y-1">
                   {graphs.map((graph, idx) => (
                     <button 
@@ -1243,7 +1243,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
             </div>
           )}
-          <div className="w-full sticky top-0 z-30 shrink-0 shadow-sm border-b border-zinc-200 dark:border-zinc-800/80 bg-white/90 dark:bg-[#232328]/90 backdrop-blur transition-colors duration-300">
+          <div className="w-full sticky top-0 z-30 shrink-0 shadow-sm border-b-2 border-zinc-300 dark:border-zinc-700 bg-white/90 dark:bg-[#232328]/90 backdrop-blur transition-colors duration-300">
               <div className="w-full px-4 py-2 flex flex-wrap items-center justify-between gap-4 relative min-h-[48px]">
                   {/* Left: Mode toggle & Scissors */}
                   <div className="flex items-center gap-4 flex-wrap">
@@ -1753,7 +1753,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
       </main>
 
       {!viewMode && (
-        <footer className="h-8 border-t border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#232328] flex items-center px-6 text-[11px] text-zinc-400 dark:text-zinc-500 font-medium shrink-0 justify-between relative z-30 transition-colors duration-300 select-none">
+        <footer className="h-8 border-t-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-[#232328] flex items-center px-6 text-[11px] text-zinc-400 dark:text-zinc-500 font-medium shrink-0 justify-between relative z-30 transition-colors duration-300 select-none">
           <div className="flex items-center gap-3">
             <span className="font-semibold text-zinc-600 dark:text-zinc-400">ГОСТ 19.701-90</span>
             <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline">•</span>
