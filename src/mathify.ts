@@ -57,6 +57,11 @@ export function mathify(text: string): string {
     res = res.replace(/>=/g, '≥');
     res = res.replace(/==/g, '=');
     
+    // String condition methods (e.g. query.isdigit())
+    res = res.replace(/([a-zA-Z0-9_]+)\.isdigit\(\)/g, 'состоит ли $1 только из цифр?');
+    res = res.replace(/([a-zA-Z0-9_]+)\.isalpha\(\)/g, 'состоит ли $1 только из букв?');
+    res = res.replace(/([a-zA-Z0-9_]+)\.isalnum\(\)/g, 'состоит ли $1 из букв или цифр?');
+    
     // Logical mappings
     res = res.replace(/&&/g, ' и ');
     res = res.replace(/\|\|/g, ' или ');

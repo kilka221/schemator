@@ -885,13 +885,29 @@ export function parsePythonSourceWhole(code: string) {
                         } else {
                             displayText = `Чтение из файла ${filename}${varName ? ': ' + varName : ''}`;
                         }
-                    } else if (/\binput\s*\(/.test(text)) {
+                    } else if (/\b(input|ui\.get_string|ui\.get_int|ui\.get_float|ui\.get_choice|get_string|get_int|get_float|get_choice)\s*\(/.test(text)) {
                         kind = 'io';
-                        let match = text.match(/^([a-zA-Z0-9_]+)\s*=\s*/);
+                        let match = text.match(/^([a-zA-Z0-9_]+)\s*=\s*(?:[a-zA-Z0-9_.]+\.)?(?:input|get_string|get_int|get_float|get_choice)\s*\((.*?)\)$/);
                         if (match) {
-                             displayText = `Ввод: ${match[1]}`;
+                            let varName = match[1].trim();
+                            let promptArg = match[2].trim();
+                            let promptStr = '';
+                            const strMatch = promptArg.match(/^(?:f?["'])(.*?)(?:["'])(?:,.*)?$/);
+                            if (strMatch) {
+                                promptStr = strMatch[1].replace(/[:?]+\s*$/, '').trim();
+                            }
+                            if (promptStr) {
+                                displayText = `Ввод ${varName} (${promptStr})`;
+                            } else {
+                                displayText = `Ввод ${varName}`;
+                            }
                         } else {
-                             displayText = `Ввод данных`;
+                            let simpleMatch = text.match(/^([a-zA-Z0-9_]+)\s*=\s*/);
+                            if (simpleMatch) {
+                                displayText = `Ввод ${simpleMatch[1]}`;
+                            } else {
+                                displayText = `Ввод данных`;
+                            }
                         }
                     } else if (/@?print\s*\(/.test(text)) {
                         kind = 'io';

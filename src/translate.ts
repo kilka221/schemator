@@ -96,7 +96,16 @@ export function translatePythonLine(line: string): string {
         if (cleanLine.includes('.sort(')) {
             const matchSort = cleanLine.match(/^([a-zA-Z0-9_.]+)\.sort\((.*?)\)$/);
             if (matchSort) {
-                return `Сортировка списка ${matchSort[1]}`;
+                const listName = matchSort[1];
+                const sortArgs = matchSort[2].trim();
+                if (sortArgs.includes('key=')) {
+                    let keyMatch = sortArgs.match(/key\s*=\s*(?:lambda\s+[^:]+:\s*)?([a-zA-Z0-9_]+\[['"]([a-zA-Z0-9_]+)['"]\]|[a-zA-Z0-9_.]+)/);
+                    let field = keyMatch ? (keyMatch[2] || keyMatch[1]) : 'ключу';
+                    let isReverse = /reverse\s*=\s*True/.test(sortArgs);
+                    let dir = isReverse ? 'убыванию' : 'возрастанию';
+                    return `Сортировка списка ${listName} по полю ${field} по ${dir}`;
+                }
+                return `Сортировка списка ${listName}`;
             }
         }
         if (cleanLine.includes('.reverse()')) {
@@ -307,9 +316,32 @@ export function translatePythonLine(line: string): string {
         if (mFunc) {
             const func = mFunc[1];
             const arg = cleanOuterBrackets(mFunc[2]);
+            
+            // Check for key= in min/max, e.g. max(data, key=lambda x: x['price'])
+            if ((func === 'min' || func === 'max') && arg.includes('key=')) {
+                const parts = arg.split(',');
+                const iter = parts[0].trim();
+                const restArgs = parts.slice(1).join(',');
+                const keyMatch = restArgs.match(/key\s*=\s*(?:lambda\s+[^:]+:\s*)?([a-zA-Z0-9_]+\[['"]([a-zA-Z0-9_]+)['"]\]|[a-zA-Z0-9_.]+)/);
+                const field = keyMatch ? (keyMatch[2] || keyMatch[1]) : 'ключу';
+                const op = func === 'max' ? 'максимальным' : 'минимальным';
+                return `Поиск элемента с ${op} ${field} в ${iter}`;
+            }
+
             const cp = parseComp(arg);
             if (cp) {
                 if (func === 'sum') {
+                    // Check if simple sum(x for x in data)
+                    if (cp.expr === cp.v && !cp.cond) {
+                        return `Вычисление суммы элементов ${cp.iter}`;
+                    }
+                    // Field sum: sum(x['qty'] for x in data if x['id'] == 1)
+                    let fieldMatch = cp.expr.match(/^[a-zA-Z0-9_]+\[['"]([a-zA-Z0-9_]+)['"]\]$/);
+                    if (fieldMatch) {
+                        let res = `Суммирование поля ${fieldMatch[1]} для элементов ${cp.iter}`;
+                        if (cp.cond) res += `, где ${translateCond(cp.cond)}`;
+                        return res;
+                    }
                     let res = `Подсчитать сумму ${cp.expr} для ${cp.v} из ${cp.iter}`;
                     if (cp.cond) res += `, где ${translateCond(cp.cond)}`;
                     return res;
@@ -336,7 +368,9 @@ export function translatePythonLine(line: string): string {
         const mNext = right.match(/^next\(\s*(?:\(\s*(.*?)\s*\)|(.*?))\s*(?:,\s*(.*?))?\s*\)$/);
         if (mNext) {
             const inner = (mNext[1] || mNext[2] || "").trim();
-            const defaultVal = mNext[3] ? mNext[3].trim() : null;
+            let defaultVal = mNext[3] ? mNext[3].trim() : null;
+            if (defaultVal === 'None') defaultVal = 'Пусто';
+            
             const cp = parseComp(inner);
             if (cp) {
                 let coll = cp.iter;
@@ -353,15 +387,17 @@ export function translatePythonLine(line: string): string {
                 exprText = exprText.replace(/\b[a-zA-Z0-9_]+\[['"]id['"]\]/g, "id элемента");
                 exprText = exprText.replace(/\b[a-zA-Z0-9_]+\[['"]title['"]\]/g, "название элемента");
 
+                let condClean = cp.cond ? translateCond(cp.cond) : '';
+
                 let res = "";
                 if (cp.expr === cp.v) {
-                    res = `Найти первый элемент из ${coll}`;
+                    res = `Поиск в ${coll} первого элемента ${cp.v}`;
                 } else {
-                    res = `Найти "${exprText}" первого элемента из ${coll}`;
+                    res = `Поиск в ${coll} "${exprText}" первого элемента`;
                 }
                 
-                if (cp.cond) {
-                    res += `, где ${translateCond(cp.cond)}`;
+                if (condClean) {
+                    res += `, где ${condClean}`;
                 }
                 
                 if (defaultVal !== null) {
@@ -387,6 +423,14 @@ export function translatePythonLine(line: string): string {
         if (mJoin) {
             const sep = mJoin[1] !== undefined ? mJoin[1] : mJoin[2];
             let innerArg = mJoin[3].trim();
+            
+            let sepName = sep === ', ' || sep === ',' ? 'через запятую' : sep === ' ' ? 'через пробел' : sep === '\n' ? 'с новой строки' : (sep ? `через '${sep}'` : 'подряд');
+
+            // Check if it's a simple list/iterable: ", ".join(lst)
+            if (!innerArg.includes(' for ') && !innerArg.includes('[')) {
+                return `Объединение элементов ${innerArg} в строку ${sepName}`;
+            }
+
             if (innerArg.startsWith('[') && innerArg.endsWith(']')) {
                 innerArg = innerArg.substring(1, innerArg.length - 1).trim();
             }
@@ -401,15 +445,20 @@ export function translatePythonLine(line: string): string {
             }
             const cp = parseComp(innerArg);
             if (cp) {
+                // If it iterates over dictionary items / elements
+                if (cp.iter.includes('.items()') || cp.iter.includes('reqs') || cp.expr.includes('{') || cp.expr.includes('шт')) {
+                    let dictName = cp.iter.replace(/\.items\(\)$/, '');
+                    let res = `Формирование строки из элементов словаря ${dictName}`;
+                    if (cp.cond) res += `, где ${translateCond(cp.cond)}`;
+                    return res;
+                }
                 let res = `Сформировать строку из `;
                 if (isSorted) {
                     res += `отсортированных ${cp.expr}`;
                 } else {
                     res += `${cp.expr}`;
                 }
-                if (sep !== undefined) res += `, разделённых '${sep}'`;
-                else res += `, соединённых подряд`;
-                res += `, для ${cp.v} из ${cp.iter}`;
+                res += ` ${sepName}, для ${cp.v} из ${cp.iter}`;
                 if (cp.cond) res += `, где ${translateCond(cp.cond)}`;
                 return res;
             }
@@ -422,11 +471,20 @@ export function translatePythonLine(line: string): string {
             let keyStr = mSorted[2].trim();
             const isReverse = mSorted[3] === 'True';
             const direction = isReverse ? 'убыванию' : 'возрастанию';
+            
+            // Extract field name from lambda if possible: lambda x: x['quantity'] or lambda x: x.field
+            let fieldMatch = keyStr.match(/(?:lambda\s+[^:]+:\s*)?(?:[a-zA-Z0-9_]+\[['"]([a-zA-Z0-9_]+)['"]\]|[a-zA-Z0-9_]+\.([a-zA-Z0-9_]+))/);
+            let fieldName = fieldMatch ? (fieldMatch[1] || fieldMatch[2]) : null;
+
+            if (fieldName) {
+                return `Сортировка списка ${iter} по полю ${fieldName} по ${direction}`;
+            }
+
             if (keyStr.startsWith('lambda ')) {
                 const lamMatch = keyStr.match(/^lambda\s+[^:]+:\s*(.*)$/);
                 if (lamMatch) keyStr = lamMatch[1].trim();
             }
-            return `Получить отсортированный список ${iter} по ключу ${keyStr} (по ${direction})`;
+            return `Сортировка списка ${iter} по ${keyStr} по ${direction}`;
         }
 
         // 5. list/set/dict comprehensions
@@ -438,6 +496,35 @@ export function translatePythonLine(line: string): string {
             }
             const cp = parseComp(mList[1]);
             if (cp) {
+                let targetVar = mAssign ? mAssign[1].trim() : '';
+                
+                // Specific patterns:
+                // x**2 -> квадраты элементов
+                if (cp.expr === `${cp.v}**2` || cp.expr === `${cp.v} ** 2` || cp.expr === `${cp.v}*${cp.v}`) {
+                    if (targetVar) {
+                        let res = `Создание списка ${targetVar}, содержащего квадраты элементов ${cp.iter}`;
+                        if (cp.cond) res += `, где ${translateCond(cp.cond)}`;
+                        return res;
+                    }
+                    let res = `Создание списка квадратов элементов ${cp.iter}`;
+                    if (cp.cond) res += `, где ${translateCond(cp.cond)}`;
+                    return res;
+                }
+
+                // If conditional query / search
+                if (cp.cond && (cp.cond.includes('in ') || cp.cond.includes('query') || cp.cond.includes('target'))) {
+                    if (targetVar) {
+                        return `Выборка в ${targetVar} элементов из ${cp.iter}, где ${translateCond(cp.cond)}`;
+                    }
+                    return `Выборка элементов из ${cp.iter}, где ${translateCond(cp.cond)}`;
+                }
+
+                if (targetVar) {
+                    let res = `Формирование списка ${targetVar} из элементов ${cp.iter}`;
+                    if (cp.cond) res += `, где ${translateCond(cp.cond)}`;
+                    return res;
+                }
+
                 let res = `Создать список ${cp.expr} из ${cp.iter}`;
                 if (cp.cond) res += `, где ${translateCond(cp.cond)}`;
                 return res;
