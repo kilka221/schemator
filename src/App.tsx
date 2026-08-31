@@ -1,5 +1,32 @@
 import React, { useState, useMemo } from 'react';
-import { Play, Code, Layout, ArrowRight, Maximize, Minimize, Trash2, X, HelpCircle, Lightbulb } from 'lucide-react';
+import { 
+  Play, 
+  Code, 
+  Layout, 
+  ArrowRight, 
+  Maximize, 
+  Minimize, 
+  Trash2, 
+  X, 
+  HelpCircle, 
+  Lightbulb,
+  Sun,
+  Moon,
+  Type,
+  RotateCcw,
+  Sparkles,
+  Zap,
+  GitBranch,
+  Repeat,
+  Image as ImageIcon,
+  Check,
+  ChevronDown,
+  Layers,
+  Coins,
+  LogIn,
+  LogOut,
+  AlertCircle
+} from 'lucide-react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
@@ -9,7 +36,6 @@ import 'prismjs/themes/prism.css';
 
 import { syncYdbUser, getYdbUserTokens, decrementYdbUserToken, saveYdbDiagramItem } from './ydbClient';
 import { fetchYandexProfileByToken } from './yandexAuth';
-import { Coins, LogIn, LogOut, Sparkles, AlertCircle } from 'lucide-react';
 import { AuthModal } from './AuthModal';
 import { DiagramHistory } from './DiagramHistory';
 import { LegalModal, LegalDocType } from './LegalModal';
@@ -24,6 +50,30 @@ export interface AppUserProfile {
   photoURL?: string | null;
   emailVerified?: boolean;
 }
+
+const PRESET_TEMPLATES = [
+  {
+    id: 'if_else',
+    icon: '⚡',
+    title: 'Ветвление (if / else)',
+    desc: 'Проверка условия и разветвление логики',
+    code: `x = int(input("Введите число: "))\nif x > 0:\n    @print("Число положительное")\nelse:\n    @print("Число неположительное")`,
+  },
+  {
+    id: 'while_loop',
+    icon: '🔄',
+    title: 'Цикл со счетчиком (while)',
+    desc: 'Накопление суммы чисел от 1 до N',
+    code: `n = int(input("Введите N: "))\nsumma = 0\ni = 1\nwhile i <= n:\n    summa = summa + i\n    i = i + 1\nprint(f"Сумма: {summa}")`,
+  },
+  {
+    id: 'function_def',
+    icon: '🧮',
+    title: 'Функция и факториал (def)',
+    desc: 'Объявление подпрограммы и ее вызов',
+    code: `def factorial(n):\n    res = 1\n    for i in range(1, n + 1):\n        res = res * i\n    return res\n\nnum = int(input("Число: "))\nans = factorial(num)\nprint(f"Факториал: {ans}")`,
+  },
+];
 
 import { ASTNode, FlowNode, FlowEdge, DEFAULT_CODE, parsePythonSourceWhole, buildGraphs, EdgePolyline, GostShape, getNodeHeight } from './logic';
 export default function App() {
@@ -303,6 +353,11 @@ const [leftWidth, setLeftWidth] = useState(480);
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+            e.preventDefault();
+            handleGenerateClick();
+            return;
+        }
         if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
             e.preventDefault();
             if (e.shiftKey) {
@@ -342,7 +397,7 @@ const [leftWidth, setLeftWidth] = useState(480);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedElement, activeTab, editingNode, history, historyIndex]);
+  }, [selectedElement, activeTab, editingNode, history, historyIndex, code, lastGeneratedCode, user, userTokens, isGenerating]);
 
   React.useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -513,6 +568,23 @@ const [leftWidth, setLeftWidth] = useState(480);
     setLastGeneratedLanguage(prevLang);
     setPreviousBackup(null);
     showToast('Предыдущий код и блок-схема успешно возвращены');
+  };
+
+  const handleLoadPreset = (preset: typeof PRESET_TEMPLATES[0]) => {
+    if (code.trim() && code.trim() !== preset.code.trim()) {
+      setPreviousBackup({
+        code: code,
+        language: 'python',
+        title: 'Предыдущий код'
+      });
+    }
+    setCode(preset.code);
+    sessionGeneratedCodesRef.current.add(preset.code.trim());
+    setLastGeneratedCode(preset.code);
+    setLastGeneratedLanguage('python');
+    setActiveTab(0);
+    setActivePage(0);
+    showToast(`Загружен шаблон: «${preset.title}»`);
   };
 
 
@@ -891,45 +963,63 @@ const downloadDrawio = (title: string, fontFamily: string) => {
     <div className={`w-full h-screen ${theme === 'dark' ? 'dark' : ''}`}>
       <div className="w-full h-screen bg-zinc-50 dark:bg-[#1C1C1F] flex flex-col font-sans overflow-hidden transition-colors duration-300">
       {!viewMode && (
-        <header className="h-14 border-b border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#232328] flex items-center justify-between px-6 shrink-0 transition-colors duration-300">
+        <header className="h-14 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-[#202024]/95 backdrop-blur flex items-center justify-between px-5 shrink-0 transition-colors duration-300 z-30">
+          {/* Brand Logo & Name */}
           <div className="flex items-center gap-3">
             <SchematorLogo className="w-8 h-8 rounded-lg shadow-sm select-none shrink-0" />
-            <h1 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-2">
-              Схематор
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-bold tracking-tight text-zinc-900 dark:text-white flex items-center">
+                Схематор
+              </h1>
+              <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200/60 dark:border-zinc-700/60">
+                ГОСТ 19.701-90
+              </span>
+            </div>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* Quick Tips modal button */}
+            <button
+              onClick={() => setIsTipsModalOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-200/70 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/30 hover:bg-amber-100/80 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 text-xs font-semibold transition cursor-pointer"
+              title="Шпаргалка: ножницы, символ @, перемещение и экспорт"
+            >
+              <Lightbulb className="w-3.5 h-3.5 text-amber-500 fill-amber-400 shrink-0" />
+              <span className="hidden md:inline">Подсказки</span>
+            </button>
+
+            <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></div>
+
             {/* Tokens & Auth section */}
             {user ? (
-              <div className="flex items-center gap-3 bg-zinc-100 dark:bg-zinc-800/60 p-1 pl-3 pr-2 rounded-full border border-zinc-200 dark:border-zinc-700/60 text-xs">
+              <div className="flex items-center gap-2 bg-zinc-100/90 dark:bg-zinc-800/80 p-1 pl-2.5 pr-1.5 rounded-full border border-zinc-200/80 dark:border-zinc-700/60 text-xs">
                 <div className="flex items-center gap-1.5 font-semibold text-zinc-800 dark:text-zinc-200">
-                  <Coins className="w-4 h-4 text-amber-500" />
-                  <span>Баланс: <strong className="text-blue-600 dark:text-blue-400 font-bold">{userTokens !== null ? userTokens : '...'}</strong> Coins</span>
+                  <Coins className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span className="text-xs"><strong className="text-blue-600 dark:text-blue-400 font-bold">{userTokens !== null ? userTokens : '...'}</strong> <span className="hidden sm:inline">Coins</span></span>
                 </div>
                 <button 
                   onClick={() => setIsTariffModalOpen(true)}
-                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold px-2.5 py-1 rounded-full text-[11px] transition shadow-sm flex items-center gap-1 active:scale-95"
+                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold px-2.5 py-0.5 rounded-full text-[11px] transition shadow-xs flex items-center gap-1 active:scale-95 cursor-pointer"
                   title="Пополнить баланс Coins"
                 >
                   <Coins className="w-3 h-3" />
-                  <span>Пополнить</span>
+                  <span>Тарифы</span>
                 </button>
-                <div className="w-px h-4 bg-zinc-300 dark:bg-zinc-600 mx-0.5"></div>
-                <div className="flex items-center gap-2">
+                <div className="w-px h-3.5 bg-zinc-300 dark:bg-zinc-600 mx-0.5"></div>
+                <div className="flex items-center gap-1.5">
                   {user.photoURL ? (
-                    <img src={user.photoURL} alt={user.displayName || 'User'} className="w-5 h-5 rounded-full" referrerPolicy="no-referrer" />
+                    <img src={user.photoURL} alt={user.displayName || 'User'} className="w-5 h-5 rounded-full ring-1 ring-zinc-200 dark:ring-zinc-700" referrerPolicy="no-referrer" />
                   ) : (
-                    <span className="w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] flex items-center justify-center font-bold">
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">
                       {user.displayName ? user.displayName[0].toUpperCase() : (user.email ? user.email[0].toUpperCase() : 'U')}
                     </span>
                   )}
-                  <span className="font-medium text-zinc-700 dark:text-zinc-300 text-xs max-w-[120px] truncate">
+                  <span className="font-medium text-zinc-700 dark:text-zinc-300 text-xs max-w-[100px] truncate hidden sm:inline">
                     {user.displayName || user.email?.split('@')[0]}
                   </span>
                   <button 
                     onClick={handleLogout} 
-                    className="text-zinc-500 hover:text-red-500 dark:hover:text-red-400 transition ml-1" 
+                    className="p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded transition cursor-pointer" 
                     title="Выйти"
                   >
                     <LogOut className="w-3.5 h-3.5" />
@@ -937,52 +1027,56 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setIsTariffModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700/80 bg-zinc-50 dark:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-semibold transition"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700/80 bg-zinc-50 dark:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-semibold transition cursor-pointer"
                 >
                   <Coins className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Тарифы</span>
+                  <span className="hidden sm:inline">Тарифы</span>
                 </button>
                 <button 
                   onClick={handleLogin}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-sm shadow-blue-500/20 transition transform active:scale-95"
+                  className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-xs transition transform active:scale-95 cursor-pointer"
                 >
                   <LogIn className="w-3.5 h-3.5" />
                   <span>Войти</span>
-                  <span className="hidden sm:inline bg-white/20 px-1.5 py-0.5 rounded text-[10px] font-bold">+1 Coin</span>
+                  <span className="hidden md:inline bg-white/20 px-1.5 py-0.2 rounded text-[10px] font-bold">+1 Coin</span>
                 </button>
               </div>
             )}
 
-            <button
-              onClick={() => setIsTipsModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/70 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 text-xs font-semibold transition shadow-xs cursor-pointer"
-              title="Шпаргалка: ножницы, символ @, перемещение и экспорт"
-            >
-              <Lightbulb className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
-              <span className="hidden sm:inline">Подсказки</span>
-            </button>
+            <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></div>
 
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Theme:</span>
+            {/* Font and Theme Controls */}
+            <div className="flex items-center gap-1.5">
+              {/* Font Selector */}
+              <div className="flex items-center bg-zinc-100 dark:bg-zinc-800/80 rounded-lg p-0.5 border border-zinc-200/70 dark:border-zinc-700/60 text-xs text-zinc-700 dark:text-zinc-300">
+                <Type className="w-3.5 h-3.5 ml-1.5 text-zinc-400 shrink-0" />
+                <select 
+                  value={fontFamily}
+                  onChange={(e) => setFontFamily(e.target.value)}
+                  className="bg-transparent border-none text-xs px-2 py-1 font-medium text-zinc-700 dark:text-zinc-300 outline-none cursor-pointer"
+                  title="Шрифт блок-схемы"
+                >
+                  <option value="monospace">Monospace</option>
+                  <option value="Inter, sans-serif">Sans-serif</option>
+                  <option value="Times New Roman, serif">Serif (ГОСТ)</option>
+                </select>
+              </div>
+
+              {/* Theme Toggle Button */}
               <button 
                 onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
-                className="bg-zinc-100 dark:bg-zinc-800 border-none rounded text-xs px-2 py-1 font-semibold text-zinc-700 dark:text-zinc-300 outline-none hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
+                className="p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/70 dark:border-zinc-700/60 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-zinc-700 transition cursor-pointer"
+                title={theme === 'light' ? 'Включить тёмную тему' : 'Включить светлую тему'}
               >
-                {theme === 'light' ? 'Dark' : 'Light'}
+                {theme === 'light' ? (
+                  <Moon className="w-4 h-4 text-zinc-600" />
+                ) : (
+                  <Sun className="w-4 h-4 text-amber-400" />
+                )}
               </button>
-              <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Font:</span>
-              <select 
-                value={fontFamily}
-                onChange={(e) => setFontFamily(e.target.value)}
-                className="bg-zinc-100 dark:bg-zinc-800 border-none rounded text-xs px-2 py-1 font-semibold text-zinc-700 dark:text-zinc-300 outline-none cursor-pointer"
-              >
-                <option value="monospace">Monospace</option>
-                <option value="Inter, sans-serif">Sans-serif</option>
-                <option value="Times New Roman, serif">Serif</option>
-              </select>
             </div>
           </div>
         </header>
@@ -1008,34 +1102,35 @@ const downloadDrawio = (title: string, fontFamily: string) => {
           <>
             <section className="w-full md:w-auto border-b md:border-b-0 md:border-r border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-[#1C1C1F] flex flex-col shrink-0 relative z-20 shadow-[1px_0_10px_rgba(0,0,0,0.03)] dark:shadow-[1px_0_10px_rgba(0,0,0,0.2)] transition-colors duration-300"
                      style={{ width: leftWidth }}>
-              <div className="px-4 py-3 bg-white dark:bg-[#232328] border-b border-zinc-200 dark:border-zinc-800/80 flex justify-between items-center shadow-sm z-10 transition-colors duration-300">
+              <div className="px-3.5 py-2.5 bg-white dark:bg-[#232328] border-b border-zinc-200 dark:border-zinc-800/80 flex justify-between items-center shadow-xs z-10 transition-colors duration-300">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Код</span>
-                  <span className="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60 text-xs font-bold font-mono">
+                  <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/60 text-[11px] font-bold font-mono">
                     Python
                   </span>
                   <button 
                     onClick={handleGenerateClick} 
                     disabled={isGenerating || !code.trim()} 
-                    className="ml-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm transition disabled:opacity-50 flex items-center gap-1.5"
+                    title="Создать блок-схему (Ctrl + Enter)"
+                    className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                   >
                     <Play className="w-3.5 h-3.5 fill-white" />
                     <span>{isGenerating ? "Генерация..." : "Создать схему"}</span>
                   </button>
+
                   {code.trim() && (
                     <button
                       onClick={() => {
                         setPreviousBackup({
                           code,
-                          language: (language === 'cpp' ? 'cpp' : 'python'),
+                          language: 'python',
                           title: 'Очищенный код'
                         });
                         setCode('');
                         setLastGeneratedCode('');
-                        showToast('Код очищен (можно восстановить)');
+                        showToast('Код очищен (можно вернуть по кнопке внизу)');
                       }}
-                      title="Очистить код и холст"
-                      className="p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition"
+                      title="Очистить редактор"
+                      className="p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1043,16 +1138,21 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   <button
                     onClick={() => setIsTipsModalOpen(true)}
                     title="Справка по синтаксису: собачка @, def, циклы, ввод/вывод"
-                    className="p-1.5 text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition"
+                    className="p-1.5 text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition cursor-pointer"
                   >
                     <HelpCircle className="w-3.5 h-3.5" />
                   </button>
                 </div>
+
                 <div className="flex items-center gap-2">
-                    <button onClick={() => setShowSidebar(false)} className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 p-1" title="Hide Editor">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path></svg>
-                    </button>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                  <span className="text-[10px] text-zinc-400 dark:text-zinc-500 hidden xl:inline">Ctrl+Enter</span>
+                  <button 
+                    onClick={() => setShowSidebar(false)} 
+                    className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200 p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition cursor-pointer" 
+                    title="Свернуть редактор"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path></svg>
+                  </button>
                 </div>
               </div>
               <div id="code-editor-scroller" className="flex-grow overflow-auto bg-[#fafafa] dark:bg-[#18181A] relative transition-colors duration-300">
@@ -1600,24 +1700,50 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               )}
 
               {graphs.length === 0 && (
-                <div className="my-auto flex flex-col items-center justify-center text-center p-8 max-w-md">
-                  <div className="w-16 h-16 bg-white dark:bg-zinc-800 rounded-2xl flex items-center justify-center mb-4 border border-zinc-200 dark:border-zinc-700/80 shadow-md p-2">
-                    <SchematorLogo className="w-12 h-12 select-none" />
+                <div className="my-auto flex flex-col items-center justify-center p-4 max-w-4xl w-full">
+                  <div className="flex flex-col items-center text-center max-w-md mx-auto mb-10">
+                    <div className="w-16 h-16 bg-white dark:bg-[#202024] rounded-2xl flex items-center justify-center mb-6 border border-zinc-200/80 dark:border-zinc-700/60 shadow-xs p-2">
+                      <SchematorLogo className="w-12 h-12 select-none" />
+                    </div>
+                    <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white mb-3">
+                      Создание ГОСТ блок-схемы
+                    </h2>
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed max-w-[340px]">
+                      Вставьте ваш исходный код слева и нажмите <strong className="text-zinc-800 dark:text-zinc-200 font-semibold">«Создать схему»</strong> или выберите один из шаблонов для быстрого старта:
+                    </p>
                   </div>
-                  <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">
-                    Создание ГОСТ блок-схемы
-                  </h3>
-                  <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-4 leading-relaxed">
-                    Введите или вставьте исходный код в редактор слева и нажмите <strong className="text-blue-600 dark:text-blue-400 font-semibold">«Создать схему»</strong>.
-                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+                    {PRESET_TEMPLATES.map((preset) => (
+                      <button
+                        key={preset.id}
+                        onClick={() => handleLoadPreset(preset)}
+                        className="group flex flex-col items-start p-5 bg-white dark:bg-[#202024]/60 hover:bg-zinc-50 dark:hover:bg-[#2A2A2E]/80 border border-zinc-200 dark:border-zinc-700/60 hover:border-blue-400/50 dark:hover:border-blue-500/50 rounded-2xl text-left transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-xs hover:shadow-sm"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform duration-300 shadow-xs">
+                          {preset.icon}
+                        </div>
+                        <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm mb-1.5 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          {preset.title}
+                        </h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
+                          {preset.desc}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+
                   {!user ? (
-                    <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                      При входе через Яндекс ID или Почту начисляется 1 Coin бесплатно
-                    </span>
+                    <div className="mt-10 px-4 py-2 bg-blue-50/80 dark:bg-blue-900/20 border border-blue-200/60 dark:border-blue-800/40 rounded-full flex items-center gap-2 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                      Войдите через Яндекс ID или Почту, чтобы получить +1 Coin бесплатно
+                    </div>
                   ) : null}
+
                   {authError && (
-                    <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-600 dark:text-red-300 max-w-sm text-left">
-                      <strong>Ошибка входа:</strong> {authError}
+                    <div className="mt-6 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl text-xs font-medium text-red-600 dark:text-red-300 max-w-sm text-center">
+                      <strong className="block mb-1 font-bold">Ошибка авторизации</strong> 
+                      {authError}
                     </div>
                   )}
                 </div>
