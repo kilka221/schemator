@@ -1628,7 +1628,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
       {/* Accidental Click / Restore Previous Code Floating Banner */}
       {previousBackup && (
-        <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 text-xs font-semibold rounded-2xl shadow-2xl backdrop-blur border border-zinc-700/80 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 text-xs font-semibold rounded-2xl shadow-2xl backdrop-blur border border-zinc-700/80 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
           <span className="text-zinc-300">Загружена схема из истории. Случайно нажали?</span>
           <button
             onClick={handleRestorePreviousCode}
@@ -1648,8 +1648,8 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
       {/* Floating Toast Notification */}
       {toastMessage && !previousBackup && (
-        <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-zinc-900/90 dark:bg-zinc-100/95 text-white dark:text-zinc-900 text-xs font-semibold rounded-full shadow-xl backdrop-blur border border-white/10 dark:border-black/10 animate-in fade-in slide-in-from-bottom-2 duration-150">
-          {toastMessage}
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] px-5 py-2.5 bg-zinc-900/95 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs sm:text-sm font-semibold rounded-full shadow-2xl backdrop-blur border border-white/20 dark:border-black/20 animate-in fade-in slide-in-from-bottom-3 duration-200 pointer-events-none flex items-center gap-2">
+          <span>{toastMessage}</span>
         </div>
       )}
 

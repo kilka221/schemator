@@ -98,7 +98,7 @@ export const TariffModal: React.FC<TariffModalProps> = ({
   onNotify,
 }) => {
   const [selectedTariff, setSelectedTariff] = useState<TariffItem | null>(TARIFFS[1]); // default 'session'
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [inlineNotice, setInlineNotice] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -112,12 +112,15 @@ export const TariffModal: React.FC<TariffModalProps> = ({
 
     // Если указана прямая ссылка на Robokassa
     if (tariff.robokassaUrl && tariff.robokassaUrl.trim() !== '') {
+      setInlineNotice(`Переход на Robokassa для оплаты тарифа ${tariff.title}...`);
       window.open(tariff.robokassaUrl, '_blank');
       return;
     }
 
-    // Заглушка/уведомление до добавления боевых ссылок мерчанта
-    onNotify?.(`Выбран тариф ${tariff.title} (${tariff.priceRub} ₽). Переход на платежный шлюз Robokassa...`);
+    // Уведомление до добавления прямых ссылок
+    const msg = `Выбран тариф ${tariff.title} (${tariff.priceRub} ₽). Переход на платежный шлюз Robokassa...`;
+    setInlineNotice(msg);
+    onNotify?.(msg);
   };
 
   return (
@@ -180,6 +183,22 @@ export const TariffModal: React.FC<TariffModalProps> = ({
 
         {/* Modal Body: 3 Tariff Cards */}
         <div className="p-6 sm:p-8 space-y-6">
+          {inlineNotice && (
+            <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 text-xs font-semibold flex items-center justify-between gap-3 animate-in fade-in duration-150">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                <span>{inlineNotice}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInlineNotice(null)}
+                className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 p-1"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {TARIFFS.map((tariff) => {
               const isSelected = selectedTariff?.id === tariff.id;
@@ -187,7 +206,7 @@ export const TariffModal: React.FC<TariffModalProps> = ({
                 <div
                   key={tariff.id}
                   onClick={() => setSelectedTariff(tariff)}
-                  className={`relative rounded-2xl p-6 transition-all duration-200 cursor-pointer flex flex-col justify-between border-2 ${
+                  className={`relative rounded-2xl p-6 transition-all duration-200 cursor-pointer flex flex-col border-2 ${
                     tariff.isPopular
                       ? isSelected
                         ? 'border-blue-600 dark:border-blue-500 bg-blue-50/40 dark:bg-blue-950/20 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/20'
@@ -197,52 +216,56 @@ export const TariffModal: React.FC<TariffModalProps> = ({
                         : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#23232a] hover:border-zinc-300 dark:hover:border-zinc-700'
                   }`}
                 >
-                  {/* Top Badge */}
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${tariff.badgeColor || 'bg-zinc-100 text-zinc-700 border-zinc-200'}`}>
-                      {tariff.badge}
-                    </span>
-                    <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
-                      {tariff.pricePerCoin}
-                    </span>
-                  </div>
-
-                  {/* Header & Coins */}
-                  <div>
-                    <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
-                      {tariff.title}
-                    </h3>
-                    
-                    <div className="mt-3 flex items-baseline gap-2">
-                      <span className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
-                        {tariff.priceRub} ₽
+                  <div className="flex-1 flex flex-col">
+                    {/* Top Badge */}
+                    <div className="flex items-center justify-between gap-2 mb-4 h-6">
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border whitespace-nowrap ${tariff.badgeColor || 'bg-zinc-100 text-zinc-700 border-zinc-200'}`}>
+                        {tariff.badge}
                       </span>
-                      {tariff.originalPriceRub && (
-                        <span className="text-sm font-semibold text-zinc-400 line-through">
-                          {tariff.originalPriceRub} ₽
+                      <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                        {tariff.pricePerCoin}
+                      </span>
+                    </div>
+
+                    {/* Header & Coins */}
+                    <div>
+                      <h3 className="text-lg font-bold text-zinc-900 dark:text-white h-7 flex items-center">
+                        {tariff.title}
+                      </h3>
+                      
+                      <div className="mt-2.5 flex items-baseline gap-2 h-9">
+                        <span className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
+                          {tariff.priceRub} ₽
                         </span>
-                      )}
+                        {tariff.originalPriceRub && (
+                          <span className="text-sm font-semibold text-zinc-400 line-through">
+                            {tariff.originalPriceRub} ₽
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+                        <Coins className="w-4 h-4" />
+                        <span>Пакет {tariff.coins} коинов</span>
+                      </div>
+
+                      {/* Exact Description */}
+                      <div className="mt-3 min-h-[76px] flex items-center bg-zinc-50/80 dark:bg-zinc-900/60 p-3 rounded-xl border border-zinc-200/60 dark:border-zinc-800/60">
+                        <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-300 italic">
+                          «{tariff.description}»
+                        </p>
+                      </div>
+
+                      {/* Features list */}
+                      <ul className="mt-4 space-y-2 text-xs text-zinc-600 dark:text-zinc-300">
+                        {tariff.features.map((feature, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <Check className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0 mt-0.5 stroke-[2.5]" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-
-                    <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
-                      <Coins className="w-4 h-4" />
-                      <span>Пакет {tariff.coins} коинов</span>
-                    </div>
-
-                    {/* Exact Description */}
-                    <p className="mt-3 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300 italic bg-zinc-50/80 dark:bg-zinc-900/60 p-3 rounded-xl border border-zinc-200/60 dark:border-zinc-800/60">
-                      «{tariff.description}»
-                    </p>
-
-                    {/* Features list */}
-                    <ul className="mt-4 space-y-2 text-xs text-zinc-600 dark:text-zinc-300">
-                      {tariff.features.map((feature, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <Check className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0 mt-0.5 stroke-[2.5]" />
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
                   </div>
 
                   {/* Action button */}
