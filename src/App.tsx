@@ -13,6 +13,7 @@ import { Coins, LogIn, LogOut, Sparkles, AlertCircle } from 'lucide-react';
 import { AuthModal } from './AuthModal';
 import { DiagramHistory } from './DiagramHistory';
 import { LegalModal, LegalDocType } from './LegalModal';
+import { TariffModal } from './TariffModal';
 import { SchematorLogo } from './SchematorLogo';
 
 export interface AppUserProfile {
@@ -38,7 +39,7 @@ export default function App() {
   const [userTokens, setUserTokens] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [showTopUp, setShowTopUp] = useState(false);
+  const [isTariffModalOpen, setIsTariffModalOpen] = useState(false);
   const [lastGeneratedCode, setLastGeneratedCode] = useState(() => {
      return "";
   });
@@ -405,11 +406,11 @@ const [leftWidth, setLeftWidth] = useState(480);
           return;
       }
       if (userTokens === null || userTokens <= 0) {
-          setShowTopUp(true);
+          setIsTariffModalOpen(true);
+          showToast('Недостаточно Coins. Выберите подходящий тариф для пополнения баланса.');
           return;
       }
       setIsGenerating(true);
-      setShowTopUp(false);
       try {
           // Decrement token in Yandex Database (YDB)
           const nextCount = await decrementYdbUserToken(user.uid);
@@ -465,7 +466,7 @@ const [leftWidth, setLeftWidth] = useState(480);
           }
       } catch (e: any) {
           console.error('Error generating:', e);
-          setShowTopUp(true);
+          setIsTariffModalOpen(true);
       } finally {
           setIsGenerating(false);
       }
@@ -907,10 +908,12 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   <span>Баланс: <strong className="text-blue-600 dark:text-blue-400 font-bold">{userTokens !== null ? userTokens : '...'}</strong> Coins</span>
                 </div>
                 <button 
-                  onClick={() => window.open('https://boosty.to/', '_blank')}
-                  className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2.5 py-1 rounded-full text-[11px] transition shadow-sm flex items-center gap-1"
+                  onClick={() => setIsTariffModalOpen(true)}
+                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold px-2.5 py-1 rounded-full text-[11px] transition shadow-sm flex items-center gap-1 active:scale-95"
+                  title="Пополнить баланс Coins"
                 >
-                  Пополнить
+                  <Coins className="w-3 h-3" />
+                  <span>Пополнить</span>
                 </button>
                 <div className="w-px h-4 bg-zinc-300 dark:bg-zinc-600 mx-0.5"></div>
                 <div className="flex items-center gap-2">
@@ -934,14 +937,23 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 </div>
               </div>
             ) : (
-              <button 
-                onClick={handleLogin}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-sm shadow-blue-500/20 transition transform active:scale-95"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Войти</span>
-                <span className="hidden sm:inline bg-white/20 px-1.5 py-0.5 rounded text-[10px] font-bold">+1 Coin</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsTariffModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700/80 bg-zinc-50 dark:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-semibold transition"
+                >
+                  <Coins className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Тарифы</span>
+                </button>
+                <button 
+                  onClick={handleLogin}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-sm shadow-blue-500/20 transition transform active:scale-95"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Войти</span>
+                  <span className="hidden sm:inline bg-white/20 px-1.5 py-0.5 rounded text-[10px] font-bold">+1 Coin</span>
+                </button>
+              </div>
             )}
 
             <div className="flex items-center gap-3">
@@ -1303,34 +1315,6 @@ const downloadDrawio = (title: string, fontFamily: string) => {
           <div className="flex-1 w-full h-full overflow-y-auto relative z-10 p-4 shrink-0 flex flex-col items-center justify-start">
               {activeGraph && activeGraphPage && (
                 <>
-
-                
-                {showTopUp && (
-                  <div className="sticky top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-6 bg-white/90 dark:bg-[#1C1C1F]/90 p-8 rounded-2xl shadow-2xl backdrop-blur-md border border-zinc-200 dark:border-zinc-800" style={{ marginTop: '-10%' }}>
-                    <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mb-2">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                    </div>
-                    <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 text-center max-w-sm leading-tight">
-                      Недостаточно Coins
-                    </h2>
-                    <p className="text-zinc-500 text-center text-sm">
-                        У вас закончились Coins. Пополните баланс, чтобы продолжить.
-                    </p>
-                    <button 
-                      onClick={() => {
-                        window.open('https://boosty.to/', '_blank');
-                      }}
-                      className="px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all transform hover:scale-105 flex items-center gap-2 text-lg shadow-blue-500/25"
-                    >
-                      Пополнить баланс
-                    </button>
-                    <button onClick={() => setShowTopUp(false)} className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 text-sm mt-2">
-                      Закрыть
-                    </button>
-                  </div>
-                )}
-
-
                   <svg 
                     id={`graph-svg-${activeTab}`}
                     width={activeGraphPage.width} 
@@ -1682,6 +1666,17 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         isOpen={legalModalDoc !== null}
         initialDoc={legalModalDoc || 'privacy'}
         onClose={() => setLegalModalDoc(null)}
+      />
+
+      {/* Tariff and Robokassa Top-Up Modal */}
+      <TariffModal
+        isOpen={isTariffModalOpen}
+        onClose={() => setIsTariffModalOpen(false)}
+        user={user}
+        userTokens={userTokens}
+        onOpenLogin={handleLogin}
+        onOpenLegal={(doc) => setLegalModalDoc(doc)}
+        onNotify={showToast}
       />
     </div>
     </div>
