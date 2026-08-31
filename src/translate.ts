@@ -50,12 +50,156 @@ export function translatePythonLine(line: string): string {
             const inside = cleanLine.match(/writer\.writerow\((.*?)\)/);
             return `Записать строку ${inside ? inside[1] : 'данных'} в CSV файл`;
         }
+
+        // List operations
         if (cleanLine.includes('.append(')) {
             const matchAppend = cleanLine.match(/^([a-zA-Z0-9_.]+)\.append\((.*?)\)$/);
             if (matchAppend) {
-                return `Добавить ${matchAppend[2]} в список ${matchAppend[1]}`;
+                return `Добавление элемента ${matchAppend[2]} в конец списка ${matchAppend[1]}`;
             }
         }
+        if (cleanLine.includes('.insert(')) {
+            const matchInsert = cleanLine.match(/^([a-zA-Z0-9_.]+)\.insert\(\s*(.*?)\s*,\s*(.*?)\s*\)$/);
+            if (matchInsert) {
+                return `Добавление элемента ${matchInsert[3]} на позицию ${matchInsert[2]} в список ${matchInsert[1]}`;
+            }
+        }
+        if (cleanLine.includes('.extend(')) {
+            const matchExtend = cleanLine.match(/^([a-zA-Z0-9_.]+)\.extend\((.*?)\)$/);
+            if (matchExtend) {
+                return `Добавление элементов ${matchExtend[2]} в список ${matchExtend[1]}`;
+            }
+        }
+        if (cleanLine.includes('.remove(')) {
+            const matchRemove = cleanLine.match(/^([a-zA-Z0-9_.]+)\.remove\((.*?)\)$/);
+            if (matchRemove) {
+                return `Удаление элемента ${matchRemove[2]} из ${matchRemove[1]}`;
+            }
+        }
+        if (cleanLine.includes('.pop(')) {
+            const matchPop = cleanLine.match(/^([a-zA-Z0-9_.]+)\.pop\((.*?)\)$/);
+            if (matchPop) {
+                const arg = matchPop[2].trim();
+                if (arg) {
+                    return `Удаление элемента из ${matchPop[1]} по индексу/ключу ${arg}`;
+                } else {
+                    return `Удаление последнего элемента из списка ${matchPop[1]}`;
+                }
+            }
+        }
+        if (cleanLine.includes('.clear()')) {
+            const matchClear = cleanLine.match(/^([a-zA-Z0-9_.]+)\.clear\(\)$/);
+            if (matchClear) {
+                return `Очистка (удаление всех элементов) ${matchClear[1]}`;
+            }
+        }
+        if (cleanLine.includes('.sort(')) {
+            const matchSort = cleanLine.match(/^([a-zA-Z0-9_.]+)\.sort\((.*?)\)$/);
+            if (matchSort) {
+                return `Сортировка списка ${matchSort[1]}`;
+            }
+        }
+        if (cleanLine.includes('.reverse()')) {
+            const matchRev = cleanLine.match(/^([a-zA-Z0-9_.]+)\.reverse\(\)$/);
+            if (matchRev) {
+                return `Обращение порядка элементов списка ${matchRev[1]}`;
+            }
+        }
+
+        // Set operations
+        if (cleanLine.includes('.add(')) {
+            const matchAdd = cleanLine.match(/^([a-zA-Z0-9_.]+)\.add\((.*?)\)$/);
+            if (matchAdd) {
+                return `Добавление элемента ${matchAdd[2]} в множество ${matchAdd[1]}`;
+            }
+        }
+        if (cleanLine.includes('.discard(')) {
+            const matchDiscard = cleanLine.match(/^([a-zA-Z0-9_.]+)\.discard\((.*?)\)$/);
+            if (matchDiscard) {
+                return `Удаление элемента ${matchDiscard[2]} из множества ${matchDiscard[1]}`;
+            }
+        }
+
+        // del operator
+        const matchDel = cleanLine.match(/^del\s+([a-zA-Z0-9_.]+)(?:\[(.*?)\])?$/);
+        if (matchDel) {
+            const objName = matchDel[1];
+            const idxKey = matchDel[2];
+            if (idxKey !== undefined) {
+                return `Удаление элемента из ${objName} по индексу/ключу ${idxKey}`;
+            }
+            return `Удаление ${objName}`;
+        }
+
+        // Dict element addition/assignment: d['key'] = 1 or d[key] = val
+        const matchDictSet = cleanLine.match(/^([a-zA-Z0-9_]+)\[(['"].*?['"]|[a-zA-Z0-9_]+)\]\s*=\s*(.*)$/);
+        if (matchDictSet && !cleanLine.startsWith('if ') && !cleanLine.startsWith('while ')) {
+            const dName = matchDictSet[1];
+            const dKey = matchDictSet[2];
+            const dVal = matchDictSet[3];
+            // If it's a simple assignment or addition
+            if (!dVal.includes('for ') && !dVal.includes('lambda')) {
+                return `Добавление элемента с ключом ${dKey} со значением ${dVal} в ${dName}`;
+            }
+        }
+
+        // String operations
+        if (cleanLine.includes('.find(')) {
+            const matchFind = cleanLine.match(/^([a-zA-Z0-9_.]+)\.find\((.*?)\)$/);
+            if (matchFind) {
+                return `Поиск подстроки ${matchFind[2]} в строке ${matchFind[1]}`;
+            }
+        }
+        if (cleanLine.includes('.rfind(')) {
+            const matchRFind = cleanLine.match(/^([a-zA-Z0-9_.]+)\.rfind\((.*?)\)$/);
+            if (matchRFind) {
+                return `Поиск подстроки ${matchRFind[2]} в строке ${matchRFind[1]} с конца`;
+            }
+        }
+        if (cleanLine.includes('.replace(')) {
+            const matchReplace = cleanLine.match(/^([a-zA-Z0-9_.]+)\.replace\(\s*(.*?)\s*,\s*(.*?)\s*\)$/);
+            if (matchReplace) {
+                return `Замена ${matchReplace[2]} на ${matchReplace[3]} в строке ${matchReplace[1]}`;
+            }
+        }
+        if (cleanLine.includes('.split(')) {
+            const matchSplit = cleanLine.match(/^([a-zA-Z0-9_.]+)\.split\((.*?)\)$/);
+            if (matchSplit) {
+                const sep = matchSplit[2].trim();
+                if (sep === "''" || sep === '""' || sep === "' '" || sep === '" "') {
+                    return `Разбиение строки ${matchSplit[1]} по разделителю "пробел"`;
+                } else if (sep) {
+                    return `Разбиение строки ${matchSplit[1]} по разделителю ${sep}`;
+                } else {
+                    return `Разбиение строки ${matchSplit[1]} на слова`;
+                }
+            }
+        }
+        if (cleanLine.includes('.strip()')) {
+            const matchStrip = cleanLine.match(/^([a-zA-Z0-9_.]+)\.strip\(\)$/);
+            if (matchStrip) {
+                return `Удаление пробелов по краям строки ${matchStrip[1]}`;
+            }
+        }
+        if (cleanLine.includes('.lower()') && !cleanLine.includes(' in ')) {
+            const matchLower = cleanLine.match(/^([a-zA-Z0-9_.]+)\.lower\(\)$/);
+            if (matchLower) {
+                return `Преобразование строки ${matchLower[1]} к нижнему регистру`;
+            }
+        }
+        if (cleanLine.includes('.upper()')) {
+            const matchUpper = cleanLine.match(/^([a-zA-Z0-9_.]+)\.upper\(\)$/);
+            if (matchUpper) {
+                return `Преобразование строки ${matchUpper[1]} к верхнему регистру`;
+            }
+        }
+        if (cleanLine.startsWith('len(') && cleanLine.endsWith(')')) {
+            const matchLenStr = cleanLine.match(/^len\((.*?)\)$/);
+            if (matchLenStr && !matchLenStr[1].includes('[')) {
+                return `Определение длины ${matchLenStr[1]}`;
+            }
+        }
+
         if (cleanLine.startsWith('round(') || cleanLine.match(/^round\((.*?),\s*([0-9]+)\)$/)) {
             const matchRound = cleanLine.match(/^round\((.*?),\s*([0-9]+)\)$/);
             if (matchRound) {

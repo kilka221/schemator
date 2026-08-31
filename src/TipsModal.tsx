@@ -158,21 +158,21 @@ export const TipsModal: React.FC<TipsModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-5 sm:px-8 border-b border-zinc-100 dark:border-zinc-800/80 bg-gradient-to-b from-blue-50/50 to-transparent dark:from-blue-950/20 dark:to-transparent flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-blue-600/10 border border-blue-600/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-              <Lightbulb className="w-5 h-5" />
+        <div className="px-6 py-5 sm:px-8 border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-b from-blue-50/60 to-transparent dark:from-blue-950/30 dark:to-transparent flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-blue-600/10 dark:bg-blue-500/20 border border-blue-600/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 shadow-xs">
+              <Lightbulb className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
                   Справка и полезные фишки Schemator
                 </h2>
-                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
+                <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/70 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">
                   Шпаргалка
                 </span>
               </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-normal">
                 Как пользоваться ножницами, символом @, перемещением блоков и ГОСТ-разрывами
               </p>
             </div>
@@ -181,7 +181,7 @@ export const TipsModal: React.FC<TipsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition"
+            className="p-2.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition cursor-pointer"
             title="Закрыть"
           >
             <X className="w-5 h-5" />
@@ -191,97 +191,99 @@ export const TipsModal: React.FC<TipsModalProps> = ({
         {/* Content Area with Tabs */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           {/* Left Navigation Sidebar */}
-          <div className="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/70 dark:bg-[#18181C] p-3 sm:p-4 space-y-1.5 shrink-0 overflow-y-auto">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-3 pb-1 block">
-              Разделы помощи
-            </span>
-            {TIPS_DATA.map((cat) => {
-              const isActive = cat.id === activeCategory;
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => setActiveCategory(cat.id)}
-                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2.5 transition-all ${
-                    isActive
-                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20 font-bold'
-                      : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <span className={isActive ? 'text-white' : ''}>{cat.icon}</span>
-                    <span className="truncate">{cat.title}</span>
-                  </div>
-                  {cat.badge && (
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                      isActive ? 'bg-white/20 text-white' : 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
-                    }`}>
-                      {cat.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          <div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-[#18181C] p-4 sm:p-5 space-y-2 shrink-0 overflow-y-auto flex flex-col justify-between">
+            <div className="space-y-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-3 pb-2 block">
+                Разделы помощи
+              </span>
+              {TIPS_DATA.map((cat) => {
+                const isActive = cat.id === activeCategory;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className={`w-full text-left px-4 py-3 rounded-2xl text-sm font-semibold flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 font-bold'
+                        : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/70 dark:hover:bg-zinc-800/70'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 truncate">
+                      <span className={isActive ? 'text-white [&_svg]:w-5 [&_svg]:h-5' : '[&_svg]:w-5 [&_svg]:h-5'}>{cat.icon}</span>
+                      <span className="truncate">{cat.title}</span>
+                    </div>
+                    {cat.badge && (
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                        isActive ? 'bg-white/20 text-white' : 'bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60'
+                      }`}>
+                        {cat.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
-            <div className="pt-4 mt-4 border-t border-zinc-200/80 dark:border-zinc-800 px-3 text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              💡 <strong>Совет:</strong> Любой блок можно кликнуть в коде слева, чтобы моментально сфокусировать схему на нем.
+            <div className="pt-5 mt-4 border-t border-zinc-200 dark:border-zinc-800 px-3 py-2 bg-amber-50/70 dark:bg-amber-950/30 rounded-2xl border border-amber-200/70 dark:border-amber-900/40 text-xs sm:text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+              💡 <strong className="text-amber-800 dark:text-amber-300">Совет:</strong> Любой блок можно кликнуть в коде слева, чтобы моментально сфокусировать схему на нем.
             </div>
           </div>
 
           {/* Right Main Content */}
-          <div className="flex-1 p-5 sm:p-7 overflow-y-auto space-y-5 bg-white dark:bg-[#1E1E24]">
-            <div className="flex items-center gap-2 pb-2 border-b border-zinc-100 dark:border-zinc-800/80">
-              <span className="p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800">
+          <div className="flex-1 p-6 sm:p-8 overflow-y-auto space-y-6 bg-white dark:bg-[#1E1E24]">
+            <div className="flex items-center gap-3 pb-3 border-b border-zinc-200/80 dark:border-zinc-800">
+              <span className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 [&_svg]:w-5 [&_svg]:h-5">
                 {currentCat.icon}
               </span>
-              <h3 className="text-base font-bold text-zinc-900 dark:text-white">
+              <h3 className="text-lg sm:text-xl font-bold text-zinc-900 dark:text-white">
                 {currentCat.title}
               </h3>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-5">
               {currentCat.items.map((item, idx) => (
                 <div 
                   key={idx}
-                  className="p-4 sm:p-5 rounded-2xl bg-zinc-50/80 dark:bg-[#24242A] border border-zinc-200/70 dark:border-zinc-800/80 space-y-3"
+                  className="p-5 sm:p-6 rounded-2xl bg-zinc-50/90 dark:bg-[#24242A] border border-zinc-200 dark:border-zinc-800 space-y-3.5 shadow-xs"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h4 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                      <h4 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2.5 flex-wrap">
                         <span>{item.title}</span>
                         {item.tag && (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-200/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-700">
+                          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300/80 dark:border-zinc-700 font-mono">
                             {item.tag}
                           </span>
                         )}
                       </h4>
-                      <p className="text-xs text-zinc-600 dark:text-zinc-300 mt-1 leading-relaxed">
+                      <p className="text-sm sm:text-[15px] text-zinc-600 dark:text-zinc-300 mt-1.5 leading-relaxed font-normal">
                         {item.description}
                       </p>
                     </div>
                   </div>
 
-                  <div className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300 bg-white dark:bg-[#1A1A1E] p-3.5 rounded-xl border border-zinc-200/60 dark:border-zinc-800/60 whitespace-pre-line font-normal">
+                  <div className="text-sm sm:text-[14.5px] leading-relaxed text-zinc-800 dark:text-zinc-200 bg-white dark:bg-[#1A1A1E] p-4 sm:p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 whitespace-pre-line font-normal">
                     {item.detail}
                   </div>
 
                   {item.codeExample && (
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between text-xs sm:text-[13px] font-semibold text-zinc-600 dark:text-zinc-400">
                         <span>Пример оформления:</span>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2.5">
                           <button
                             type="button"
                             onClick={() => handleCopy(item.codeExample!)}
-                            className="flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                            className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-medium"
                           >
                             {copiedCode === item.codeExample ? (
                               <>
-                                <Check className="w-3 h-3 text-emerald-500" />
-                                <span className="text-emerald-500">Скопировано!</span>
+                                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                <span className="text-emerald-500 font-bold">Скопировано!</span>
                               </>
                             ) : (
                               <>
-                                <Copy className="w-3 h-3" />
+                                <Copy className="w-3.5 h-3.5" />
                                 <span>Скопировать</span>
                               </>
                             )}
@@ -293,14 +295,14 @@ export const TipsModal: React.FC<TipsModalProps> = ({
                                 onInsertCode(item.codeExample!);
                                 onClose();
                               }}
-                              className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition shadow-xs"
+                              className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
                             >
                               Вставить в редактор
                             </button>
                           )}
                         </div>
                       </div>
-                      <pre className="p-3 rounded-xl bg-zinc-900 text-zinc-100 font-mono text-[11px] leading-relaxed overflow-x-auto border border-zinc-800 select-all">
+                      <pre className="p-4 rounded-xl bg-zinc-900 text-zinc-100 font-mono text-xs sm:text-[13px] leading-relaxed overflow-x-auto border border-zinc-800 select-all">
                         {item.codeExample}
                       </pre>
                     </div>
@@ -312,7 +314,7 @@ export const TipsModal: React.FC<TipsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-800/80 bg-zinc-50 dark:bg-[#18181C] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+        <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#18181C] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 font-medium">
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
             <span>Все созданные схемы соответствуют стандарту ГОСТ 19.701-90 (ИСО 5807-85)</span>
@@ -320,7 +322,7 @@ export const TipsModal: React.FC<TipsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 font-bold transition cursor-pointer"
+            className="px-6 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 font-bold text-sm transition cursor-pointer shadow-sm active:scale-95"
           >
             Понятно
           </button>

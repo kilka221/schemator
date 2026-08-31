@@ -44,7 +44,14 @@ export function mathify(text: string): string {
         return 'Подтвердить действие?';
     }
 
+    // Power
     res = res.replace(/\*\*/g, '^');
+
+    // Integer division and modulo operators
+    res = res.replace(/\/\//g, ' div ');
+    res = res.replace(/(?<!%)%(?!%)/g, ' mod ');
+
+    // Relational comparisons
     res = res.replace(/!=/g, '≠');
     res = res.replace(/<=/g, '≤');
     res = res.replace(/>=/g, '≥');
@@ -59,11 +66,67 @@ export function mathify(text: string): string {
     res = res.replace(/\bis\b/g, '=');
     res = res.replace(/\bnot\b/g, 'не ');
     
-    // Functions
+    // Math constants and functions
+    res = res.replace(/\bmath\.pi\b/g, 'π');
+    res = res.replace(/\bmath\.e\b/g, 'e');
     res = res.replace(/(?:math\.)?sqrt\((.*?)\)/g, '√($1)');
+    res = res.replace(/\bmath\.(sin|cos|tan|asin|acos|atan|atan2|log|log10|log2|exp|fabs|floor|ceil|degrees|radians)\b/g, '$1');
     res = res.replace(/len\((.*?)\)/g, 'Len($1)');
 
+    // Normalize spacing around operators
+    res = res.replace(/\s+/g, ' ').trim();
+
     return res;
+}
+
+export function formatRangeToGost(varName: string, rangeArgs: string[]): string {
+    const simplifyStop = (stopStr: string, stepVal: number = 1): string => {
+        let stop = stopStr.trim();
+        // Case: expr + 1, e.g. nx + 1, n + 1, N + 1
+        const plusOneMatch = stop.match(/^(.*?)\s*\+\s*1$/);
+        if (plusOneMatch && stepVal === 1) {
+            return mathify(plusOneMatch[1].trim());
+        }
+        // Case: pure integer
+        const numVal = parseInt(stop, 10);
+        if (!isNaN(numVal) && String(numVal) === stop) {
+            if (stepVal < 0) {
+                // e.g. range(10, 0, -2) -> stop is 0, step is -2. Last element in python is 2 (0 - (-2) = 2)
+                return String(numVal - stepVal);
+            } else {
+                // e.g. range(0, 10) -> last is 9
+                return String(numVal - (stepVal || 1));
+            }
+        }
+        // Case: symbolic expression (e.g. ns, n, total)
+        if (stepVal === 1) {
+            return `${mathify(stop)}-1`;
+        } else if (stepVal > 0) {
+            return `${mathify(stop)}-${stepVal}`;
+        } else {
+            return `${mathify(stop)}+${Math.abs(stepVal)}`;
+        }
+    };
+
+    if (rangeArgs.length === 1) {
+        let stop = rangeArgs[0].trim();
+        let end = simplifyStop(stop, 1);
+        return `${varName} = 0(1)${end}`;
+    } else if (rangeArgs.length === 2) {
+        let start = mathify(rangeArgs[0].trim());
+        let stop = rangeArgs[1].trim();
+        let end = simplifyStop(stop, 1);
+        return `${varName} = ${start}(1)${end}`;
+    } else if (rangeArgs.length >= 3) {
+        let start = mathify(rangeArgs[0].trim());
+        let stop = rangeArgs[1].trim();
+        let stepStr = rangeArgs[2].trim();
+        let stepNum = parseInt(stepStr, 10);
+        let step = isNaN(stepNum) ? mathify(stepStr) : stepStr;
+        let end = simplifyStop(stop, isNaN(stepNum) ? 1 : stepNum);
+        return `${varName} = ${start}(${step})${end}`;
+    }
+    return `${varName} = 0(1)...`;
 }
 
 export function cleanIoArgs(args: string): string {
@@ -102,7 +165,12 @@ export function cleanIoArgs(args: string): string {
     parts.push(...extracted);
     
     if (parts.length === 0) {
-        // Only strings were present, user wants to completely skip these prints
+        // If only literal string message was present (e.g. print("Ошибка") or print("Неверный ввод"))
+        let rawStrMatch = argsClean.match(/^f?(?:"""[\s\S]*?"""|'''[\s\S]*?'''|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')$/);
+        if (rawStrMatch) {
+            let msg = rawStrMatch[0].replace(/^f?['"]+|['"]+$/g, '').trim();
+            return `"${msg}"`;
+        }
         return '';
     }
     

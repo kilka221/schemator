@@ -7,6 +7,10 @@ import 'prismjs/components/prism-c';
 import 'prismjs/components/prism-cpp';
 import 'prismjs/themes/prism.css';
 
+import { parseCppSourceWhole } from './parseCpp';
+import { mathify, cleanIoArgs, consolidateBlocks, isSubprogramCall, formatRangeToGost } from './mathify';
+import { translatePythonLine } from './translate';
+
 export type ASTNode = 
   | { type: 'stmt', id: string, text: string, kind: 'process'|'io'|'subprogram'|'end', width?: number, leftW?: number, rightW?: number, lineIndex?: number }
   | { type: 'if', id: string, condition: string, trueBlock: ASTNode[], falseBlock: ASTNode[], width?: number, leftW?: number, rightW?: number, lineIndex?: number }
@@ -746,14 +750,13 @@ export function parsePythonSourceWhole(code: string) {
                         let inMatch = condition.match(/^([a-zA-Z0-9_,\s]+)\s+in\s+(.*?)$/);
                         
                         if (rangeMatch) {
+                            let varName = rangeMatch[1];
                             let args = rangeMatch[2].split(',').map(s => s.trim());
-                            if (args.length === 1) condition = `${rangeMatch[1]} = 0(1)${mathify(args[0])}`;
-                            else if (args.length === 2) condition = `${rangeMatch[1]} = ${mathify(args[0])}(1)${mathify(args[1])}`;
-                            else if (args.length === 3) condition = `${rangeMatch[1]} = ${mathify(args[0])}(${mathify(args[2])})${mathify(args[1])}`;
+                            condition = formatRangeToGost(varName, args);
                         } else if (enumMatch) {
-                            condition = `${enumMatch[1].trim()} из ${mathify(enumMatch[2].trim())}`;
+                            condition = `Для каждого ${enumMatch[1].trim()} из списка ${mathify(enumMatch[2].trim())}`;
                         } else if (inMatch) {
-                            condition = `${inMatch[1].trim()} из ${mathify(inMatch[2].trim())}`;
+                            condition = `Для каждого ${inMatch[1].trim()} из списка ${mathify(inMatch[2].trim())}`;
                         } else {
                             condition = mathify(condition);
                         }
@@ -993,17 +996,19 @@ export function parsePythonSourceWhole(code: string) {
                             let right = rightSide;
                             if (left && right) {
                                 if (right === '[]' || right === 'list()') {
-                                    displayText = `Создание пустого списка\n${left}`;
+                                    displayText = `Создание пустого списка ${left}`;
                                 } else if (right === '{}' || right === 'dict()') {
-                                    displayText = `Создание пустого словаря\n${left}`;
+                                    displayText = `Создание пустого словаря ${left}`;
                                 } else if (right === 'set()') {
-                                    displayText = `Создание пустого множества\n${left}`;
+                                    displayText = `Создание пустого множества ${left}`;
                                 } else if (right === '""' || right === "''" || right === 'str()') {
-                                    displayText = `Создание пустой строки\n${left}`;
+                                    displayText = `Создание пустой строки ${left}`;
                                 } else if ((right.startsWith('{') && right.endsWith('}')) && right.length > 20) {
                                     displayText = `Заполнение словаря ${left}`;
                                 } else if (right.startsWith('[') && right.endsWith(']') && right.length > 20) {
                                     displayText = `Заполнение списка ${left}`;
+                                } else if (right.startsWith('[') && right.endsWith(']')) {
+                                    displayText = `Объявление массива ${left} = ${mathify(right)}`;
                                 } else {
                                     right = right.replace(/\[(.*?)\]/g, (match, inner) => {
                                         let items = inner.split(',').map((s: string) => s.trim());
@@ -1100,10 +1105,6 @@ function orthogonalRoute(p1: {x:number, y:number}, p2: {x:number, y:number}) {
     if (p1.y < p2.y - 40) midY = (p1.y + p2.y) / 2;
     return [p1, {x: p1.x, y: midY}, {x: p2.x, y: midY}, p2];
 }
-
-import { parseCppSourceWhole } from './parseCpp';
-import { mathify, cleanIoArgs, consolidateBlocks, isSubprogramCall } from './mathify';
-import { translatePythonLine } from './translate';
 
 export function buildGraphs(code: string, language: string, activeOverrides: any = {}, splitMode: 'auto' | 'manual' = 'auto', allCustomCuts: Record<number, number[]> = {}, isScissorsMode: boolean = false) {
     const parsed = language === 'cpp' ? parseCppSourceWhole(code) : parsePythonSourceWhole(code);
