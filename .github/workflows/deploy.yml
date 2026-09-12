@@ -44,7 +44,6 @@ jobs:
           revision-service-account-id: ${{ secrets.YC_CONTAINER_SA_ID }}
           revision-env: |
             NODE_ENV=production
-            PORT=3000
             APP_URL=${{ secrets.APP_URL }}
             YDB_ENDPOINT=${{ secrets.YDB_ENDPOINT }}
             YDB_DATABASE=${{ secrets.YDB_DATABASE }}
