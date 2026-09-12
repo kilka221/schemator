@@ -3,7 +3,7 @@ WORKDIR /app
 
 # Копируем манифесты зависимостей
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 # Копируем исходный код
 COPY . .
@@ -18,7 +18,7 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 COPY --from=builder /app/dist ./dist
 
