@@ -36,7 +36,6 @@ jobs:
           yc-sa-json-credentials: ${{ secrets.YC_SA_JSON_CREDENTIALS }}
           container-name: schemator-app
           folder-id: ${{ secrets.YC_FOLDER_ID }}
-          public: true
           revision-image-url: cr.yandex/${{ secrets.YC_REGISTRY_ID }}/schemator:${{ github.sha }}
           revision-cores: 1
           revision-memory: 512Mb
