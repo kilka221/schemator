@@ -258,7 +258,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 async function startServer() {
   // Vite middleware in dev mode
-  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -278,10 +278,8 @@ async function startServer() {
   });
 }
 
-// Start standalone dev/container server if not running in a serverless environment
-if (!process.env.VERCEL) {
-  startServer();
-}
+// Start server
+startServer();
 
 export default app;
 
