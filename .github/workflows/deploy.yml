@@ -34,7 +34,7 @@ jobs:
         uses: yc-actions/yc-sls-container-deploy@v2
         with:
           yc-sa-json-credentials: ${{ secrets.YC_SA_JSON_CREDENTIALS }}
-          container-id: ${{ secrets.YC_CONTAINER_ID }}
+          container-name: schemator-app
           folder-id: ${{ secrets.YC_FOLDER_ID }}
           revision-image-url: cr.yandex/${{ secrets.YC_REGISTRY_ID }}/schemator:${{ github.sha }}
           revision-cores: 1

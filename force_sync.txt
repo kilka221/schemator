@@ -1,1 +1,1 @@
-trigger sync
+trigger sync 2
