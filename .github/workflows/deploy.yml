@@ -1,0 +1,57 @@
+name: Deploy to Yandex Serverless Containers
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Yandex Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: cr.yandex
+          username: json_key
+          password: ${{ secrets.YC_SA_JSON_CREDENTIALS }}
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE_TAG=cr.yandex/${{ secrets.YC_REGISTRY_ID }}/schemator:${{ github.sha }}
+          IMAGE_LATEST=cr.yandex/${{ secrets.YC_REGISTRY_ID }}/schemator:latest
+          docker build -t $IMAGE_TAG -t $IMAGE_LATEST .
+          docker push $IMAGE_TAG
+          docker push $IMAGE_LATEST
+
+      - name: Deploy to Yandex Serverless Container
+        id: deploy
+        uses: yc-actions/yc-sls-container-deploy@v2
+        with:
+          yc-sa-json-credentials: ${{ secrets.YC_SA_JSON_CREDENTIALS }}
+          container-id: ${{ secrets.YC_CONTAINER_ID }}
+          folder-id: ${{ secrets.YC_FOLDER_ID }}
+          revision-image-url: cr.yandex/${{ secrets.YC_REGISTRY_ID }}/schemator:${{ github.sha }}
+          revision-cores: 1
+          revision-memory: 512Mb
+          revision-concurrency: 16
+          revision-execution-timeout: 30s
+          revision-service-account-id: ${{ secrets.YC_CONTAINER_SA_ID }}
+          revision-env: |
+            NODE_ENV=production
+            PORT=3000
+            APP_URL=${{ secrets.APP_URL }}
+            YDB_ENDPOINT=${{ secrets.YDB_ENDPOINT }}
+            YDB_DATABASE=${{ secrets.YDB_DATABASE }}
+            YDB_SA_KEY=${{ secrets.YDB_SA_KEY }}
+            SMTP_HOST=${{ secrets.SMTP_HOST }}
+            SMTP_PORT=${{ secrets.SMTP_PORT }}
+            SMTP_USER=${{ secrets.SMTP_USER }}
+            SMTP_PASS=${{ secrets.SMTP_PASS }}
+            SMTP_FROM=${{ secrets.SMTP_FROM }}
+            YANDEX_CLIENT_ID=${{ secrets.YANDEX_CLIENT_ID }}
