@@ -866,7 +866,7 @@ export async function saveYdbDiagram(userId: string, diagram: any) {
       $id: TypedValues.utf8(diagram.id),
       $title: TypedValues.utf8(diagram.title || 'Схема по ГОСТ 19.701-90'),
       $code: TypedValues.utf8(diagram.code || ''),
-      $language: TypedValues.utf8(diagram.language || 'c_cpp'),
+      $language: TypedValues.utf8(diagram.language || 'python'),
       $isPinned: TypedValues.bool(!!diagram.isPinned),
       $createdAt: TypedValues.utf8(diagram.createdAt || new Date().toISOString()),
       $updatedAt: TypedValues.utf8(new Date().toISOString()),

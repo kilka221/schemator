@@ -624,12 +624,25 @@ const [leftWidth, setLeftWidth] = useState(480);
               const diagId = `diag_${Date.now()}`;
               const now = new Date().toISOString();
               
-              // Smart title generation
-              let autoTitle = 'Схема Python';
+              // Smart title generation and language detection
+              const isCpp = language === 'cpp' || trimmedCode.includes('#include') || trimmedCode.includes('using namespace') || /\b(int|void|double|float|char|bool)\s+main\s*\(/.test(trimmedCode);
+              const saveLang = isCpp ? 'cpp' : 'python';
+              let autoTitle = isCpp ? 'Схема C++' : 'Схема Python';
               const lines = code.split('\n').map(l => l.trim()).filter(Boolean);
-              for (const line of lines) {
-                const pyMatch = line.match(/^def\s+([a-zA-Z0-9_]+)\s*\(/);
-                if (pyMatch) { autoTitle = `Функция ${pyMatch[1]}()`; break; }
+              
+              if (isCpp) {
+                for (const line of lines) {
+                  const cppMatch = line.match(/^(?:(?:inline|static|const|virtual|constexpr)\s+)*(?:[a-zA-Z0-9_:<>&*]+\s+)+([a-zA-Z0-9_]+)\s*\([^)]*\)\s*(?:const)?\s*\{?/);
+                  if (cppMatch && !['if', 'while', 'for', 'switch', 'main'].includes(cppMatch[1])) {
+                    autoTitle = `Функция ${cppMatch[1]}()`;
+                    break;
+                  }
+                }
+              } else {
+                for (const line of lines) {
+                  const pyMatch = line.match(/^def\s+([a-zA-Z0-9_]+)\s*\(/);
+                  if (pyMatch) { autoTitle = `Функция ${pyMatch[1]}()`; break; }
+                }
               }
 
               if (user) {
@@ -637,7 +650,7 @@ const [leftWidth, setLeftWidth] = useState(480);
                   id: diagId,
                   title: autoTitle,
                   code: code,
-                  language: language,
+                  language: saveLang,
                   isPinned: false,
                   createdAt: now,
                   updatedAt: now
@@ -649,7 +662,7 @@ const [leftWidth, setLeftWidth] = useState(480);
                   userId: 'anonymous',
                   title: autoTitle,
                   code: code,
-                  language: language,
+                  language: saveLang,
                   isPinned: false,
                   createdAt: now,
                   updatedAt: now

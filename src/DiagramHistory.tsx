@@ -33,6 +33,25 @@ export interface SavedDiagram {
   isPinned?: boolean;
 }
 
+export function detectLanguage(code: string, preferredLang?: string): 'python' | 'cpp' {
+  if (preferredLang === 'cpp' || preferredLang === 'c_cpp') return 'cpp';
+  const trimmed = code.trim();
+  if (
+    trimmed.includes('#include') ||
+    trimmed.includes('using namespace') ||
+    trimmed.includes('std::') ||
+    trimmed.includes('cout <<') ||
+    trimmed.includes('cin >>') ||
+    /\b(int|void|double|float|char|bool)\s+main\s*\(/.test(trimmed) ||
+    /\bvector\s*<.*?>/.test(trimmed) ||
+    /\bprintf\s*\(/.test(trimmed) ||
+    /\bscanf\s*\(/.test(trimmed)
+  ) {
+    return 'cpp';
+  }
+  return preferredLang === 'cpp' ? 'cpp' : 'python';
+}
+
 interface DiagramHistoryProps {
   user: AppUserProfile | null;
   currentCode: string;
@@ -78,7 +97,20 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
       try {
         const saved = localStorage.getItem('blockcraft_local_history');
         if (saved) {
-          setDiagrams(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          const formatted = parsed.map((d: any) => {
+            const detectedLang = detectLanguage(d.code || '', d.language);
+            let title = d.title || 'Безымянная схема';
+            if (detectedLang === 'cpp' && (title === 'Схема Python' || title.startsWith('Схема Python ('))) {
+              title = title.replace('Схема Python', 'Схема C++');
+            }
+            return {
+              ...d,
+              title,
+              language: detectedLang
+            };
+          });
+          setDiagrams(formatted);
         } else {
           setDiagrams([]);
         }
@@ -89,16 +121,23 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
     }
 
     fetchYdbDiagrams(user.uid, user.email).then((ydbItems) => {
-      const formatted: SavedDiagram[] = ydbItems.map((y) => ({
-        id: y.id,
-        userId: user.uid,
-        title: y.title || 'Безымянная схема',
-        code: y.code || '',
-        language: (y.language === 'cpp' ? 'cpp' : 'python') as 'python' | 'cpp',
-        createdAt: y.createdAt || new Date().toISOString(),
-        updatedAt: y.updatedAt || y.createdAt || new Date().toISOString(),
-        isPinned: !!y.isPinned,
-      }));
+      const formatted: SavedDiagram[] = ydbItems.map((y) => {
+        const detectedLang = detectLanguage(y.code || '', y.language);
+        let title = y.title || 'Безымянная схема';
+        if (detectedLang === 'cpp' && (title === 'Схема Python' || title.startsWith('Схема Python ('))) {
+          title = title.replace('Схема Python', 'Схема C++');
+        }
+        return {
+          id: y.id,
+          userId: user.uid,
+          title,
+          code: y.code || '',
+          language: detectedLang,
+          createdAt: y.createdAt || new Date().toISOString(),
+          updatedAt: y.updatedAt || y.createdAt || new Date().toISOString(),
+          isPinned: !!y.isPinned,
+        };
+      });
 
       formatted.sort((a, b) => {
         if (a.isPinned && !b.isPinned) return -1;
@@ -121,10 +160,11 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
       return;
     }
 
-    const title = customSaveTitle.trim() || generateDefaultTitle(currentCode, currentLanguage);
+    const detectedLang = detectLanguage(currentCode, currentLanguage);
+    const title = customSaveTitle.trim() || generateDefaultTitle(currentCode, detectedLang);
     const now = new Date().toISOString();
     const id = `diag_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const lang = (currentLanguage === 'cpp' ? 'cpp' : 'python') as 'python' | 'cpp';
+    const lang = detectedLang;
 
     const newDiagram: SavedDiagram = {
       id,
@@ -158,19 +198,26 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
   };
 
   const generateDefaultTitle = (sourceCode: string, lang: string) => {
+    const isCpp = lang === 'cpp' || detectLanguage(sourceCode, lang) === 'cpp';
     const lines = sourceCode.split('\n').map(l => l.trim()).filter(Boolean);
-    for (const line of lines) {
-      const pyFunc = line.match(/^def\s+([a-zA-Z0-9_]+)\s*\(/);
-      if (pyFunc) return `Функция ${pyFunc[1]}()`;
-    }
     
-    if (lines[0]) {
-      const clean = lines[0].replace(/^[#//*\s]+/, '').slice(0, 30);
-      if (clean) return clean;
+    if (isCpp) {
+      for (const line of lines) {
+        const cppFunc = line.match(/^(?:(?:inline|static|const|virtual|constexpr)\s+)*(?:[a-zA-Z0-9_:<>&*]+\s+)+([a-zA-Z0-9_]+)\s*\([^)]*\)\s*(?:const)?\s*\{?/);
+        if (cppFunc && !['if', 'while', 'for', 'switch', 'main'].includes(cppFunc[1])) {
+          return `Функция ${cppFunc[1]}()`;
+        }
+      }
+      const dateStr = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      return `Схема C++ (${dateStr})`;
+    } else {
+      for (const line of lines) {
+        const pyFunc = line.match(/^def\s+([a-zA-Z0-9_]+)\s*\(/);
+        if (pyFunc) return `Функция ${pyFunc[1]}()`;
+      }
+      const dateStr = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      return `Схема Python (${dateStr})`;
     }
-
-    const dateStr = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-    return `Схема Python (${dateStr})`;
   };
 
   const handleTogglePin = async (diagram: SavedDiagram, e: React.MouseEvent) => {
@@ -412,14 +459,20 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
                 const isDeleting = deletingId === diag.id;
                 const lines = diag.code.split('\n').filter(Boolean);
                 const previewSnippet = lines.slice(0, 2).join('\n');
+                const detectedLang = detectLanguage(diag.code, diag.language);
+                const isCpp = detectedLang === 'cpp';
+                let displayTitle = diag.title;
+                if (isCpp && (displayTitle === 'Схема Python' || displayTitle.startsWith('Схема Python ('))) {
+                  displayTitle = displayTitle.replace('Схема Python', 'Схема C++');
+                }
 
                 return (
                   <div
                     key={diag.id}
                     onClick={() => {
                       if (!isEditing && !isDeleting) {
-                        onSelectDiagram(diag.code, diag.language);
-                        onNotify(`Загружена схема: ${diag.title}`);
+                        onSelectDiagram(diag.code, isCpp ? 'cpp' : 'python');
+                        onNotify(`Загружена схема: ${displayTitle}`);
                         setIsOpen(false);
                       }
                     }}
@@ -438,8 +491,12 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
                             Закреплено
                           </span>
                         )}
-                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded uppercase shrink-0 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
-                          Python
+                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded uppercase shrink-0 ${
+                          isCpp
+                            ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
+                            : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
+                        }`}>
+                          {isCpp ? 'C++' : 'Python'}
                         </span>
                         <span className="text-[10px] text-zinc-400 truncate">
                           {formatDate(diag.updatedAt || diag.createdAt)}
@@ -513,7 +570,7 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
                       </div>
                     ) : (
                       <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition truncate mb-1">
-                        {diag.title}
+                        {displayTitle}
                       </h4>
                     )}
 
