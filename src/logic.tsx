@@ -656,7 +656,7 @@ export function parsePythonSourceWhole(code: string) {
     function isCodeLine(line: string) {
         const trimmed = line.trim();
         if (trimmed === '' || trimmed.startsWith('#')) return false;
-        if (trimmed.startsWith('@') && !trimmed.startsWith('@print')) return false;
+        if (trimmed.startsWith('@') && !/^@\s*print/i.test(trimmed)) return false;
         
         const normalized = trimmed.replace(/^[frFR]/, '');
         if ((normalized.startsWith('"""') && normalized.endsWith('"""')) ||
@@ -911,7 +911,7 @@ export function parsePythonSourceWhole(code: string) {
                         }
                     } else if (/@?print\s*\(/.test(text)) {
                         kind = 'io';
-                        let isForced = text.startsWith('@');
+                        let isForced = /^@\s*print/i.test(text.trim());
                         let match = text.match(/@?print\s*\((.*?)\)$/);
                         if (match) {
                              if (match[1].trim() === '') {
@@ -921,6 +921,7 @@ export function parsePythonSourceWhole(code: string) {
                              if (!argsCleaned) { i++; continue; }
                              displayText = `Вывод: ${mathify(argsCleaned)}`;
                         } else {
+                             if (!isForced) { i++; continue; }
                              displayText = `Вывод данных`;
                         }
                     } else if (text.startsWith('return ') || text === 'return') {

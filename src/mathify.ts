@@ -170,12 +170,6 @@ export function cleanIoArgs(args: string): string {
     parts.push(...extracted);
     
     if (parts.length === 0) {
-        // If only literal string message was present (e.g. print("Ошибка") or print("Неверный ввод"))
-        let rawStrMatch = argsClean.match(/^f?(?:"""[\s\S]*?"""|'''[\s\S]*?'''|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')$/);
-        if (rawStrMatch) {
-            let msg = rawStrMatch[0].replace(/^f?['"]+|['"]+$/g, '').trim();
-            return `"${msg}"`;
-        }
         return '';
     }
     

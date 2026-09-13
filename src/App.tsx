@@ -97,7 +97,9 @@ print(f"Сумма: {summa}")`;
 
 export default function App() {
   const [code, setCode] = useState(() => {
-    return localStorage.getItem('blockcraft_code_persist') || DEFAULT_DEMO_CODE;
+    const saved = localStorage.getItem('blockcraft_code_persist');
+    if (!saved || saved.trim() === DEFAULT_DEMO_CODE.trim()) return '';
+    return saved;
   });
   const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
@@ -126,12 +128,14 @@ export default function App() {
   const isDragging = React.useRef(false);
 
   const [lastGeneratedCode, setLastGeneratedCode] = useState(() => {
-     return localStorage.getItem('blockcraft_code_persist') || DEFAULT_DEMO_CODE;
+    const saved = localStorage.getItem('blockcraft_code_persist');
+    if (!saved || saved.trim() === DEFAULT_DEMO_CODE.trim()) return '';
+    return saved;
   });
   const [lastGeneratedLanguage, setLastGeneratedLanguage] = useState("python");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [previousBackup, setPreviousBackup] = useState<{ code: string; language: 'python' | 'cpp'; title?: string } | null>(null);
-  const sessionGeneratedCodesRef = React.useRef<Set<string>>(new Set([DEFAULT_DEMO_CODE.trim()]));
+  const sessionGeneratedCodesRef = React.useRef<Set<string>>(new Set());
   const [legalModalDoc, setLegalModalDoc] = useState<LegalDocType | null>(null);
 
   React.useEffect(() => {
@@ -1151,19 +1155,6 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 title={isDark ? "Включить светлую тему" : "Включить темную тему"}
               >
                 {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
-              </button>
-
-              {/* Quick Settings Icon */}
-              <button
-                onClick={() => setIsSettingsModalOpen(true)}
-                className={`p-2 rounded-xl border transition cursor-pointer ${
-                  isDark
-                    ? 'bg-[#131b2e] border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800/80'
-                    : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-200/80'
-                }`}
-                title="Настройки интерфейса"
-              >
-                <SettingsIcon className="w-4 h-4" />
               </button>
 
               <div className={`w-px h-5 mx-0.5 ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
