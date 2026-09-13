@@ -120,8 +120,24 @@ export async function getYdbDriver(): Promise<Driver> {
     return driver;
   }
 
-  const saKey = parseServiceAccountKey();
-  const authService = new IamAuthService(saKey as any);
+  const { MetadataAuthService, IamAuthService } = ydbSdk as any;
+  let authService: any;
+
+  // Если приложение запущено в Yandex Cloud (production), используем встроенный механизм авторизации (Metadata),
+  // чтобы игнорировать старый/удалённый ключ YDB_SA_KEY, переданный через переменные окружения.
+  if (process.env.NODE_ENV === 'production') {
+    authService = new MetadataAuthService();
+    console.log('[YDB] Using MetadataAuthService for production (Yandex Cloud)');
+  } else {
+    try {
+      const saKey = parseServiceAccountKey();
+      authService = new IamAuthService(saKey as any);
+      console.log('[YDB] Using IamAuthService with local key');
+    } catch (e: any) {
+      console.warn('[YDB] Failed to init IamAuthService, falling back to MetadataAuthService:', e.message);
+      authService = new MetadataAuthService();
+    }
+  }
 
   const cleanEndpoint = ENDPOINT.replace(/^(grpcs?|https?):\/\//, '').replace(/\/.*$/, '');
   const isSecure = !ENDPOINT.startsWith('grpc://') && !ENDPOINT.startsWith('http://');
