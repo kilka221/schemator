@@ -470,7 +470,7 @@ const [leftWidth, setLeftWidth] = useState(480);
       setIsGenerating(true);
       try {
           // Decrement token in Yandex Database (YDB)
-          const nextCount = await decrementYdbUserToken(user.uid);
+          const nextCount = await decrementYdbUserToken(user.uid, user.email);
           setUserTokens(nextCount);
           
           sessionGeneratedCodesRef.current.add(trimmedCode);

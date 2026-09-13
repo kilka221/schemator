@@ -187,8 +187,9 @@ apiRouter.post('/users/sync', async (req, res) => {
 apiRouter.post('/users/decrement-token', async (req, res) => {
   try {
     const uid = req.body.uid || req.body.id;
+    const email = req.body.email;
     if (!uid) return res.status(400).json({ success: false, error: 'uid is required' });
-    const newBalance = await decrementYdbToken(uid);
+    const newBalance = await decrementYdbToken(uid, email);
     res.json({ success: true, tokens: newBalance });
   } catch (e: any) {
     console.error('YDB decrementToken error:', e);
@@ -212,7 +213,8 @@ apiRouter.post('/tokens/spend', async (req, res) => {
 apiRouter.get('/diagrams/:uid', async (req, res) => {
   try {
     const { uid } = req.params;
-    const list = await getYdbDiagrams(uid);
+    const email = req.query.email as string | undefined;
+    const list = await getYdbDiagrams(uid, email);
     res.json({ success: true, diagrams: list });
   } catch (e: any) {
     console.error('YDB getDiagrams error:', e);

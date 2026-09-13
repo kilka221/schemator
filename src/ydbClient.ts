@@ -55,11 +55,11 @@ export async function getYdbUserTokens(uid: string, email?: string | null): Prom
   return null;
 }
 
-export async function decrementYdbUserToken(uid: string): Promise<number> {
+export async function decrementYdbUserToken(uid: string, email?: string | null): Promise<number> {
   const data = await safeFetchJson('/api/users/decrement-token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ uid }),
+    body: JSON.stringify({ uid, email }),
   });
   return data?.tokens ?? 0;
 }
@@ -125,8 +125,10 @@ export async function resendYdbCodeApi(email: string) {
   return res;
 }
 
-export async function fetchYdbDiagrams(uid: string): Promise<YdbDiagramItem[]> {
-  const data = await safeFetchJson(`/api/diagrams/${encodeURIComponent(uid)}`);
+export async function fetchYdbDiagrams(uid: string, email?: string | null): Promise<YdbDiagramItem[]> {
+  let url = `/api/diagrams/${encodeURIComponent(uid)}`;
+  if (email) url += `?email=${encodeURIComponent(email)}`;
+  const data = await safeFetchJson(url);
   if (data && data.success && Array.isArray(data.diagrams)) {
     return data.diagrams;
   }

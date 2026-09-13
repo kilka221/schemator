@@ -718,9 +718,34 @@ export async function loginYdbUser(email: string, pass: string) {
   });
 }
 
-export async function getYdbDiagrams(userId: string) {
+export async function getYdbDiagrams(userId: string, email?: string) {
   const driver = await getYdbDriver();
   return await driver.tableClient.withSession(async (session: any) => {
+    const targetUserIds = new Set<string>();
+    if (userId) targetUserIds.add(userId);
+    if (email) targetUserIds.add(email.toLowerCase());
+
+    if (email) {
+      try {
+        const userQuery = `
+          DECLARE $email AS Utf8;
+          SELECT userId FROM users WHERE email = $email;
+        `;
+        const preparedUserQuery = await session.prepareQuery(userQuery);
+        const { resultSets: userResults } = await session.executeQuery(preparedUserQuery, {
+          $email: TypedValues.utf8(email.toLowerCase()),
+        });
+        if (userResults[0]?.rows?.length > 0) {
+          userResults[0].rows.forEach((r: any) => {
+             const idVal = r.items?.[0]?.textValue || r.items?.[0]?.utf8Value;
+             if (idVal) targetUserIds.add(idVal);
+          });
+        }
+      } catch (e) {
+        console.warn('Could not resolve linked users by email:', e);
+      }
+    }
+
     const query = `
       DECLARE $userId AS Utf8;
       SELECT id, title, code, language, isPinned, createdAt, updatedAt
@@ -728,12 +753,35 @@ export async function getYdbDiagrams(userId: string) {
       WHERE userId = $userId;
     `;
     const prep = await session.prepareQuery(query);
-    const res = await session.executeQuery(prep, {
-      $userId: TypedValues.utf8(userId),
+    
+    const allRows: any[] = [];
+    const seenIds = new Set<string>();
+
+    for (const uid of targetUserIds) {
+      try {
+        const res = await session.executeQuery(prep, {
+          $userId: TypedValues.utf8(uid),
+        });
+        const rows = res.resultSets[0]?.rows || [];
+        for (const r of rows) {
+          const id = r.items?.[0]?.textValue || r.items?.[0]?.utf8Value;
+          if (id && !seenIds.has(id)) {
+            seenIds.add(id);
+            allRows.push(r);
+          }
+        }
+      } catch (e) {
+        console.error(`Error querying diagrams for uid ${uid}:`, e);
+      }
+    }
+
+    allRows.sort((a, b) => {
+      const dateA = new Date(a.items?.[5]?.textValue || a.items?.[5]?.utf8Value).getTime();
+      const dateB = new Date(b.items?.[5]?.textValue || b.items?.[5]?.utf8Value).getTime();
+      return dateB - dateA;
     });
 
-    const rows = res.resultSets[0]?.rows || [];
-    return rows.map((r: any) => ({
+    return allRows.map((r: any) => ({
       id: r.items?.[0]?.textValue || r.items?.[0]?.utf8Value,
       title: r.items?.[1]?.textValue || r.items?.[1]?.utf8Value,
       code: r.items?.[2]?.textValue || r.items?.[2]?.utf8Value,

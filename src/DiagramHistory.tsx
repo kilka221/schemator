@@ -76,7 +76,7 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
       return;
     }
 
-    fetchYdbDiagrams(user.uid).then((ydbItems) => {
+    fetchYdbDiagrams(user.uid, user.email).then((ydbItems) => {
       const formatted: SavedDiagram[] = ydbItems.map((y) => ({
         id: y.id,
         userId: user.uid,
