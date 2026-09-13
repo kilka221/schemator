@@ -445,53 +445,71 @@ export async function registerYdbUser(email: string, pass: string, displayName: 
     const cleanEmail = email.toLowerCase().trim();
     const userId = `email_${Buffer.from(cleanEmail).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 24)}`;
 
-    const checkQuery = `
-      DECLARE $userId AS Utf8;
-      SELECT * FROM users WHERE userId = $userId;
+    // Check across ALL accounts with this email (including Yandex OAuth and email accounts)
+    const checkEmailQuery = `
+      DECLARE $email AS Utf8;
+      SELECT * FROM users WHERE email = $email;
     `;
-    const prepCheck = await session.prepareQuery(checkQuery);
-    const checkRes = await session.executeQuery(prepCheck, {
-      $userId: TypedValues.utf8(userId),
+    const prepEmailCheck = await session.prepareQuery(checkEmailQuery);
+    const checkEmailRes = await session.executeQuery(prepEmailCheck, {
+      $email: TypedValues.utf8(cleanEmail),
     });
 
-    const rows = checkRes.resultSets[0]?.rows;
-    if (rows && rows.length > 0) {
-      const existingUser = TypedData.createNativeObjects(checkRes.resultSets[0])[0];
-      if (existingUser?.emailVerified === true || existingUser?.emailVerified === 1) {
-        throw new Error('Пользователь с таким email уже зарегистрирован и подтвержден. Пожалуйста, войдите.');
-      }
-      // If not yet verified, generate a fresh verification code and allow resending verification
-      const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const passwordHash = hashPassword(pass);
-      const updateUnverified = `
-        DECLARE $userId AS Utf8;
-        DECLARE $verificationCode AS Utf8;
-        DECLARE $passwordHash AS Utf8;
-        UPDATE users SET verificationCode = $verificationCode, passwordHash = $passwordHash WHERE userId = $userId;
-      `;
-      const prepUp = await session.prepareQuery(updateUnverified);
-      await session.executeQuery(prepUp, {
-        $userId: TypedValues.utf8(userId),
-        $verificationCode: TypedValues.utf8(newCode),
-        $passwordHash: TypedValues.utf8(passwordHash),
+    const emailRows = checkEmailRes.resultSets[0]?.rows;
+    if (emailRows && emailRows.length > 0) {
+      const existingUsers = TypedData.createNativeObjects(checkEmailRes.resultSets[0]);
+
+      // Check if any existing account with this email is already verified or came via Yandex OAuth
+      const confirmedUser = existingUsers.find((u: any) => {
+        const uId = String(u?.userId || '');
+        const isYandex = uId.startsWith('yandex_') || u?.authType === 'yandex';
+        const isVerified = u?.emailVerified === true || u?.emailVerified === 1;
+        return isYandex || isVerified;
       });
 
-      console.log(`[YDB Auth] Re-sent verification code for unverified user ${cleanEmail}: ${newCode}`);
-      // Send real email with the 6-digit code
-      try {
-        await sendVerificationEmail(cleanEmail, newCode, displayName || cleanEmail.split('@')[0]);
-      } catch (err) {
-        console.error('[YDB Auth] Failed to dispatch verification email:', err);
+      if (confirmedUser) {
+        const isYandex = String(confirmedUser.userId || '').startsWith('yandex_') || confirmedUser.authType === 'yandex';
+        if (isYandex) {
+          throw new Error('Пользователь с такой почтой уже зарегистрирован через Яндекс ID. Пожалуйста, выполните вход через кнопку "Войти с Яндекс ID".');
+        }
+        throw new Error('Пользователь с таким email уже зарегистрирован. Пожалуйста, войдите.');
       }
 
-      return {
-        uid: userId,
-        email: cleanEmail,
-        displayName: displayName || cleanEmail.split('@')[0],
-        tokens: 0,
-        emailVerified: false,
-        requiresVerification: true,
-      };
+      // Check if there is an unverified local account
+      const unverifiedUser = existingUsers.find((u: any) => String(u?.userId || '').startsWith('email_') || u?.authType === 'local');
+      if (unverifiedUser) {
+        const targetUserId = String(unverifiedUser.userId || userId);
+        const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const passwordHash = hashPassword(pass);
+        const updateUnverified = `
+          DECLARE $userId AS Utf8;
+          DECLARE $verificationCode AS Utf8;
+          DECLARE $passwordHash AS Utf8;
+          UPDATE users SET verificationCode = $verificationCode, passwordHash = $passwordHash WHERE userId = $userId;
+        `;
+        const prepUp = await session.prepareQuery(updateUnverified);
+        await session.executeQuery(prepUp, {
+          $userId: TypedValues.utf8(targetUserId),
+          $verificationCode: TypedValues.utf8(newCode),
+          $passwordHash: TypedValues.utf8(passwordHash),
+        });
+
+        console.log(`[YDB Auth] Re-sent verification code for unverified user ${cleanEmail}: ${newCode}`);
+        try {
+          await sendVerificationEmail(cleanEmail, newCode, displayName || cleanEmail.split('@')[0]);
+        } catch (err) {
+          console.error('[YDB Auth] Failed to dispatch verification email:', err);
+        }
+
+        return {
+          uid: targetUserId,
+          email: cleanEmail,
+          displayName: displayName || cleanEmail.split('@')[0],
+          tokens: 0,
+          emailVerified: false,
+          requiresVerification: true,
+        };
+      }
     }
 
     const passwordHash = hashPassword(pass);
@@ -582,7 +600,27 @@ export async function verifyYdbUserCode(email: string, code: string) {
       throw new Error('Неверный код подтверждения. Пожалуйста, проверьте код и попробуйте снова.');
     }
 
-    // Award 1 token upon successful confirmation!
+    // Award 1 welcome token upon successful confirmation, or retain any higher balance if this email had tokens
+    let tokensToSet = Math.max(1, toJsNumber(userObj.tokens, 1));
+    const checkEmailTokensQuery = `
+      DECLARE $email AS Utf8;
+      SELECT * FROM users WHERE email = $email;
+    `;
+    const prepEmailTok = await session.prepareQuery(checkEmailTokensQuery);
+    const emailTokRes = await session.executeQuery(prepEmailTok, {
+      $email: TypedValues.utf8(cleanEmail),
+    });
+    const emailTokRows = emailTokRes.resultSets[0]?.rows;
+    if (emailTokRows && emailTokRows.length > 0) {
+      const allRows = TypedData.createNativeObjects(emailTokRes.resultSets[0]);
+      for (const r of allRows) {
+        const t = toJsNumber(r?.tokens, 0);
+        if (t > tokensToSet) {
+          tokensToSet = t;
+        }
+      }
+    }
+
     const updateQuery = `
       DECLARE $userId AS Utf8;
       DECLARE $emailVerified AS Bool;
@@ -598,16 +636,16 @@ export async function verifyYdbUserCode(email: string, code: string) {
       $userId: TypedValues.utf8(userId),
       $emailVerified: TypedValues.bool(true),
       $verificationCode: TypedValues.utf8(''),
-      $tokens: TypedValues.int64(1), // 1 welcome token granted!
+      $tokens: TypedValues.int64(tokensToSet),
     });
 
-    console.log(`[YDB Auth] User ${cleanEmail} verified email successfully. Granted 1 token.`);
+    console.log(`[YDB Auth] User ${cleanEmail} verified email successfully. Tokens set to: ${tokensToSet}.`);
 
     return {
       uid: String(userObj.userId),
       email: String(userObj.email || cleanEmail),
       displayName: String(userObj.displayName || cleanEmail.split('@')[0]),
-      tokens: 1,
+      tokens: tokensToSet,
       emailVerified: true,
     };
   });
