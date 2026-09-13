@@ -62,19 +62,31 @@ export function normalizePrivateKey(pemOrKey: string): string {
 }
 
 export function parseServiceAccountKey() {
-  const rawKey = process.env.YDB_SA_KEY;
+  const rawKey = process.env.YDB_SA_KEY_BASE64 || process.env.YDB_SA_KEY;
   if (rawKey && rawKey.trim()) {
     try {
       const trimmed = rawKey.trim();
-      const firstBrace = trimmed.indexOf('{');
-      const lastBrace = trimmed.lastIndexOf('}');
-      const cleanCandidate = (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace)
-        ? trimmed.substring(firstBrace, lastBrace + 1)
-        : trimmed;
+      let jsonStr = '';
 
-      const jsonStr = cleanCandidate.startsWith('{')
-        ? cleanCandidate
-        : Buffer.from(cleanCandidate, 'base64').toString('utf-8');
+      if (trimmed.startsWith('{') || trimmed.includes('"private_key"')) {
+        const firstBrace = trimmed.indexOf('{');
+        const lastBrace = trimmed.lastIndexOf('}');
+        jsonStr = trimmed.substring(firstBrace, lastBrace + 1);
+      } else {
+        try {
+          const decoded = Buffer.from(trimmed, 'base64').toString('utf-8');
+          const firstBrace = decoded.indexOf('{');
+          const lastBrace = decoded.lastIndexOf('}');
+          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            jsonStr = decoded.substring(firstBrace, lastBrace + 1);
+          } else {
+            jsonStr = decoded;
+          }
+        } catch {
+          jsonStr = trimmed;
+        }
+      }
+
       const parsed = JSON.parse(jsonStr);
 
       const privKeyStr = parsed.private_key || parsed.privateKey || '';

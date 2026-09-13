@@ -29,6 +29,14 @@ jobs:
           docker push $IMAGE_TAG
           docker push $IMAGE_LATEST
 
+      - name: Prepare Single-line Environment Secrets
+        id: prepare_env
+        env:
+          YDB_RAW_KEY: ${{ secrets.YDB_SA_KEY }}
+        run: |
+          YDB_B64=$(echo -n "$YDB_RAW_KEY" | base64 -w 0)
+          echo "ydb_sa_key_b64=${YDB_B64}" >> $GITHUB_OUTPUT
+
       - name: Deploy to Yandex Serverless Container
         id: deploy
         uses: yc-actions/yc-sls-container-deploy@v2
@@ -47,10 +55,10 @@ jobs:
             APP_URL=${{ secrets.APP_URL }}
             YDB_ENDPOINT=${{ secrets.YDB_ENDPOINT }}
             YDB_DATABASE=${{ secrets.YDB_DATABASE }}
+            YDB_SA_KEY_BASE64=${{ steps.prepare_env.outputs.ydb_sa_key_b64 }}
             SMTP_HOST=${{ secrets.SMTP_HOST }}
             SMTP_PORT=${{ secrets.SMTP_PORT }}
             SMTP_USER=${{ secrets.SMTP_USER }}
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             SMTP_FROM=${{ secrets.SMTP_FROM }}
             YANDEX_CLIENT_ID=${{ secrets.YANDEX_CLIENT_ID }}
-            YDB_SA_KEY=${{ secrets.YDB_SA_KEY }}
