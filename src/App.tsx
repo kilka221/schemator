@@ -1864,11 +1864,14 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     }}
                   >
                     <defs>
-                      <marker id="arrowhead-light" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-                        <polygon points="0 0, 6 3, 0 6" fill="#18181b" />
+                      <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 1, 7 4, 0 7" fill="#18181b" />
                       </marker>
-                      <marker id="arrowhead-dark" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-                        <polygon points="0 0, 6 3, 0 6" fill="#18181b" />
+                      <marker id="arrowhead-light" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 1, 7 4, 0 7" fill="#18181b" />
+                      </marker>
+                      <marker id="arrowhead-dark" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 1, 7 4, 0 7" fill="#18181b" />
                       </marker>
                     </defs>
 
@@ -2036,45 +2039,19 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               )}
 
               {graphs.length === 0 && (
-                <div className="my-auto flex flex-col items-center justify-center p-4 max-w-4xl w-full">
-                  <div className="flex flex-col items-center text-center max-w-md mx-auto mb-10">
-                    <div className="w-16 h-16 bg-white dark:bg-[#202024] rounded-2xl flex items-center justify-center mb-6 border border-zinc-200/80 dark:border-zinc-700/60 shadow-xs p-2">
-                      <SchematorLogo className="w-12 h-12 select-none" />
-                    </div>
-                    <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white mb-3">
-                      Создание ГОСТ блок-схемы
-                    </h2>
-                    <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed max-w-[340px]">
-                      Вставьте ваш исходный код слева и нажмите <strong className="text-zinc-800 dark:text-zinc-200 font-semibold">«Создать схему»</strong> или выберите один из шаблонов для быстрого старта:
-                    </p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-                    {PRESET_TEMPLATES.map((preset) => (
-                      <button
-                        key={preset.id}
-                        onClick={() => handleLoadPreset(preset)}
-                        className="group flex flex-col items-start p-5 bg-white dark:bg-[#202024]/60 hover:bg-zinc-50 dark:hover:bg-[#2A2A2E]/80 border border-zinc-200 dark:border-zinc-700/60 hover:border-blue-400/50 dark:hover:border-blue-500/50 rounded-2xl text-left transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-xs hover:shadow-sm"
-                      >
-                        <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-xs border border-zinc-200/50 dark:border-zinc-700/50">
-                          {preset.type === 'branch' && <GitBranch className="w-5 h-5 text-emerald-500" />}
-                          {preset.type === 'loop' && <Repeat className="w-5 h-5 text-blue-500" />}
-                          {preset.type === 'func' && <Code className="w-5 h-5 text-purple-500" />}
-                        </div>
-                        <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm mb-1.5 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                          {preset.title}
-                        </h3>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
-                          {preset.desc}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-
+                <div className="flex-1 flex flex-col items-center justify-center p-6 w-full h-full select-none animate-in fade-in duration-200">
                   {!user ? (
-                    <div className="mt-10 px-4 py-2 bg-blue-50/80 dark:bg-blue-900/20 border border-blue-200/60 dark:border-blue-800/40 rounded-full flex items-center gap-2 text-xs font-semibold text-blue-700 dark:text-blue-300">
-                      <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                      Войдите через Яндекс ID или Почту, чтобы получить +1 Coin бесплатно
+                    <div className="flex flex-col items-center text-center">
+                      <button
+                        onClick={handleLogin}
+                        className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-2.5"
+                      >
+                        <LogIn className="w-4 h-4" />
+                        <span>Войти</span>
+                      </button>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-2.5 font-medium">
+                        Получите 1 коин бесплатно
+                      </p>
                     </div>
                   ) : null}
 
