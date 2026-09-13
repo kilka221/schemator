@@ -73,9 +73,15 @@ export function parseServiceAccountKey() {
   if (rawKey && rawKey.trim()) {
     try {
       const trimmed = rawKey.trim();
-      const jsonStr = trimmed.startsWith('{')
-        ? trimmed
-        : Buffer.from(trimmed, 'base64').toString('utf-8');
+      const firstBrace = trimmed.indexOf('{');
+      const lastBrace = trimmed.lastIndexOf('}');
+      const cleanCandidate = (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace)
+        ? trimmed.substring(firstBrace, lastBrace + 1)
+        : trimmed;
+
+      const jsonStr = cleanCandidate.startsWith('{')
+        ? cleanCandidate
+        : Buffer.from(cleanCandidate, 'base64').toString('utf-8');
       const parsed = JSON.parse(jsonStr);
 
       const privKeyStr = parsed.private_key || parsed.privateKey || '';
@@ -102,17 +108,7 @@ export function parseServiceAccountKey() {
     };
   }
 
-  // Fallback credentials for local dev
-  return {
-    serviceAccountId: 'ajeiklia1abr0r2hkj9l',
-    accessKeyId: 'ajenr8ku9h3c3m6c3ern',
-    iamEndpoint: 'iam.api.cloud.yandex.net:443',
-    privateKey: Buffer.from(
-      normalizePrivateKey(
-        '-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCcS3o+b0um91Pu\nOO2xWsAEi4sxk0vTiY7CJLxch3uCjFjjMSDWEvHOROaNFwrpWaaSL14ZjIBoaBLR\nqEejoxrK6/rsfn9y1q+pZDUvFCXt9mJEPwoEsuRv9Im8okVqTuzPXncrAl9+qa4b\nrKgzI21BMYU8kOljQEKEaDa3aYgtAXQW+K5p0WNBGcFhOqpyxwsK1C7bID/rbj4q\nymkLwmjshQkpu7z59FcepzjjA5XE7274d9HwB/sbyBM1u+UaaI7rphC+bVMTzcCw\ngzVQ80jSFrfoGnvvJvwGA4IW/YzwLT7zzec0UYsFwHuQJEuRpHV40PfVpyshyxQ+\njnwA15uJAgMBAAECggEAR9hyUyz6C8B5tnI44WQkDHLRA3MAUjdThm84nxgwcGxv\nl9BHleCTgwwtJwJGo8nwRha8HOZ3SIc+z12ZwOEDOfCMIhZsI7AIg8dqoz+Rx/eQ\naGrKAirx030Hq8y0OBAbz59PDFhE6Ya6YEJX91n7qRJIevTqNBOgABmfvWQnkvf1\n5prOwylA1OoTc7rwug+A3ytOUdA3Se4RoHU8BBbuQCESXSeVkrMKZLJKGJeq2TM2\n1sCMBKJ7veLNcFehvtZyT4bPdzLMUpzKeemQo7WfnB2ijSlKfsqub57TzJIYHfap\nToNXmZXvCsFWQIUW61zahmTXYtKojMd0YfbL3uOSOQKBgQC9Zgk+2LHfMusH5tNj\n5zIlHiT91LJaCQIlXE/7O8zmiYrhkhKsvpZE4pgq3vxS3MFSoRjAcQW4TlekbNfl\nu2Uadjrx2FldV5gJpieDeYF5QZUO7lJF51Z6H3tlm5DJwE7lfpNX0RqeAQ/AC3gU\nUps7PuQzv+f6QwxvSiryyTTsuwKBgQDTQWOjUVtOKXPF9E6pmi26lLK/c/5MLYem\naCRtxGCPS0ZFuR/jZVuL8KlzP8kqUwvDTaNmXEzZnZNqL6+eCP+sFZ+cV0OrdCyh\nWTdJPePSKr7AoFqt6iF2aL0kOFhpypHthyLifJNS6oxjVLe1mjNgcCUs2MRyoTAP\nnzt/G5kWiwKBgCFpI45jmZUfHVjqfjXsbesgUzQ31jKNzkQa8b0HApFUiBxcsVCp\n2kZSlrdRWL+hU7Uo1/3ysiieIVXPIZLUKPSvEJzjJniR4C8rkWLfB1kFma7lmbvd\nIGMwtIrrE3KTqxdO6d0e9QwUcdvV6hvjqqCb6pO6ccizFTl4ovTrS5vLAoGAQ/xg\nN3gAPVhDxOoJwrU2kDw4hjqrFRL1+8y6JIU1WggsllWseH7vBksuDUPy1mchevnq\nYw/DP6lhfqPYDbDxrwzKcAL5aR0bG9XdX/nF7qYI+27fn+agXD362MQ1V950Ng/u\nXxseQmnvQixKbuwwKpIMtLESD53mHLDu8coM618CgYARaQxQs7gZPxSIbw167hL3\n8qb+cwkg29wlCUgMZfFOsuXEoJhl1rTtTxC0ruQfRSVJ/G3XM4C4hUA1/BHta6TP\nWio1eSh9E5g85iTZJN74I5I73OZAfQ4XJ9mK/jazjFjs5M2Gv/dFTEcxO6kccTY4\n7S5DS7gR9NHQI8dCQ0G8FA==\n-----END PRIVATE KEY-----\n'
-      )
-    ),
-  };
+  return null;
 }
 
 export async function getYdbDriver(): Promise<Driver> {
@@ -123,20 +119,15 @@ export async function getYdbDriver(): Promise<Driver> {
   const { MetadataAuthService, IamAuthService } = ydbSdk as any;
   let authService: any;
 
-  // Если приложение запущено в Yandex Cloud (production), используем встроенный механизм авторизации (Metadata),
-  // чтобы игнорировать старый/удалённый ключ YDB_SA_KEY, переданный через переменные окружения.
-  if (process.env.NODE_ENV === 'production') {
-    authService = new MetadataAuthService();
-    console.log('[YDB] Using MetadataAuthService for production (Yandex Cloud)');
+  // 1. Приоритет: Авторизация по сервисному ключу YDB_SA_KEY из переменных окружения
+  const saKey = parseServiceAccountKey();
+  if (saKey) {
+    authService = new IamAuthService(saKey as any);
+    console.log('[YDB] Initialized IamAuthService with key ID:', saKey.accessKeyId);
   } else {
-    try {
-      const saKey = parseServiceAccountKey();
-      authService = new IamAuthService(saKey as any);
-      console.log('[YDB] Using IamAuthService with local key');
-    } catch (e: any) {
-      console.warn('[YDB] Failed to init IamAuthService, falling back to MetadataAuthService:', e.message);
-      authService = new MetadataAuthService();
-    }
+    // 2. Если переменная YDB_SA_KEY не задана, пробуем системные метаданные Yandex Cloud
+    authService = new MetadataAuthService();
+    console.log('[YDB] No YDB_SA_KEY found in env, using MetadataAuthService fallback');
   }
 
   const cleanEndpoint = ENDPOINT.replace(/^(grpcs?|https?):\/\//, '').replace(/\/.*$/, '');
@@ -407,10 +398,10 @@ export async function upsertYdbUser(userId: string, email: string, displayName: 
   });
 }
 
-export async function decrementYdbToken(userId: string): Promise<number> {
+export async function decrementYdbToken(userId: string, email?: string): Promise<number> {
   const driver = await getYdbDriver();
   return await driver.tableClient.withSession(async (session: any) => {
-    const user = await getYdbUser(userId);
+    const user = await getYdbUser(userId, email);
     if (!user) {
       throw new Error('Пользователь не найден.');
     }
