@@ -5,18 +5,11 @@ import { sendVerificationEmail } from './mailer.js';
 
 const { Driver: DriverClass, IamAuthService, TypedData, TypedValues, TableDescription, AlterTableDescription, Column, Types } = ydbSdk as any;
 
-const RAW_DATABASE = process.env.YDB_DATABASE || '/ru-central1/b1guc5cn5a6d63lgsuiq/etnjqd1tqkrk2upndh4i';
-const RAW_ENDPOINT = process.env.YDB_ENDPOINT || 'grpcs://ydb.serverless.yandexcloud.net:2135';
-
-export const DATABASE = RAW_DATABASE.trim();
-export const ENDPOINT = RAW_ENDPOINT.trim();
+const DEFAULT_DATABASE = '/ru-central1/b1guc5cn5a6d63lgsuiq/etnjqd1tqkrk2upndh4i';
+const DEFAULT_ENDPOINT = 'grpcs://ydb.serverless.yandexcloud.net:2135';
 
 let driver: Driver | null = null;
 let tablesInitialized = false;
-
-// Delete conflicting environment variables that might interfere with YDB SDK driver URI building
-delete process.env.YDB_ENDPOINT;
-delete process.env.YDB_DATABASE;
 
 export function normalizePrivateKey(pemOrKey: string): string {
   if (!pemOrKey || typeof pemOrKey !== 'string') return '';
@@ -130,14 +123,18 @@ export async function getYdbDriver(): Promise<Driver> {
     console.log('[YDB] No YDB_SA_KEY found in env, using MetadataAuthService fallback');
   }
 
-  const cleanEndpoint = ENDPOINT.replace(/^(grpcs?|https?):\/\//, '').replace(/\/.*$/, '');
-  const isSecure = !ENDPOINT.startsWith('grpc://') && !ENDPOINT.startsWith('http://');
-  const dbPath = DATABASE.startsWith('/') ? DATABASE : `/${DATABASE}`;
+  const rawEndpoint = (process.env.YDB_ENDPOINT || DEFAULT_ENDPOINT).trim();
+  const rawDatabase = (process.env.YDB_DATABASE || DEFAULT_DATABASE).trim();
+
+  const cleanEndpoint = rawEndpoint.replace(/^(grpcs?|https?):\/\//, '').replace(/\/.*$/, '');
+  const isSecure = !rawEndpoint.startsWith('grpc://') && !rawEndpoint.startsWith('http://');
+  const dbPath = rawDatabase.startsWith('/') ? rawDatabase : `/${rawDatabase}`;
   const connectionString = `${isSecure ? 'grpcs' : 'grpc'}://${cleanEndpoint}${dbPath}`;
 
+  // Clear any conflicting process.env.YDB_ENDPOINT to avoid SDK internal collision
   delete process.env.YDB_ENDPOINT;
+  delete process.env.YDB_DATABASE;
   console.log('[YDB] Using connection string:', connectionString);
-  console.log('[YDB] Sanitized process.env.YDB_ENDPOINT:', process.env.YDB_ENDPOINT);
 
   driver = new DriverClass({
     connectionString,
@@ -148,10 +145,10 @@ export async function getYdbDriver(): Promise<Driver> {
     },
   });
 
-  const isReady = await driver.ready(5000);
+  const isReady = await driver.ready(10000);
   if (!isReady) {
     driver = null;
-    throw new Error('YDB Driver connection timeout (5000ms)');
+    throw new Error('YDB Driver connection timeout (10000ms)');
   }
 
   if (!tablesInitialized) {
@@ -742,11 +739,9 @@ export async function getYdbDiagrams(userId: string, email?: string) {
         const { resultSets: userResults } = await session.executeQuery(preparedUserQuery, {
           $email: TypedValues.utf8(email.toLowerCase()),
         });
-        if (userResults[0]?.rows?.length > 0) {
-          userResults[0].rows.forEach((r: any) => {
-             const idVal = r.items?.[0]?.textValue || r.items?.[0]?.utf8Value;
-             if (idVal) targetUserIds.add(idVal);
-          });
+        const userRows = TypedData.createNativeObjects(userResults[0]) || [];
+        for (const u of userRows) {
+          if (u && u.userId) targetUserIds.add(String(u.userId));
         }
       } catch (e) {
         console.warn('Could not resolve linked users by email:', e);
@@ -769,12 +764,11 @@ export async function getYdbDiagrams(userId: string, email?: string) {
         const res = await session.executeQuery(prep, {
           $userId: TypedValues.utf8(uid),
         });
-        const rows = res.resultSets[0]?.rows || [];
-        for (const r of rows) {
-          const id = r.items?.[0]?.textValue || r.items?.[0]?.utf8Value;
-          if (id && !seenIds.has(id)) {
-            seenIds.add(id);
-            allRows.push(r);
+        const nativeObjects = TypedData.createNativeObjects(res.resultSets[0]) || [];
+        for (const item of nativeObjects) {
+          if (item && item.id && !seenIds.has(item.id)) {
+            seenIds.add(item.id);
+            allRows.push(item);
           }
         }
       } catch (e) {
@@ -783,19 +777,19 @@ export async function getYdbDiagrams(userId: string, email?: string) {
     }
 
     allRows.sort((a, b) => {
-      const dateA = new Date(a.items?.[5]?.textValue || a.items?.[5]?.utf8Value).getTime();
-      const dateB = new Date(b.items?.[5]?.textValue || b.items?.[5]?.utf8Value).getTime();
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
       return dateB - dateA;
     });
 
-    return allRows.map((r: any) => ({
-      id: r.items?.[0]?.textValue || r.items?.[0]?.utf8Value,
-      title: r.items?.[1]?.textValue || r.items?.[1]?.utf8Value,
-      code: r.items?.[2]?.textValue || r.items?.[2]?.utf8Value,
-      language: r.items?.[3]?.textValue || r.items?.[3]?.utf8Value,
-      isPinned: r.items?.[4]?.boolValue || false,
-      createdAt: r.items?.[5]?.textValue || r.items?.[5]?.utf8Value,
-      updatedAt: r.items?.[6]?.textValue || r.items?.[6]?.utf8Value,
+    return allRows.map((item: any) => ({
+      id: String(item.id || ''),
+      title: String(item.title || 'Схема по ГОСТ 19.701-90'),
+      code: String(item.code || ''),
+      language: String(item.language || 'python'),
+      isPinned: Boolean(item.isPinned),
+      createdAt: String(item.createdAt || new Date().toISOString()),
+      updatedAt: String(item.updatedAt || new Date().toISOString()),
     }));
   });
 }

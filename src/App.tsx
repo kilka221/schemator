@@ -168,6 +168,9 @@ export default function App() {
         setAuthError(null);
         if (typeof u.tokens === 'number') {
           setUserTokens(u.tokens);
+        } else if (u.tokens !== undefined && u.tokens !== null) {
+          const parsedTok = Number(u.tokens);
+          if (!isNaN(parsedTok)) setUserTokens(parsedTok);
         }
         
         // Sync with YDB Serverless
@@ -183,6 +186,14 @@ export default function App() {
               }
             });
           }
+        }).catch(() => {
+          // If sync fails, fallback to direct query
+          getYdbUserTokens(u.uid, u.email).then((tok) => {
+            if (tok !== null && tok !== undefined) {
+              setUserTokens(tok);
+              localStorage.setItem('blockcraft_yandex_user', JSON.stringify({ ...u, tokens: tok }));
+            }
+          });
         });
       } catch (e) {
         console.warn('Error reading saved user session:', e);

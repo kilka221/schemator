@@ -53,3 +53,4 @@ jobs:
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             SMTP_FROM=${{ secrets.SMTP_FROM }}
             YANDEX_CLIENT_ID=${{ secrets.YANDEX_CLIENT_ID }}
+            YDB_SA_KEY=${{ secrets.YDB_SA_KEY }}

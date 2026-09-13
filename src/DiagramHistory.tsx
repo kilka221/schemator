@@ -60,7 +60,7 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
   const [customSaveTitle, setCustomSaveTitle] = useState('');
   const [showSaveInput, setShowSaveInput] = useState(false);
 
-  // YDB Synchronization
+  // YDB Synchronization - refresh when user or drawer open state changes
   useEffect(() => {
     if (!user) {
       try {
@@ -100,7 +100,7 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
     }).catch((err) => {
       console.warn('YDB fetch diagrams error:', err);
     });
-  }, [user]);
+  }, [user, isOpen]);
 
   // Save current code as a new diagram in history
   const handleSaveCurrent = async () => {
