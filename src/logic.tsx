@@ -2631,15 +2631,15 @@ export function EdgePolyline({ edge, theme = 'light' }: { edge: FlowEdge; theme?
 
     return (
         <g>
-            <path d={pathData} fill="none" stroke={theme === 'dark' ? '#d4d4d8' : '#18181b'} strokeWidth="1.5" markerEnd={edge.noArrow ? undefined : `url(#arrowhead-${theme})`} strokeLinejoin="round" />
+            <path d={pathData} fill="none" stroke="#18181b" strokeWidth="1.5" markerEnd={edge.noArrow ? undefined : `url(#arrowhead)`} strokeLinejoin="round" />
             {labelPoint && labelStr && (
                 <text 
                     x={labelPoint.x} 
                     y={labelPoint.y} 
                     fontSize="13" 
                     fontWeight="bold" 
-                    fill={theme === 'dark' ? '#d4d4d8' : '#18181b'} 
-                    stroke={theme === 'dark' ? '#18181b' : '#ffffff'}
+                    fill="#18181b" 
+                    stroke="#ffffff"
                     strokeWidth="4"
                     paintOrder="stroke"
                     textAnchor="middle" 
@@ -2718,13 +2718,10 @@ export function GostShape({ node, highlighted = false, fontFamily = 'monospace',
   const x = cx - WIDTH / 2;
   const y = cy - HEIGHT / 2;
 
-  const fill = theme === 'dark' 
-      ? (highlighted ? "#713f12" : "#27272a") 
-      : (highlighted ? "#fef9c3" : "white");
-  const stroke = theme === 'dark'
-      ? (highlighted ? "#eab308" : "#d4d4d8")
-      : (highlighted ? "#eab308" : "#18181b");
-  const textColor = theme === 'dark' ? "#f4f4f5" : "#18181b";
+  // Block schemes must always be white with dark borders and clear text (ГОСТ standards)
+  const fill = highlighted ? "#fef08a" : "#ffffff";
+  const stroke = highlighted ? "#ca8a04" : "#18181b";
+  const textColor = "#18181b";
   const strokeWidth = highlighted ? "2.5" : "1.5";
 
   let shapeElement;

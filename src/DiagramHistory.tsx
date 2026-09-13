@@ -37,6 +37,8 @@ interface DiagramHistoryProps {
   user: AppUserProfile | null;
   currentCode: string;
   currentLanguage: string;
+  isOpen?: boolean;
+  onToggleOpen?: (open: boolean) => void;
   onSelectDiagram: (code: string, language: 'python' | 'cpp') => void;
   onOpenLogin: () => void;
   onNotify: (msg: string) => void;
@@ -46,11 +48,21 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
   user,
   currentCode,
   currentLanguage,
+  isOpen: externalIsOpen,
+  onToggleOpen: externalOnToggleOpen,
   onSelectDiagram,
   onOpenLogin,
   onNotify,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
+  const setIsOpen = (val: boolean | ((prev: boolean) => boolean)) => {
+    const nextVal = typeof val === 'function' ? val(isOpen) : val;
+    if (externalOnToggleOpen) {
+      externalOnToggleOpen(nextVal);
+    }
+    setInternalIsOpen(nextVal);
+  };
   const [diagrams, setDiagrams] = useState<SavedDiagram[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);

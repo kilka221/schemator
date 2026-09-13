@@ -25,7 +25,16 @@ import {
   Coins,
   LogIn,
   LogOut,
-  AlertCircle
+  AlertCircle,
+  Home,
+  BookOpen,
+  Settings as SettingsIcon,
+  FolderOpen,
+  History as HistoryIcon,
+  ZoomIn,
+  ZoomOut,
+  Move,
+  Download
 } from 'lucide-react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
@@ -42,6 +51,8 @@ import { LegalModal, LegalDocType } from './LegalModal';
 import { TariffModal } from './TariffModal';
 import { TipsModal } from './TipsModal';
 import { SchematorLogo } from './SchematorLogo';
+import { PresetsModal, CodeTemplate } from './PresetsModal';
+import { SettingsModal } from './SettingsModal';
 
 export interface AppUserProfile {
   uid: string;
@@ -54,21 +65,21 @@ export interface AppUserProfile {
 const PRESET_TEMPLATES = [
   {
     id: 'if_else',
-    icon: '⚡',
+    type: 'branch',
     title: 'Ветвление (if / else)',
     desc: 'Проверка условия и разветвление логики',
     code: `x = int(input("Введите число: "))\nif x > 0:\n    @print("Число положительное")\nelse:\n    @print("Число неположительное")`,
   },
   {
     id: 'while_loop',
-    icon: '🔄',
+    type: 'loop',
     title: 'Цикл со счетчиком (while)',
     desc: 'Накопление суммы чисел от 1 до N',
     code: `n = int(input("Введите N: "))\nsumma = 0\ni = 1\nwhile i <= n:\n    summa = summa + i\n    i = i + 1\nprint(f"Сумма: {summa}")`,
   },
   {
     id: 'function_def',
-    icon: '🧮',
+    type: 'func',
     title: 'Функция и факториал (def)',
     desc: 'Объявление подпрограммы и ее вызов',
     code: `def factorial(n):\n    res = 1\n    for i in range(1, n + 1):\n        res = res * i\n    return res\n\nnum = int(input("Число: "))\nans = factorial(num)\nprint(f"Факториал: {ans}")`,
@@ -76,11 +87,21 @@ const PRESET_TEMPLATES = [
 ];
 
 import { ASTNode, FlowNode, FlowEdge, DEFAULT_CODE, parsePythonSourceWhole, buildGraphs, EdgePolyline, GostShape, getNodeHeight } from './logic';
+const DEFAULT_DEMO_CODE = `n = int(input("Введите N: "))
+summa = 0
+i = 1
+while i <= n:
+    summa = summa + i
+    i = i + 1
+print(f"Сумма: {summa}")`;
+
 export default function App() {
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(() => {
+    return localStorage.getItem('blockcraft_code_persist') || DEFAULT_DEMO_CODE;
+  });
   const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
-  const [theme, setTheme] = useState<'light'|'dark'>(() => (localStorage.getItem('blockcraft_theme') as 'light'|'dark') || 'light');
+  const [theme, setTheme] = useState<'light'|'dark'>(() => (localStorage.getItem('blockcraft_theme') as 'light'|'dark') || 'dark');
   const [fontFamily, setFontFamily] = useState<string>(() => localStorage.getItem('blockcraft_font') || 'Inter, sans-serif');
 
   const [language, setLanguage] = useState(() => localStorage.getItem('blockcraft_language') || 'python');
@@ -92,14 +113,32 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isTariffModalOpen, setIsTariffModalOpen] = useState(false);
   const [isTipsModalOpen, setIsTipsModalOpen] = useState(false);
+  const [isPresetsModalOpen, setIsPresetsModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [activeNav, setActiveNav] = useState<'home' | 'presets' | 'docs' | 'history' | 'settings'>('home');
+  const canvasContainerRef = React.useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState<number>(1);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [startPan, setStartPan] = useState({ x: 0, y: 0 });
+  const startPanRef = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const isDragging = React.useRef(false);
+
   const [lastGeneratedCode, setLastGeneratedCode] = useState(() => {
-     return "";
+     return localStorage.getItem('blockcraft_code_persist') || DEFAULT_DEMO_CODE;
   });
-  const [lastGeneratedLanguage, setLastGeneratedLanguage] = useState("");
+  const [lastGeneratedLanguage, setLastGeneratedLanguage] = useState("python");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [previousBackup, setPreviousBackup] = useState<{ code: string; language: 'python' | 'cpp'; title?: string } | null>(null);
-  const sessionGeneratedCodesRef = React.useRef<Set<string>>(new Set());
+  const sessionGeneratedCodesRef = React.useRef<Set<string>>(new Set([DEFAULT_DEMO_CODE.trim()]));
   const [legalModalDoc, setLegalModalDoc] = useState<LegalDocType | null>(null);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('blockcraft_code_persist', code);
+    } catch {}
+  }, [code]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -263,13 +302,6 @@ const [leftWidth, setLeftWidth] = useState(480);
           return { ...prev, [targetTab]: newVal };
       });
   };
-  const [scale, setScale] = useState(1);
-  const isDragging = React.useRef(false);
-
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-  const [isPanning, setIsPanning] = useState(false);
-  const [startPan, setStartPan] = useState({ x: 0, y: 0 });
-  const [pan, setPan] = useState({ x: 0, y: 0 });
 
   const [overrides, setOverrides] = useState<Record<number, any>>(() => {
     try { return JSON.parse(localStorage.getItem('blockcraft_overrides') || '{}'); } catch { return {}; }
@@ -426,7 +458,101 @@ const [leftWidth, setLeftWidth] = useState(480);
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, []);
-  
+
+  // Dragging nodes inside diagram
+  React.useEffect(() => {
+    if (!dragState) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const effectiveScale = Math.max(0.15, scale);
+      const dx = (e.pageX - dragState.startX) / effectiveScale;
+      const dy = (e.pageY - dragState.startY) / effectiveScale;
+      const next = JSON.parse(JSON.stringify(overridesRef.current));
+      if (!next[activeTab]) next[activeTab] = { nodes: {}, edges: {} };
+      if (!next[activeTab].nodes) next[activeTab].nodes = {};
+      if (!next[activeTab].nodes[dragState.id]) next[activeTab].nodes[dragState.id] = {};
+      next[activeTab].nodes[dragState.id].dx = dragState.startDx + dx;
+      next[activeTab].nodes[dragState.id].dy = dragState.startDy + dy;
+      setOverrides(next);
+    };
+    const handleMouseUp = () => {
+      if (dragState) {
+        pushHistory(overridesRef.current);
+        setDragState(null);
+      }
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragState, scale, activeTab]);
+
+  const handleZoomIn = () => {
+    setScale(prev => Math.min(3.5, Number((prev + 0.15).toFixed(2))));
+  };
+
+  const handleZoomOut = () => {
+    setScale(prev => Math.max(0.15, Number((prev - 0.15).toFixed(2))));
+  };
+
+  const handleResetZoom = () => {
+    setScale(1);
+    setPan({ x: 0, y: 0 });
+    showToast('Масштаб сброшен на 100%');
+  };
+
+  const handleFitToScreen = () => {
+    if (!canvasContainerRef.current || !activeGraphPage) return;
+    const containerW = canvasContainerRef.current.clientWidth - 80;
+    const containerH = canvasContainerRef.current.clientHeight - 80;
+    if (containerW <= 0 || containerH <= 0) return;
+    const scaleX = containerW / (activeGraphPage.width + 60);
+    const scaleY = containerH / (activeGraphPage.height + 60);
+    const fitScale = Math.min(1.2, Math.max(0.18, Math.min(scaleX, scaleY)));
+    setScale(Number(fitScale.toFixed(2)));
+    setPan({ x: 0, y: 0 });
+    showToast(`Масштаб оптимизирован: ${Math.round(fitScale * 100)}%`);
+  };
+
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (isScissorsMode || editingNode) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.cursor-pointer') || target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.tagName === 'TEXTAREA') {
+      return;
+    }
+    setIsPanning(true);
+    setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+  };
+
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    if (editingNode) return;
+    if (isPanning) {
+      setPan({
+        x: e.clientX - startPan.x,
+        y: e.clientY - startPan.y,
+      });
+    }
+  };
+
+  const handleCanvasMouseUp = () => {
+    setIsPanning(false);
+  };
+
+  const handleCanvasWheel = (e: React.WheelEvent) => {
+    if (editingNode) return;
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      setScale(prev => Math.min(3.5, Math.max(0.15, Number((prev * factor).toFixed(2)))));
+    } else {
+      if (e.shiftKey) {
+        setPan(p => ({ ...p, x: p.x - e.deltaY }));
+      } else {
+        setPan(p => ({ ...p, y: p.y - e.deltaY }));
+      }
+    }
+  };
   
   const graphs = useMemo(() => {
       try {
@@ -970,461 +1096,663 @@ const downloadDrawio = (title: string, fontFamily: string) => {
     URL.revokeObjectURL(url);
 };
 
+  const handleResetCache = () => {
+    localStorage.removeItem('blockcraft_overrides');
+    localStorage.removeItem('blockcraft_history');
+    localStorage.removeItem('blockcraft_historyIndex');
+    localStorage.removeItem('blockcraft_custom_cuts');
+    setOverrides({});
+    setHistory([{}]);
+    setHistoryIndex(0);
+    setCustomCuts({});
+    showToast('Кэш правок и разрезов успешно очищен');
+  };
+
+  const isDark = theme === 'dark';
+
     return (
-    <div className={`w-full h-screen ${theme === 'dark' ? 'dark' : ''}`}>
-      <div className="w-full h-screen bg-zinc-50 dark:bg-[#1C1C1F] flex flex-col font-sans overflow-hidden transition-colors duration-300">
-      {!viewMode && (
-        <header className="h-14 border-b-2 border-zinc-300 dark:border-zinc-700 bg-white/95 dark:bg-[#202024]/95 backdrop-blur flex items-center justify-between px-5 shrink-0 transition-colors duration-300 z-30">
-          {/* Brand Logo & Name */}
-          <div className="flex items-center gap-3">
-            <SchematorLogo className="w-8 h-8 rounded-lg shadow-sm select-none shrink-0" />
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold tracking-tight text-zinc-900 dark:text-white flex items-center">
-                Схематор
-              </h1>
-              <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200/60 dark:border-zinc-700/60">
-                ГОСТ 19.701-90
-              </span>
+    <div className={`w-full h-screen ${isDark ? 'dark' : ''}`}>
+      <div className={`w-full h-screen flex flex-col font-sans overflow-hidden select-none transition-colors duration-200 ${
+        isDark ? 'bg-[#080c14] text-slate-100' : 'bg-[#f4f6fa] text-slate-800'
+      }`}>
+        {!viewMode && (
+          <header className={`h-14 border-b flex items-center justify-between px-5 shrink-0 z-30 transition-colors duration-200 ${
+            isDark ? 'bg-[#0d131f] border-slate-800/80 text-white' : 'bg-white border-slate-200/90 text-slate-900 shadow-xs'
+          }`}>
+            {/* Logo and App Title */}
+            <div className="flex items-center gap-3">
+              <SchematorLogo className="w-7 h-7 rounded-lg shadow-xs select-none shrink-0" />
+              <div className="flex items-center gap-2">
+                <span className={`text-base font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  Схематор
+                </span>
+                <span className={`hidden md:inline-block text-xs font-normal border-l pl-3 ml-2 ${
+                  isDark ? 'text-slate-400 border-slate-700/80' : 'text-slate-500 border-slate-300'
+                }`}>
+                  Блок-схемы из кода — быстро и просто
+                </span>
+              </div>
             </div>
-          </div>
-          
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            {/* Quick Tips modal button */}
-            <button
-              onClick={() => setIsTipsModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-200/70 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/30 hover:bg-amber-100/80 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 text-xs font-semibold transition cursor-pointer"
-              title="Шпаргалка: ножницы, символ @, перемещение и экспорт"
-            >
-              <Lightbulb className="w-3.5 h-3.5 text-amber-500 fill-amber-400 shrink-0" />
-              <span className="hidden md:inline">Подсказки</span>
-            </button>
 
-            <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></div>
-
-            {/* Tokens & Auth section */}
-            {user ? (
-              <div className="flex items-center gap-2 bg-zinc-100/90 dark:bg-zinc-800/80 p-1 pl-2.5 pr-1.5 rounded-full border border-zinc-200/80 dark:border-zinc-700/60 text-xs">
-                <div className="flex items-center gap-1.5 font-semibold text-zinc-800 dark:text-zinc-200">
-                  <Coins className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span className="text-xs"><strong className="text-blue-600 dark:text-blue-400 font-bold">{userTokens !== null ? userTokens : '...'}</strong> <span className="hidden sm:inline">Coins</span></span>
-                </div>
-                <button 
-                  onClick={() => setIsTariffModalOpen(true)}
-                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold px-2.5 py-0.5 rounded-full text-[11px] transition shadow-xs flex items-center gap-1 active:scale-95 cursor-pointer"
-                  title="Пополнить баланс Coins"
-                >
-                  <Coins className="w-3 h-3" />
-                  <span>Тарифы</span>
-                </button>
-                <div className="w-px h-3.5 bg-zinc-300 dark:bg-zinc-600 mx-0.5"></div>
-                <div className="flex items-center gap-1.5">
-                  {user.photoURL ? (
-                    <img src={user.photoURL} alt={user.displayName || 'User'} className="w-5 h-5 rounded-full ring-1 ring-zinc-200 dark:ring-zinc-700" referrerPolicy="no-referrer" />
-                  ) : (
-                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">
-                      {user.displayName ? user.displayName[0].toUpperCase() : (user.email ? user.email[0].toUpperCase() : 'U')}
-                    </span>
-                  )}
-                  <span className="font-medium text-zinc-700 dark:text-zinc-300 text-xs max-w-[100px] truncate hidden sm:inline">
-                    {user.displayName || user.email?.split('@')[0]}
-                  </span>
-                  <button 
-                    onClick={handleLogout} 
-                    className="p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded transition cursor-pointer" 
-                    title="Выйти"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setIsTariffModalOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700/80 bg-zinc-50 dark:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-semibold transition cursor-pointer"
-                >
-                  <Coins className="w-3.5 h-3.5 text-amber-500" />
-                  <span className="hidden sm:inline">Тарифы</span>
-                </button>
-                <button 
-                  onClick={handleLogin}
-                  className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-xs transition transform active:scale-95 cursor-pointer"
-                >
-                  <LogIn className="w-3.5 h-3.5" />
-                  <span>Войти</span>
-                  <span className="hidden md:inline bg-white/20 px-1.5 py-0.2 rounded text-[10px] font-bold">+1 Coin</span>
-                </button>
-              </div>
-            )}
-
-            <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></div>
-
-            {/* Font and Theme Controls */}
-            <div className="flex items-center gap-1.5">
-              {/* Font Selector */}
-              <div className="flex items-center bg-zinc-100 dark:bg-zinc-800/80 rounded-lg p-0.5 border border-zinc-200/70 dark:border-zinc-700/60 text-xs text-zinc-700 dark:text-zinc-300">
-                <Type className="w-3.5 h-3.5 ml-1.5 text-zinc-400 shrink-0" />
-                <select 
-                  value={fontFamily}
-                  onChange={(e) => setFontFamily(e.target.value)}
-                  className="bg-transparent border-none text-xs px-2 py-1 font-medium text-zinc-700 dark:text-zinc-300 outline-none cursor-pointer"
-                  title="Шрифт блок-схемы"
-                >
-                  <option value="monospace">Monospace</option>
-                  <option value="Inter, sans-serif">Sans-serif</option>
-                  <option value="Times New Roman, serif">Serif (ГОСТ)</option>
-                </select>
-              </div>
-
-              {/* Theme Toggle Button */}
-              <button 
-                onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
-                className="p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/70 dark:border-zinc-700/60 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-zinc-700 transition cursor-pointer"
-                title={theme === 'light' ? 'Включить тёмную тему' : 'Включить светлую тему'}
+            {/* Right Controls in Header */}
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              {/* Theme Toggle */}
+              <button
+                onClick={() => {
+                  const next = isDark ? 'light' : 'dark';
+                  setTheme(next);
+                  localStorage.setItem('blockcraft_theme', next);
+                }}
+                className={`p-2 rounded-xl border transition cursor-pointer ${
+                  isDark
+                    ? 'bg-[#131b2e] border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800/80'
+                    : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-200/80'
+                }`}
+                title={isDark ? "Включить светлую тему" : "Включить темную тему"}
               >
-                {theme === 'light' ? (
-                  <Moon className="w-4 h-4 text-zinc-600" />
-                ) : (
-                  <Sun className="w-4 h-4 text-amber-400" />
-                )}
+                {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
               </button>
-            </div>
-          </div>
-        </header>
-      )}
 
-      {authError && (
-        <div className="bg-amber-600 dark:bg-amber-700 text-white text-xs px-6 py-2 flex items-center justify-between shadow-sm z-30 transition-all animate-in fade-in duration-150">
-          <div className="flex items-center gap-2 font-medium">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{authError}</span>
-          </div>
-          <button 
-            onClick={() => setAuthError(null)}
-            className="text-white/80 hover:text-white text-xs ml-4 underline cursor-pointer"
-          >
-            Закрыть
-          </button>
-        </div>
-      )}
+              {/* Quick Settings Icon */}
+              <button
+                onClick={() => setIsSettingsModalOpen(true)}
+                className={`p-2 rounded-xl border transition cursor-pointer ${
+                  isDark
+                    ? 'bg-[#131b2e] border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800/80'
+                    : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-200/80'
+                }`}
+                title="Настройки интерфейса"
+              >
+                <SettingsIcon className="w-4 h-4" />
+              </button>
 
-      <main className="flex-grow flex flex-col md:flex-row overflow-hidden relative">
-        {showSidebar && !viewMode && (
-          <>
-            <section className="w-full md:w-auto border-b-2 md:border-b-0 md:border-r-2 border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-[#1C1C1F] flex flex-col shrink-0 relative z-20 shadow-[1px_0_10px_rgba(0,0,0,0.03)] dark:shadow-[1px_0_10px_rgba(0,0,0,0.2)] transition-colors duration-300"
-                     style={{ width: leftWidth }}>
-              <div className="px-3.5 py-2.5 bg-white dark:bg-[#232328] border-b-2 border-zinc-300 dark:border-zinc-700 flex justify-between items-center shadow-xs z-10 transition-colors duration-300">
+              <div className={`w-px h-5 mx-0.5 ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
+
+              {/* Auth & Tokens */}
+              {user ? (
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/60 text-[11px] font-bold font-mono">
-                    Python
-                  </span>
-                  <button 
-                    onClick={handleGenerateClick} 
-                    disabled={isGenerating || !code.trim()} 
-                    title="Создать блок-схему (Ctrl + Enter)"
-                    className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                  <div className={`px-3 py-1 rounded-xl border text-xs flex items-center gap-2 font-medium ${
+                    isDark ? 'bg-[#131b2e] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-200 text-slate-700'
+                  }`}>
+                    <Coins className="w-3.5 h-3.5 text-amber-500" />
+                    <span>{userTokens !== null ? userTokens : '...'}</span>
+                    <button
+                      onClick={() => setIsTariffModalOpen(true)}
+                      className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-0.5 rounded-lg text-[10px] transition cursor-pointer shadow-xs"
+                    >
+                      Тарифы
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {user.photoURL ? (
+                      <img src={user.photoURL} alt="Avatar" className="w-7 h-7 rounded-full border border-slate-700 object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+                        {user.displayName?.[0] || 'U'}
+                      </div>
+                    )}
+                    <button
+                      onClick={handleLogout}
+                      className={`p-1.5 rounded-lg transition cursor-pointer ${
+                        isDark ? 'text-slate-400 hover:text-red-400 hover:bg-slate-800' : 'text-slate-500 hover:text-red-500 hover:bg-slate-100'
+                      }`}
+                      title="Выйти из аккаунта"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsTariffModalOpen(true)}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition cursor-pointer ${
+                      isDark
+                        ? 'bg-[#131b2e] border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
+                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-200'
+                    }`}
                   >
-                    <Play className="w-3.5 h-3.5 fill-white" />
-                    <span>{isGenerating ? "Генерация..." : "Создать схему"}</span>
+                    Тарифы
+                  </button>
+                  <button
+                    onClick={handleLogin}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
+                  >
+                    <LogIn className="w-3.5 h-3.5" />
+                    <span>Войти</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </header>
+        )}
+
+        {authError && (
+          <div className="bg-amber-600 dark:bg-amber-700 text-white text-xs px-6 py-2 flex items-center justify-between shadow-sm z-30 transition-all animate-in fade-in duration-150 shrink-0">
+            <div className="flex items-center gap-2 font-medium">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{authError}</span>
+            </div>
+            <button 
+              onClick={() => setAuthError(null)}
+              className="text-white/80 hover:text-white text-xs ml-4 underline cursor-pointer"
+            >
+              Закрыть
+            </button>
+          </div>
+        )}
+
+        {/* Main Content Layout */}
+        <div className="flex-1 flex overflow-hidden p-3 gap-3">
+          {/* Left Sidebar */}
+          {!viewMode && (
+            <aside className={`w-56 shrink-0 rounded-2xl border flex flex-col justify-between p-3 select-none transition-colors duration-200 ${
+              isDark ? 'bg-[#0d131f] border-slate-800/80' : 'bg-white border-slate-200/90 shadow-xs'
+            }`}>
+              {/* Top Navigation Menu */}
+              <div className="flex flex-col gap-1.5">
+                {/* Главная */}
+                <button
+                  onClick={() => setActiveNav('home')}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                    activeNav === 'home'
+                      ? 'bg-blue-600/15 text-blue-500 dark:text-blue-400 border border-blue-500/30'
+                      : isDark
+                      ? 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <Home className="w-4 h-4" />
+                  <span>Главная</span>
+                </button>
+
+                {/* Примеры */}
+                <button
+                  onClick={() => setIsPresetsModalOpen(true)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                    isDark
+                      ? 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <Layers className="w-4 h-4" />
+                  <span>Примеры</span>
+                </button>
+
+                {/* Документация */}
+                <button
+                  onClick={() => setIsTipsModalOpen(true)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                    isDark
+                      ? 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span>Документация</span>
+                </button>
+
+                {/* История схем */}
+                <button
+                  onClick={() => setIsHistoryOpen(true)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                    isDark
+                      ? 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <HistoryIcon className="w-4 h-4" />
+                  <span>История схем</span>
+                </button>
+
+                {/* Настройки */}
+                <button
+                  onClick={() => setIsSettingsModalOpen(true)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                    isDark
+                      ? 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <SettingsIcon className="w-4 h-4" />
+                  <span>Настройки</span>
+                </button>
+              </div>
+
+              {/* Bottom Legal Links */}
+              <div className="flex flex-col pt-2 border-t border-slate-800/40 dark:border-slate-800/40">
+                <div className="flex flex-col gap-1 px-1 text-[11px]">
+                  <button
+                    onClick={() => setLegalModalDoc('privacy')}
+                    className="text-left text-slate-400 hover:text-blue-400 transition cursor-pointer"
+                  >
+                    Политика конфиденциальности
+                  </button>
+                  <button
+                    onClick={() => setLegalModalDoc('offer')}
+                    className="text-left text-slate-400 hover:text-blue-400 transition cursor-pointer"
+                  >
+                    Публичная оферта
+                  </button>
+                </div>
+              </div>
+            </aside>
+          )}
+
+          {/* Center Card: Code Editor */}
+          {!viewMode && (
+            <div className={`w-[420px] xl:w-[480px] shrink-0 rounded-2xl border flex flex-col overflow-hidden transition-colors duration-200 ${
+              isDark ? 'bg-[#0d131f] border-slate-800/80' : 'bg-white border-slate-200/90 shadow-xs'
+            }`}>
+              {/* Card Header */}
+              <div className={`p-4 border-b flex items-start gap-3 ${
+                isDark ? 'bg-[#0d131f] border-slate-800/80' : 'bg-white border-slate-200'
+              }`}>
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                  <Code className="w-5 h-5 text-blue-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className={`font-bold text-sm tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Создание блок-схемы
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                    Вставьте ваш исходный код слева и нажмите «Создать схему» — мы автоматически построим блок-схему по логике программы.
+                  </p>
+                </div>
+              </div>
+
+              {/* Sub-toolbar */}
+              <div className={`px-4 py-2 border-b flex items-center justify-between text-xs ${
+                isDark ? 'bg-[#101726] border-slate-800/80 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={language}
+                    onChange={(e) => {
+                      const newLang = e.target.value as 'python' | 'cpp';
+                      setLanguage(newLang);
+                      localStorage.setItem('blockcraft_language', newLang);
+                    }}
+                    className={`text-xs rounded-lg px-2.5 py-1 border font-medium focus:outline-none cursor-pointer ${
+                      isDark ? 'bg-[#131b2e] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                    }`}
+                  >
+                    <option value="python">Python</option>
+                    <option value="cpp">C++</option>
+                  </select>
+
+                  <button
+                    onClick={() => setIsPresetsModalOpen(true)}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                      isDark ? 'bg-[#131b2e] border-slate-800 hover:bg-slate-800 text-slate-300' : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    <Layers className="w-3 h-3 text-blue-400" />
+                    <span>Шаблоны</span>
                   </button>
 
+                  <button
+                    onClick={() => setIsTipsModalOpen(true)}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                      isDark ? 'bg-[#131b2e] border-slate-800 hover:bg-slate-800 text-slate-300' : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    <HelpCircle className="w-3 h-3 text-amber-400" />
+                    <span>Справка</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
                   {code.trim() && (
                     <button
                       onClick={() => {
                         setPreviousBackup({
-                          code,
-                          language: 'python',
-                          title: 'Очищенный код'
+                          code: code,
+                          language: language === 'cpp' ? 'cpp' : 'python',
+                          title: 'Предыдущий код'
                         });
                         setCode('');
-                        setLastGeneratedCode('');
-                        showToast('Код очищен (можно вернуть по кнопке внизу)');
+                        showToast('Код очищен (доступно восстановление)');
                       }}
-                      title="Очистить редактор"
-                      className="p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition cursor-pointer"
+                      className="text-slate-400 hover:text-red-400 p-1 rounded transition cursor-pointer"
+                      title="Очистить код"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
-                  <button
-                    onClick={() => setIsTipsModalOpen(true)}
-                    title="Справка по синтаксису: собачка @, def, циклы, ввод/вывод"
-                    className="p-1.5 text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition cursor-pointer"
-                  >
-                    <HelpCircle className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-zinc-400 dark:text-zinc-500 hidden xl:inline">Ctrl+Enter</span>
-                  <button 
-                    onClick={() => setShowSidebar(false)} 
-                    className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200 p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition cursor-pointer" 
-                    title="Свернуть редактор"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path></svg>
-                  </button>
                 </div>
               </div>
-              <div id="code-editor-scroller" className="flex-grow overflow-auto bg-[#fafafa] dark:bg-[#18181A] relative transition-colors duration-300">
-                <div 
-                    className="w-full min-h-full p-4 flex flex-row items-start cursor-text"
-                    onClick={(e) => {
-                        // Only focus if clicking the empty space or container, not the editor itself or line numbers
-                        if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('flex-grow')) {
-                            const textarea = document.querySelector('#code-editor-scroller textarea') as HTMLTextAreaElement;
-                            if (textarea) {
-                                textarea.focus();
-                                // Move cursor to the end
-                                textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-                            }
-                        }
-                    }}
+
+              {/* Code Editor Scroller */}
+              <div id="code-editor-scroller" className={`flex-grow overflow-auto relative ${
+                isDark ? 'bg-[#080c14]' : 'bg-[#fcfcfd]'
+              }`}>
+                <div
+                  className="w-full min-h-full p-3 flex flex-row items-start cursor-text"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('flex-grow')) {
+                      const textarea = document.querySelector('#code-editor-scroller textarea') as HTMLTextAreaElement;
+                      if (textarea) {
+                        textarea.focus();
+                        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+                      }
+                    }
+                  }}
                 >
-                    <style>{`
-                        .npm__react-simple-code-editor__textarea { outline: none !important; white-space: pre !important; }
-                        pre { white-space: pre !important; }
-                    `}</style>
-                    <div className="flex select-none font-mono text-[13px] leading-relaxed text-right text-zinc-400 dark:text-zinc-500 border-r border-zinc-200/60 dark:border-zinc-800/80 pr-2 mr-3 flex-col shrink-0 transition-colors duration-300" style={{ minWidth: '2.5rem', lineHeight: '1.625' }}>
-                        {code.split('\n').map((_, idx) => {
-                            const isHighlighted = hoveredLineIndex === idx;
-                            return (
-                                <div 
-                                    key={idx} 
-                                    onClick={() => {
-                                        setHoveredLineIndex(idx);
-                                        const res = findGraphAndNodeByLine(idx);
-                                        if (res) {
-                                            setActiveTab(res.graphIdx);
-                                            setActivePage(res.pageIdx, res.graphIdx);
-                                            setHighlightedNodeId(res.nodeId);
-                                        }
-                                    }}
-                                    className={`cursor-pointer px-1 transition-colors rounded ${isHighlighted ? 'bg-yellow-200 dark:bg-yellow-900/40 font-bold text-yellow-800 dark:text-yellow-500' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-400'}`}>
-                                    {idx + 1}
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <div className="flex-grow w-0 relative overflow-x-auto">
-                        <Editor
-                            value={code}
-                            onValueChange={code => setCode(code)}
-                            highlight={code => {
-                                const grammar = language === 'cpp' ? Prism.languages.cpp : Prism.languages.python;
-                                return grammar ? Prism.highlight(code, grammar, language) : code;
-                            }}
-                            padding={0}
-                            className="font-mono text-[13px] leading-relaxed text-zinc-800 dark:text-zinc-300 transition-colors duration-300"
-                            style={{
-                                fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                                minHeight: '100%',
-                                whiteSpace: 'pre',
-                            }}
-                        />
-                    </div>
+                  <style>{`
+                    .npm__react-simple-code-editor__textarea { outline: none !important; white-space: pre !important; }
+                    pre { white-space: pre !important; }
+                  `}</style>
+                  {/* Line numbers */}
+                  <div
+                    className={`flex select-none font-mono text-[13px] leading-relaxed text-right pr-2 mr-3 flex-col shrink-0 border-r ${
+                      isDark ? 'text-slate-600 border-slate-800' : 'text-slate-400 border-slate-200'
+                    }`}
+                    style={{ minWidth: '2.5rem', lineHeight: '1.625' }}
+                  >
+                    {code.split('\n').map((_, idx) => {
+                      const isHighlighted = hoveredLineIndex === idx;
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            setHoveredLineIndex(idx);
+                            const res = findGraphAndNodeByLine(idx);
+                            if (res) {
+                              setActiveTab(res.graphIdx);
+                              setActivePage(res.pageIdx, res.graphIdx);
+                              setHighlightedNodeId(res.nodeId);
+                            }
+                          }}
+                          className={`cursor-pointer px-1 rounded transition-colors ${
+                            isHighlighted
+                              ? 'bg-yellow-500/30 text-yellow-300 font-bold'
+                              : isDark
+                              ? 'hover:text-slate-300'
+                              : 'hover:text-slate-700'
+                          }`}
+                        >
+                          {idx + 1}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Prism Editor */}
+                  <div className="flex-grow w-0 relative overflow-x-auto">
+                    <Editor
+                      value={code}
+                      onValueChange={code => setCode(code)}
+                      highlight={code => {
+                        const grammar = language === 'cpp' ? Prism.languages.cpp : Prism.languages.python;
+                        return grammar ? Prism.highlight(code, grammar, language) : code;
+                      }}
+                      padding={0}
+                      className={`font-mono text-[13px] leading-relaxed ${
+                        isDark ? 'text-slate-200' : 'text-slate-800'
+                      }`}
+                      style={{
+                        fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                        minHeight: '100%',
+                        whiteSpace: 'pre',
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
-            </section>
-            
-            <div className="w-1 cursor-col-resize hover:bg-emerald-500/50 bg-transparent shrink-0 z-30 transition-colors hidden md:block"
-                 onMouseDown={(e) => {
-                     isDragging.current = true;
-                     document.body.style.cursor = 'col-resize';
-                     e.preventDefault();
-                 }} />
-          </>
-        )}
 
-        <section className="flex-grow bg-[#eef2f6] dark:bg-[#121214] relative flex flex-col items-center overflow-hidden transition-colors duration-300">
-          {!viewMode && graphs.length > 0 && (
-            <div className="w-full bg-white dark:bg-[#232328] border-b-2 border-zinc-300 dark:border-zinc-700 z-20 flex px-4 pt-4 shadow-sm flex-col shrink-0 overflow-visible transition-colors duration-300">
-              <div className="flex flex-wrap gap-y-1">
+              {/* Editor Bottom Status Bar */}
+              <div className={`px-4 py-2.5 border-t flex items-center justify-between text-xs ${
+                isDark ? 'bg-[#101726] border-slate-800/80 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
+              }`}>
+                <span>{code.split('\n').length} строк • {language === 'cpp' ? 'C++' : 'Python'}</span>
+                <button
+                  onClick={handleGenerateClick}
+                  disabled={isGenerating}
+                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-bold text-xs px-4 py-1.5 rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer"
+                >
+                  <Play className="w-3.5 h-3.5 fill-white" />
+                  <span>{isGenerating ? "Генерация..." : "Создать схему"}</span>
+                  <span className="text-[10px] bg-blue-700/60 px-1.5 py-0.5 rounded text-blue-200">
+                    Ctrl + Enter
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Right Card: Diagram Preview & Canvas */}
+          <div className={`flex-1 flex flex-col rounded-2xl border overflow-hidden relative transition-colors duration-200 ${
+            isDark ? 'bg-[#0d131f] border-slate-800/80' : 'bg-white border-slate-200/90 shadow-xs'
+          }`}>
+            {/* Top Toolbar */}
+            <div className={`border-b z-20 flex flex-col shrink-0 transition-colors duration-200 ${
+              isDark ? 'bg-[#0d131f] border-slate-800/80' : 'bg-white border-slate-200/90'
+            }`}>
+              {/* Function Tabs if multiple graphs */}
+              {!viewMode && graphs.length > 1 && (
+                <div className={`flex px-3 pt-2 gap-1 overflow-x-auto border-b ${
+                  isDark ? 'border-slate-800/60' : 'border-slate-200/80'
+                }`}>
                   {graphs.map((graph, idx) => (
-                    <button 
+                    <button
                       key={idx}
                       onClick={() => setActiveTab(idx)}
-                      className={`px-4 py-2 text-xs font-semibold rounded-t-lg border border-b-0 transition-colors mr-1 ${activeTab === idx ? 'bg-[#eef2f6] dark:bg-[#121214] border-zinc-300 dark:border-zinc-700/80 text-zinc-800 dark:text-zinc-200 shadow-[0_2px_0_0_#eef2f6] dark:shadow-[0_2px_0_0_#121214]' : 'bg-zinc-50 dark:bg-[#1C1C1F] border-zinc-200 dark:border-zinc-800/80 text-zinc-500 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#28282B]'}`}
-                      style={activeTab === idx ? { transform: 'translateY(1px)' }  : {}}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap cursor-pointer ${
+                        activeTab === idx
+                          ? isDark
+                            ? 'bg-[#131b2e] text-blue-400 border-t border-x border-slate-700/80'
+                            : 'bg-slate-100 text-blue-600 border-t border-x border-slate-300'
+                          : isDark
+                          ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                      }`}
                     >
                       {graph.title}
                     </button>
                   ))}
-              </div>
+                </div>
+              )}
 
-            </div>
-          )}
-          <div className="w-full sticky top-0 z-30 shrink-0 shadow-sm border-b-2 border-zinc-300 dark:border-zinc-700 bg-white/90 dark:bg-[#232328]/90 backdrop-blur transition-colors duration-300">
-              <div className="w-full px-4 py-2 flex flex-wrap items-center justify-between gap-4 relative min-h-[48px]">
-                  {/* Left: Mode toggle & Scissors */}
-                  <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Режим деления:</span>
-                          <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-zinc-200 dark:border-zinc-700/60 gap-0.5">
-                              <button
-                                  onClick={() => {
-                                      setSplitMode('auto');
-                                      setIsScissorsMode(false);
-                                      localStorage.setItem('blockcraft_split_mode', 'auto');
-                                  }}
-                                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${splitMode === 'auto' ? 'bg-white dark:bg-zinc-700 text-zinc-950 dark:text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'}`}
-                              >
-                                  Авто
-                              </button>
-                              <button
-                                  onClick={() => {
-                                      if (splitMode !== 'manual') {
-                                          setSplitMode('manual');
-                                          setIsScissorsMode(true);
-                                          localStorage.setItem('blockcraft_split_mode', 'manual');
-                                      } else {
-                                          setIsScissorsMode(!isScissorsMode);
-                                      }
-                                  }}
-                                  title={splitMode === 'manual' && isScissorsMode ? "Ножницы активны (нажмите на схему для разреза)" : "Ручной режим (ножницы)"}
-                                  className={`w-7 h-6 flex items-center justify-center text-xs rounded-md transition-all ${splitMode === 'manual' ? (isScissorsMode ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 shadow-sm ring-1 ring-red-300 dark:ring-red-800' : 'bg-white dark:bg-zinc-700 text-zinc-950 dark:text-white shadow-sm') : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'}`}
-                              >
-                                  ✂️
-                              </button>
-                          </div>
-
-                          <button
-                              onClick={() => setIsTipsModalOpen(true)}
-                              className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-zinc-200/80 hover:bg-amber-100 text-zinc-600 hover:text-amber-700 dark:bg-zinc-700 dark:hover:bg-amber-950/60 dark:text-zinc-300 dark:hover:text-amber-400 transition cursor-pointer"
-                              title="Как работает режим ножниц и деление на страницы"
-                          >
-                              ?
-                          </button>
-
-                          {splitMode === 'manual' && (customCuts[activeTab] || []).length > 0 && (
-                              <button
-                                  onClick={() => {
-                                      const updated = { ...customCuts, [activeTab]: [] };
-                                      setCustomCuts(updated);
-                                      localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(updated));
-                                  }}
-                                  className="px-2.5 py-1 text-xs font-medium rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 transition ml-1"
-                                  title="Очистить все разрезы на этой вкладке"
-                              >
-                                  Очистить всё
-                              </button>
-                          )}
-                      </div>
+              {/* Main Canvas Controls Bar */}
+              <div className="px-3 py-2 flex flex-wrap items-center justify-between gap-3 text-xs">
+                {/* Left: Mode toggle (Авто / Ножницы) */}
+                <div className="flex items-center gap-2">
+                  <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Режим:
+                  </span>
+                  <div className={`flex items-center p-0.5 rounded-lg border gap-0.5 ${
+                    isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-slate-100 border-slate-200'
+                  }`}>
+                    <button
+                      onClick={() => {
+                        setSplitMode('auto');
+                        setIsScissorsMode(false);
+                        localStorage.setItem('blockcraft_split_mode', 'auto');
+                      }}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                        splitMode === 'auto'
+                          ? isDark ? 'bg-blue-600 text-white shadow-xs' : 'bg-white text-slate-900 shadow-xs'
+                          : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Авто
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (splitMode !== 'manual') {
+                          setSplitMode('manual');
+                          setIsScissorsMode(true);
+                          localStorage.setItem('blockcraft_split_mode', 'manual');
+                        } else {
+                          setIsScissorsMode(!isScissorsMode);
+                        }
+                      }}
+                      title={splitMode === 'manual' && isScissorsMode ? "Ножницы активны (кликните на схему для разреза)" : "Ручной режим (ножницы)"}
+                      className={`w-7 h-6 flex items-center justify-center text-xs rounded-md transition-all cursor-pointer ${
+                        splitMode === 'manual'
+                          ? isScissorsMode
+                            ? 'bg-red-500 text-white shadow-xs'
+                            : isDark ? 'bg-slate-700 text-white' : 'bg-white text-slate-900'
+                          : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      ✂️
+                    </button>
                   </div>
 
-                  {/* Center: Pagination Controls */}
-                  {activeGraph && activeGraph.pages.length > 1 ? (
-                      <div className="md:absolute md:left-1/2 md:-translate-x-1/2 flex items-center gap-2 z-10 my-2 md:my-0">
-                         <button
-                            onClick={() => setActivePage(p => Math.max(0, p - 1))}
-                            disabled={activePage === 0}
-                            className="px-3 py-1 rounded bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 disabled:opacity-50 transition-colors"
-                         >
-                            ← Пред.
-                         </button>
-                         <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800/80 px-2.5 py-1 rounded border border-zinc-200/50 dark:border-zinc-700/40 min-w-[90px] text-center">
-                            Стр {activePage + 1} из {activeGraph.pages.length}
-                         </span>
-                         <button
-                            onClick={() => setActivePage(p => Math.min(activeGraph.pages.length - 1, p + 1))}
-                            disabled={activePage === activeGraph.pages.length - 1}
-                            className="px-3 py-1 rounded bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 disabled:opacity-50 transition-colors"
-                         >
-                            След. →
-                         </button>
-                      </div>
-                  ) : (
-                      <div className="md:absolute md:left-1/2 md:-translate-x-1/2"></div>
+                  {splitMode === 'manual' && (customCuts[activeTab] || []).length > 0 && (
+                    <button
+                      onClick={() => {
+                        const updated = { ...customCuts, [activeTab]: [] };
+                        setCustomCuts(updated);
+                        localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(updated));
+                      }}
+                      className="px-2 py-1 text-xs font-medium rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition cursor-pointer"
+                      title="Очистить все разрезы"
+                    >
+                      Очистить разрезы
+                    </button>
+                  )}
+                </div>
+
+                {/* Center: Pagination & Zoom Controls */}
+                <div className="flex items-center gap-2">
+                  {/* Pagination if multiple pages */}
+                  {activeGraph && activeGraph.pages.length > 1 && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setActivePage(p => Math.max(0, p - 1))}
+                        disabled={activePage === 0}
+                        className={`px-2 py-1 rounded-lg border text-xs font-medium transition cursor-pointer disabled:opacity-40 ${
+                          isDark ? 'bg-[#131b2e] border-slate-800 text-slate-200 hover:bg-slate-800' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        ←
+                      </button>
+                      <span className={`text-xs font-semibold px-2 py-1 rounded-lg border ${
+                        isDark ? 'bg-[#131b2e] border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+                      }`}>
+                        {activePage + 1} / {activeGraph.pages.length}
+                      </span>
+                      <button
+                        onClick={() => setActivePage(p => Math.min(activeGraph.pages.length - 1, p + 1))}
+                        disabled={activePage === activeGraph.pages.length - 1}
+                        className={`px-2 py-1 rounded-lg border text-xs font-medium transition cursor-pointer disabled:opacity-40 ${
+                          isDark ? 'bg-[#131b2e] border-slate-800 text-slate-200 hover:bg-slate-800' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        →
+                      </button>
+                    </div>
                   )}
 
-                  {/* Right: Action Buttons (locked, won't overlap panels) */}
-                  <div className="flex items-center gap-2 flex-wrap z-10 ml-auto">
-                      <button
-                        onClick={() => setViewMode(!viewMode)}
-                        className="flex items-center justify-center p-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition"
-                        title={viewMode ? "Выйти из режима просмотра" : "Режим просмотра (Во весь экран)"}
-                      >
-                        {viewMode ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-                      </button>
-
-                      <button
-                        onClick={() => {
-                            let name = activeGraph?.title || 'graph';
-                            if (activeGraph && activeGraph.pages.length > 1) {
-                                name += `_стр_${activePage + 1}`;
-                            }
-                            downloadSvg(`graph-svg-${activeTab}`, name);
-                        }}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-xs font-semibold transition"
-                        title="Скачать SVG"
-                      >
-                        <Code className="w-3.5 h-3.5 text-orange-500" />
-                        <span>SVG</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                            let name = activeGraph?.title || 'graph';
-                            if (activeGraph && activeGraph.pages.length > 1) {
-                                name += `_стр_${activePage + 1}`;
-                            }
-                            downloadPng(`graph-svg-${activeTab}`, name);
-                        }}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-xs font-semibold transition"
-                        title="Скачать PNG"
-                      >
-                        <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                        </svg>
-                        <span>PNG</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                            let name = activeGraph?.title || 'graph';
-                            if (activeGraph && activeGraph.pages.length > 1) {
-                                name += `_стр_${activePage + 1}`;
-                            }
-                            downloadDrawio(name, fontFamily);
-                        }}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-xs font-semibold transition"
-                        title="Экспорт в draw.io (.drawio)"
-                      >
-                        <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1-0 1-1-1v-6z" />
-                        </svg>
-                        <span>Draw.io XML</span>
-                      </button>
-    
-
-                      <div className="w-px h-6 bg-zinc-200 dark:bg-zinc-700 mx-1"></div>
-
-                      <button
-                        onClick={() => {
-                            setOverrides({});
-                            setHistory([{}]);
-                            setHistoryIndex(0);
-                            setCustomCuts({});
-                            localStorage.removeItem('blockcraft_overrides');
-                            localStorage.removeItem('blockcraft_history');
-                            localStorage.removeItem('blockcraft_historyIndex');
-                            localStorage.removeItem('blockcraft_custom_cuts');
-                            if (!code?.trim()) {
-                              setLastGeneratedCode('');
-                            }
-                            showToast('Кэш перемещений и разрезов сброшен');
-                        }}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-md hover:bg-red-100 dark:hover:bg-red-900/40 text-xs font-semibold transition"
-                        title="Сбросить все перемещения узлов и разрезы"
-                      >
-                        <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                        </svg>
-                        <span>Сбросить кэш</span>
-                      </button>
+                  {/* Zoom Slider Control */}
+                  <div className={`flex items-center px-2 py-1 rounded-xl border gap-2 ${
+                    isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-slate-100 border-slate-200'
+                  }`}>
+                    <span className="text-[10px] font-semibold text-slate-400 select-none">Zoom</span>
+                    <input
+                      type="range"
+                      min="0.2"
+                      max="3.0"
+                      step="0.05"
+                      value={scale}
+                      onChange={(e) => setScale(parseFloat(e.target.value))}
+                      className="w-20 sm:w-28 h-1.5 bg-slate-700/60 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                      title={`Масштаб: ${Math.round(scale * 100)}%`}
+                    />
+                    <button
+                      onClick={() => {
+                        setScale(1);
+                        setPan({ x: 0, y: 0 });
+                      }}
+                      className={`px-1.5 py-0.5 text-xs font-semibold rounded-md transition cursor-pointer min-w-[38px] text-center ${
+                        isDark ? 'text-slate-200 hover:bg-slate-800 hover:text-blue-400' : 'text-slate-700 hover:bg-white hover:text-blue-600'
+                      }`}
+                      title="Сбросить масштаб (100%)"
+                    >
+                      {Math.round(scale * 100)}%
+                    </button>
+                    <button
+                      onClick={() => {
+                        setScale(1);
+                        setPan({ x: 0, y: 0 });
+                      }}
+                      className="w-6 h-6 flex items-center justify-center rounded-lg transition cursor-pointer text-slate-400 hover:text-blue-400"
+                      title="Центрировать (100%)"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
                   </div>
+                </div>
+
+                {/* Right: Export & Reset Actions */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => {
+                      let name = activeGraph?.title || 'graph';
+                      if (activeGraph && activeGraph.pages.length > 1) {
+                        name += `_стр_${activePage + 1}`;
+                      }
+                      downloadSvg(`graph-svg-${activeTab}`, name);
+                    }}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                      isDark ? 'bg-[#131b2e] border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                    title="Скачать векторный SVG"
+                  >
+                    <Code className="w-3.5 h-3.5 text-orange-400" />
+                    <span>SVG</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      let name = activeGraph?.title || 'graph';
+                      if (activeGraph && activeGraph.pages.length > 1) {
+                        name += `_стр_${activePage + 1}`;
+                      }
+                      downloadPng(`graph-svg-${activeTab}`, name);
+                    }}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                      isDark ? 'bg-[#131b2e] border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                    title="Скачать растровый PNG"
+                  >
+                    <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    <span>PNG</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      let name = activeGraph?.title || 'graph';
+                      if (activeGraph && activeGraph.pages.length > 1) {
+                        name += `_стр_${activePage + 1}`;
+                      }
+                      downloadDrawio(name, fontFamily);
+                    }}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                      isDark ? 'bg-[#131b2e] border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                    title="Экспорт в draw.io (.drawio)"
+                  >
+                    <span className="text-emerald-500 font-bold">XML</span>
+                    <span>Draw.io</span>
+                  </button>
+
+                  <button
+                    onClick={handleResetCache}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition cursor-pointer"
+                    title="Сбросить все перемещения узлов и разрезы"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span className="hidden xl:inline">Сброс</span>
+                  </button>
+                </div>
               </div>
-          </div>
+            </div>
 
 
           {!showSidebar && !viewMode && (
@@ -1439,9 +1767,45 @@ const downloadDrawio = (title: string, fontFamily: string) => {
             </div>
           )}
 
-          <div className="flex-1 w-full h-full overflow-y-auto relative z-10 p-4 shrink-0 flex flex-col items-center justify-start">
+          {/* Canvas Viewport: Supports Drag Panning, Mouse Wheel and Scaled Scissors */}
+          <div
+            ref={canvasContainerRef}
+            className={`flex-1 w-full h-full relative overflow-hidden select-none ${
+              isDark ? 'bg-[#080c14]' : 'bg-[#eef2f6]'
+            } ${isScissorsMode ? 'cursor-cell' : isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+            onMouseDown={(e) => {
+              if (isScissorsMode) return;
+              if (e.button === 0 || e.button === 1) {
+                setIsPanning(true);
+                startPanRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+              }
+            }}
+            onMouseMove={(e) => {
+              if (isPanning) {
+                setPan({
+                  x: e.clientX - startPanRef.current.x,
+                  y: e.clientY - startPanRef.current.y,
+                });
+              }
+            }}
+            onMouseUp={() => setIsPanning(false)}
+            onMouseLeave={() => setIsPanning(false)}
+            onWheel={(e) => {
+              if (e.ctrlKey || e.metaKey || e.altKey) {
+                e.preventDefault();
+                const factor = e.deltaY < 0 ? 1.08 : 0.92;
+                setScale(s => Math.min(3, Math.max(0.2, +(s * factor).toFixed(2))));
+              } else {
+                if (e.shiftKey) {
+                  setPan(p => ({ ...p, x: p.x - e.deltaY }));
+                } else {
+                  setPan(p => ({ ...p, y: p.y - e.deltaY }));
+                }
+              }
+            }}
+          >
               {isScissorsMode && splitMode === 'manual' && (
-                <div className="sticky top-2 z-30 mb-2 px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 text-white text-xs font-semibold rounded-2xl shadow-xl shadow-rose-500/20 backdrop-blur border border-rose-400/40 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 text-white text-xs font-semibold rounded-2xl shadow-xl shadow-rose-500/20 backdrop-blur border border-rose-400/40 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-150">
                   <div className="flex items-center gap-2">
                     <span className="text-base leading-none">✂️</span>
                     <span>Режим ножниц активен: кликните на схему в месте, где хотите разделить страницы</span>
@@ -1463,18 +1827,25 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 </div>
               )}
               {activeGraph && activeGraphPage && (
-                <>
+                <div
+                  style={{
+                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+                    transformOrigin: 'top center',
+                    transition: isPanning ? 'none' : 'transform 0.05s ease-out',
+                  }}
+                  className="w-full h-full flex flex-col items-center justify-start p-8 min-h-full"
+                >
                   <svg 
                     id={`graph-svg-${activeTab}`}
                     width={activeGraphPage.width} 
                     height={activeGraphPage.height} 
                     viewBox={`0 0 ${activeGraphPage.width} ${activeGraphPage.height}`}
                     preserveAspectRatio="xMidYMid meet"
-                    className={`filter drop-shadow-md shadow-lg shadow-zinc-200/50 dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] overflow-visible bg-white dark:bg-[#1E1E24] border border-zinc-100 dark:border-zinc-800/80 p-6 rounded-lg my-4 transition-colors duration-300 ${isScissorsMode ? 'cursor-cell' : ''}`}
+                    className={`overflow-visible bg-white border border-slate-300 shadow-2xl shadow-slate-900/15 p-8 rounded-xl my-4 select-none ${isScissorsMode ? 'cursor-cell' : ''}`}
                     onClick={(e) => {
                         if (!isScissorsMode || splitMode !== 'manual') return;
                         const rect = e.currentTarget.getBoundingClientRect();
-                        const clickY = e.clientY - rect.top;
+                        const clickY = (e.clientY - rect.top) / scale;
                         const updatedCuts = [...(customCuts[activeTab] || [])];
                         updatedCuts.push(Math.round(clickY));
                         const nextCuts = { ...customCuts, [activeTab]: updatedCuts };
@@ -1485,7 +1856,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     onMouseMove={(e) => {
                         if (!isScissorsMode || splitMode !== 'manual') return;
                         const rect = e.currentTarget.getBoundingClientRect();
-                        const hoverY = e.clientY - rect.top;
+                        const hoverY = (e.clientY - rect.top) / scale;
                         setHoveredY(Math.round(hoverY));
                     }}
                     onMouseLeave={() => {
@@ -1497,17 +1868,17 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         <polygon points="0 0, 6 3, 0 6" fill="#18181b" />
                       </marker>
                       <marker id="arrowhead-dark" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-                        <polygon points="0 0, 6 3, 0 6" fill="#d4d4d8" />
+                        <polygon points="0 0, 6 3, 0 6" fill="#18181b" />
                       </marker>
                     </defs>
 
                     {activeGraphPage.edges.map((edge, i) => (
                         <g 
-                           key={edge.id || `edge-${i}`} 
-                           opacity={selectedElement?.type === 'edge' && selectedElement.id === edge.id ? 0.5 : 1}
-                           className="group"
+                            key={edge.id || `edge-${i}`} 
+                            opacity={selectedElement?.type === 'edge' && selectedElement.id === edge.id ? 0.5 : 1}
+                            className="group"
                         >
-                           <EdgePolyline edge={edge} theme={theme} />
+                            <EdgePolyline edge={edge} theme="light" />
                            {edge.segments?.map((seg, idx) => {
                                 // use 1-indexed to match data structure
                                 let segmentKey = idx + 1;
@@ -1560,7 +1931,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                           node={node} 
                           highlighted={highlightedNodeId === node.id || (node.lineIndex !== undefined && node.lineIndex !== null && node.lineIndex === hoveredLineIndex)} 
                           fontFamily={fontFamily}
-                          theme={theme}
+                          theme="light"
                         />
                       </g>
                     ))}
@@ -1656,58 +2027,12 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                                 fontSize={10}
                                 fontWeight="bold"
                             >
-                                ✂️ Сделать разрез
+                                Сделать разрез
                             </text>
                         </g>
                     )}
                   </svg>
-                  
-                  {editingNode && (
-                     <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/10 backdrop-blur-sm">
-                         <div className="bg-white p-4 rounded-xl shadow-xl flex flex-col gap-3 min-w-[300px]"
-                              onClick={e => e.stopPropagation()}>
-                             <div className="flex justify-between items-center">
-                                 <h3 className="font-bold text-sm uppercase tracking-wider text-zinc-500">Edit Node Text</h3>
-                                 <button onClick={() => setEditingNode(null)} className="text-zinc-400 hover:text-zinc-600 rounded p-1">
-                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                 </button>
-                             </div>
-                             <textarea 
-                                 className="w-full h-32 p-3 border border-zinc-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                                 autoFocus
-                                 value={editingNode.text}
-                                 onChange={(e) => setEditingNode({ ...editingNode, text: e.target.value })}
-                                 onKeyDown={(e) => {
-                                     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                                         const next = JSON.parse(JSON.stringify(overridesRef.current));
-                                         if (!next[activeTab]) next[activeTab] = { nodes: {}, edges: {} };
-                                         if (!next[activeTab].nodes) next[activeTab].nodes = {};
-                                         if (!next[activeTab].nodes[editingNode.id]) next[activeTab].nodes[editingNode.id] = {};
-                                         next[activeTab].nodes[editingNode.id].text = editingNode.text;
-                                         pushHistory(next);
-                                         setEditingNode(null);
-                                     }
-                                 }}
-                             />
-                             <div className="flex justify-between items-center text-xs text-zinc-400">
-                                <span>Press <kbd className="bg-zinc-100 px-1 rounded">Cmd+Enter</kbd> to save</span>
-                                <button className="bg-zinc-900 text-white px-4 py-2 rounded-lg font-medium hover:bg-zinc-800"
-                                        onClick={() => {
-                                            const next = JSON.parse(JSON.stringify(overridesRef.current));
-                                            if (!next[activeTab]) next[activeTab] = { nodes: {}, edges: {} };
-                                            if (!next[activeTab].nodes) next[activeTab].nodes = {};
-                                            if (!next[activeTab].nodes[editingNode.id]) next[activeTab].nodes[editingNode.id] = {};
-                                            next[activeTab].nodes[editingNode.id].text = editingNode.text;
-                                            pushHistory(next);
-                                            setEditingNode(null);
-                                        }}>
-                                    Save
-                                </button>
-                             </div>
-                         </div>
-                     </div>
-                  )}
-                </>
+                </div>
               )}
 
               {graphs.length === 0 && (
@@ -1731,8 +2056,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         onClick={() => handleLoadPreset(preset)}
                         className="group flex flex-col items-start p-5 bg-white dark:bg-[#202024]/60 hover:bg-zinc-50 dark:hover:bg-[#2A2A2E]/80 border border-zinc-200 dark:border-zinc-700/60 hover:border-blue-400/50 dark:hover:border-blue-500/50 rounded-2xl text-left transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-xs hover:shadow-sm"
                       >
-                        <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform duration-300 shadow-xs">
-                          {preset.icon}
+                        <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-xs border border-zinc-200/50 dark:border-zinc-700/50">
+                          {preset.type === 'branch' && <GitBranch className="w-5 h-5 text-emerald-500" />}
+                          {preset.type === 'loop' && <Repeat className="w-5 h-5 text-blue-500" />}
+                          {preset.type === 'func' && <Code className="w-5 h-5 text-purple-500" />}
                         </div>
                         <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm mb-1.5 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                           {preset.title}
@@ -1760,60 +2087,186 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 </div>
               )}
             </div>
-        </section>
-      </main>
-
-      {!viewMode && (
-        <footer className="h-8 border-t-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-[#232328] flex items-center px-6 text-[11px] text-zinc-400 dark:text-zinc-500 font-medium shrink-0 justify-between relative z-30 transition-colors duration-300 select-none">
-          <div className="flex items-center gap-3">
-            <span className="font-semibold text-zinc-600 dark:text-zinc-400">ГОСТ 19.701-90</span>
-            <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline">•</span>
-            <span className="hidden sm:inline text-zinc-400 dark:text-zinc-500">Схематор • schemator.ru</span>
           </div>
+        </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
-            <button
-              type="button"
-              onClick={() => setLegalModalDoc('privacy')}
-              className="text-zinc-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition cursor-pointer underline-offset-2 hover:underline"
-            >
-              Политика обработки персональных данных (152-ФЗ)
-            </button>
-            <span className="text-zinc-300 dark:text-zinc-700">•</span>
-            <button
-              type="button"
-              onClick={() => setLegalModalDoc('offer')}
-              className="text-zinc-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition cursor-pointer underline-offset-2 hover:underline"
-            >
-              Публичная оферта и Coins
-            </button>
-          </div>
-        </footer>
-      )}
-
-      {/* Bottom Right Diagram History Widget */}
+      {/* Diagram History Drawer / Modal */}
       <DiagramHistory
         user={user}
         currentCode={code}
         currentLanguage={language}
+        isOpen={isHistoryOpen}
+        onToggleOpen={(open) => setIsHistoryOpen(open)}
         onSelectDiagram={handleSelectDiagramFromHistory}
         onOpenLogin={handleLogin}
         onNotify={showToast}
       />
 
+      {/* Presets and Templates Modal */}
+      <PresetsModal
+        isOpen={isPresetsModalOpen}
+        onClose={() => setIsPresetsModalOpen(false)}
+        theme={theme}
+        onSelect={(template) => {
+          if (code.trim() && code.trim() !== template.code.trim()) {
+            setPreviousBackup({
+              code: code,
+              language: 'python',
+              title: 'Предыдущий код'
+            });
+          }
+          setCode(template.code);
+          setLanguage(template.language as any || 'python');
+          sessionGeneratedCodesRef.current.add(template.code.trim());
+          setLastGeneratedCode(template.code);
+          setLastGeneratedLanguage(template.language as any || 'python');
+          setActiveTab(0);
+          setActivePage(0);
+          showToast(`Загружен шаблон: «${template.title}»`);
+        }}
+        onSelectTemplate={(template) => {
+          if (code.trim() && code.trim() !== template.code.trim()) {
+            setPreviousBackup({
+              code: code,
+              language: 'python',
+              title: 'Предыдущий код'
+            });
+          }
+          setCode(template.code);
+          setLanguage(template.language as any || 'python');
+          sessionGeneratedCodesRef.current.add(template.code.trim());
+          setLastGeneratedCode(template.code);
+          setLastGeneratedLanguage(template.language as any || 'python');
+          setActiveTab(0);
+          setActivePage(0);
+          showToast(`Загружен шаблон: «${template.title}»`);
+        }}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        theme={theme}
+        onThemeChange={(nextTheme) => {
+          setTheme(nextTheme);
+          localStorage.setItem('blockcraft_theme', nextTheme);
+        }}
+        fontFamily={fontFamily}
+        onFontChange={(nextFont) => {
+          setFontFamily(nextFont);
+          localStorage.setItem('blockcraft_font', nextFont);
+        }}
+        splitMode={splitMode}
+        onSplitModeChange={(nextMode) => {
+          setSplitMode(nextMode);
+          setIsScissorsMode(nextMode === 'manual');
+          localStorage.setItem('blockcraft_split_mode', nextMode);
+        }}
+        onResetCache={handleResetCache}
+        onNotify={showToast}
+      />
+
+      {/* Locked Node Text Edit Modal (Centered on Screen & Prevents Panning/Dragging) */}
+      {editingNode && (
+        <div 
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={() => setEditingNode(null)}
+        >
+          <div 
+            className={`w-full max-w-md rounded-2xl border shadow-2xl p-5 flex flex-col gap-3.5 animate-in zoom-in-95 duration-150 ${
+              isDark ? 'bg-[#0f172a] text-slate-100 border-slate-700' : 'bg-white text-slate-800 border-slate-200'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={`flex justify-between items-center pb-2 border-b ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+              <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Редактирование текста блока
+              </h3>
+              <button 
+                onClick={() => setEditingNode(null)} 
+                className={`rounded-lg p-1 transition cursor-pointer ${
+                  isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <textarea 
+              className={`w-full h-32 p-3 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border transition-colors ${
+                isDark 
+                  ? 'bg-slate-900 border-slate-700 text-slate-100' 
+                  : 'bg-slate-50 border-slate-200 text-slate-800'
+              }`}
+              autoFocus
+              value={editingNode.text}
+              onChange={(e) => setEditingNode({ ...editingNode, text: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  const next = JSON.parse(JSON.stringify(overridesRef.current));
+                  if (!next[activeTab]) next[activeTab] = { nodes: {}, edges: {} };
+                  if (!next[activeTab].nodes) next[activeTab].nodes = {};
+                  if (!next[activeTab].nodes[editingNode.id]) next[activeTab].nodes[editingNode.id] = {};
+                  next[activeTab].nodes[editingNode.id].text = editingNode.text;
+                  pushHistory(next);
+                  setEditingNode(null);
+                  showToast('Текст блока сохранен');
+                } else if (e.key === 'Escape') {
+                  setEditingNode(null);
+                }
+              }}
+            />
+
+            <div className="flex items-center justify-between pt-1 text-xs">
+              <span className="text-slate-400 text-[11px]">
+                Нажмите <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 font-mono text-[10px]">Ctrl+Enter</kbd>
+              </span>
+              <div className="flex items-center gap-2">
+                <button 
+                  type="button"
+                  onClick={() => setEditingNode(null)}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                    isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                  }`}
+                >
+                  Отмена
+                </button>
+                <button 
+                  type="button"
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg font-semibold transition shadow-xs cursor-pointer"
+                  onClick={() => {
+                    const next = JSON.parse(JSON.stringify(overridesRef.current));
+                    if (!next[activeTab]) next[activeTab] = { nodes: {}, edges: {} };
+                    if (!next[activeTab].nodes) next[activeTab].nodes = {};
+                    if (!next[activeTab].nodes[editingNode.id]) next[activeTab].nodes[editingNode.id] = {};
+                    next[activeTab].nodes[editingNode.id].text = editingNode.text;
+                    pushHistory(next);
+                    setEditingNode(null);
+                    showToast('Текст блока сохранен');
+                  }}
+                >
+                  Сохранить
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Accidental Click / Restore Previous Code Floating Banner */}
       {previousBackup && (
-        <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 text-xs font-semibold rounded-2xl shadow-2xl backdrop-blur border border-zinc-700/80 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[100] px-3.5 py-1.5 bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 text-[11px] font-medium rounded-xl shadow-xl backdrop-blur border border-zinc-700/80 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
           <span className="text-zinc-300">Загружена схема из истории. Случайно нажали?</span>
           <button
             onClick={handleRestorePreviousCode}
-            className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
+            className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-[11px] font-bold transition shadow-xs cursor-pointer"
           >
             Вернуть старый код
           </button>
           <button
             onClick={() => setPreviousBackup(null)}
-            className="text-zinc-400 hover:text-white p-0.5"
+            className="text-zinc-400 hover:text-white p-0.5 cursor-pointer"
             title="Закрыть"
           >
             <X className="w-3.5 h-3.5" />
@@ -1823,7 +2276,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
       {/* Floating Toast Notification */}
       {toastMessage && !previousBackup && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] px-5 py-2.5 bg-zinc-900/95 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs sm:text-sm font-semibold rounded-full shadow-2xl backdrop-blur border border-white/20 dark:border-black/20 animate-in fade-in slide-in-from-bottom-3 duration-200 pointer-events-none flex items-center gap-2">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 bg-zinc-900/95 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold rounded-full shadow-2xl backdrop-blur border border-white/20 dark:border-black/20 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none flex items-center gap-2">
           <span>{toastMessage}</span>
         </div>
       )}
