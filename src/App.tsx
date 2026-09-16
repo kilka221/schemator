@@ -41,7 +41,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Scissors
 } from 'lucide-react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
@@ -299,8 +300,35 @@ export default function App() {
     setUserTokens(null);
   };
 
-  const [leftWidth, setLeftWidth] = useState(480);
+  const [leftWidth, setLeftWidth] = useState(() => {
+    const saved = localStorage.getItem('blockcraft_left_width');
+    return saved ? Math.max(300, Math.min(800, parseInt(saved, 10))) : 440;
+  });
+  const [isResizing, setIsResizing] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    const startX = e.clientX;
+    const startW = leftWidth;
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      const delta = ev.clientX - startX;
+      const newW = Math.max(300, Math.min(800, startW + delta));
+      setLeftWidth(newW);
+      localStorage.setItem('blockcraft_left_width', String(newW));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     const saved = localStorage.getItem('blockcraft_sidebar_collapsed');
     return saved !== null ? saved === 'true' : false;
@@ -1138,6 +1166,24 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
             {/* Right Controls in Header */}
             <div className="flex items-center gap-2">
+              {/* Code Editor Toggle */}
+              <button
+                onClick={() => setShowSidebar(prev => !prev)}
+                className={`h-7 px-2.5 rounded-md border flex items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                  showSidebar
+                    ? isDark
+                      ? 'bg-zinc-800 border-zinc-700 text-zinc-100'
+                      : 'bg-zinc-100 border-zinc-300 text-zinc-900'
+                    : isDark
+                    ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
+                    : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+                }`}
+                title={showSidebar ? "Скрыть редактор кода" : "Показать редактор кода"}
+              >
+                <Code className="w-3.5 h-3.5" />
+                <span className="text-[11px]">Редактор</span>
+              </button>
+
               {/* Theme Toggle */}
               <button
                 onClick={() => {
@@ -1160,14 +1206,15 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               {/* Auth & Tokens */}
               {user ? (
                 <div className="flex items-center gap-2">
-                  <div className={`px-2.5 h-7 rounded-md border text-xs flex items-center gap-2 font-mono ${
-                    isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-zinc-50 border-zinc-200 text-zinc-700'
+                  <div className={`px-2 h-7 rounded-md border text-[11px] font-mono flex items-center gap-1.5 transition-colors ${
+                    isDark ? 'bg-zinc-800/80 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
                   }`}>
-                    <Coins className="w-3.5 h-3.5 text-amber-500" />
-                    <span>{userTokens !== null ? userTokens : '...'}</span>
+                    <Coins className="w-3 h-3 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                    <span className="font-medium">{userTokens !== null ? userTokens : '...'}</span>
+                    <span className="text-zinc-300 dark:text-zinc-600 select-none">|</span>
                     <button
                       onClick={() => setIsTariffModalOpen(true)}
-                      className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition-colors cursor-pointer"
+                      className="text-[11px] font-mono text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors cursor-pointer"
                     >
                       Тарифы
                     </button>
@@ -1428,9 +1475,12 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
           {/* Center Docked Panel: Code Editor */}
           {!viewMode && showSidebar && (
-            <div className={`w-[400px] xl:w-[460px] shrink-0 flex flex-col overflow-hidden transition-colors duration-150 ${
-              isDark ? 'bg-zinc-900' : 'bg-white'
-            }`}>
+            <div 
+              style={{ width: `${leftWidth}px` }}
+              className={`shrink-0 flex flex-col overflow-hidden transition-colors duration-150 ${
+                isDark ? 'bg-zinc-900' : 'bg-white'
+              }`}
+            >
               {/* Sub-toolbar */}
               <div className={`h-10 px-3 border-b flex items-center justify-between text-xs shrink-0 ${
                 isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-400' : 'bg-zinc-50/80 border-zinc-200 text-zinc-600'
@@ -1490,15 +1540,45 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   }}
                 >
                   <style>{`
-                    .npm__react-simple-code-editor__textarea { outline: none !important; white-space: pre !important; }
-                    pre { white-space: pre !important; }
+                    #code-editor-scroller .editor-line-num {
+                      height: 22px !important;
+                      line-height: 22px !important;
+                      font-size: 13px !important;
+                      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+                    }
+                    #code-editor-scroller pre,
+                    #code-editor-scroller code,
+                    #code-editor-scroller textarea,
+                    #code-editor-scroller .npm__react-simple-code-editor__textarea {
+                      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+                      font-size: 13px !important;
+                      line-height: 22px !important;
+                      white-space: pre !important;
+                      outline: none !important;
+                      margin: 0 !important;
+                      padding: 0 !important;
+                      box-sizing: border-box !important;
+                    }
+                    #code-editor-scroller pre[class*="language-"],
+                    #code-editor-scroller code[class*="language-"] {
+                      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+                      font-size: 13px !important;
+                      line-height: 22px !important;
+                      padding: 0 !important;
+                      margin: 0 !important;
+                    }
                   `}</style>
                   {/* Line numbers */}
                   <div
-                    className={`flex select-none font-mono text-[12px] leading-relaxed text-right pr-2 mr-2.5 flex-col shrink-0 border-r ${
-                      isDark ? 'text-zinc-600 border-zinc-800' : 'text-zinc-400 border-zinc-200'
+                    className={`flex select-none text-right pr-2 mr-2.5 flex-col shrink-0 border-r ${
+                      isDark ? 'text-zinc-500 border-zinc-800' : 'text-zinc-400 border-zinc-200'
                     }`}
-                    style={{ minWidth: '2.2rem', lineHeight: '1.625' }}
+                    style={{
+                      minWidth: '2.4rem',
+                      fontFamily: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                      fontSize: '13px',
+                      lineHeight: '22px',
+                    }}
                   >
                     {code.split('\n').map((_, idx) => {
                       const isHighlighted = hoveredLineIndex === idx;
@@ -1514,13 +1594,18 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                               setHighlightedNodeId(res.nodeId);
                             }
                           }}
-                          className={`cursor-pointer px-0.5 rounded-xs transition-colors ${
+                          className={`editor-line-num cursor-pointer px-1 rounded-sm transition-colors flex items-center justify-end ${
                             isHighlighted
                               ? 'bg-amber-500/20 text-amber-500 font-bold'
                               : isDark
                               ? 'hover:text-zinc-300'
                               : 'hover:text-zinc-700'
                           }`}
+                          style={{
+                            height: '22px',
+                            lineHeight: '22px',
+                            fontSize: '13px',
+                          }}
                         >
                           {idx + 1}
                         </div>
@@ -1538,11 +1623,11 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         return grammar ? Prism.highlight(code, grammar, language) : code;
                       }}
                       padding={0}
-                      className={`font-mono text-[13px] leading-relaxed ${
-                        isDark ? 'text-zinc-200' : 'text-zinc-800'
-                      }`}
+                      className={isDark ? 'text-zinc-200' : 'text-zinc-800'}
                       style={{
-                        fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                        fontFamily: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                        fontSize: 13,
+                        lineHeight: '22px',
                         minHeight: '100%',
                         whiteSpace: 'pre',
                       }}
@@ -1564,16 +1649,36 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 <button
                   onClick={handleGenerateClick}
                   disabled={isGenerating}
-                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-medium text-xs h-7 px-3 rounded-md shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                  className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium text-xs h-7 px-3 rounded-md shadow-sm transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  <Play className="w-3 h-3 fill-white" />
+                  <Play className="w-3 h-3 fill-current" />
                   <span>{isGenerating ? "Генерация..." : "Создать схему"}</span>
-                  <kbd className="text-[10px] font-mono bg-blue-700/80 px-1 py-0.2 rounded text-blue-100">
+                  <kbd className="text-[10px] font-mono bg-blue-700/80 text-blue-100 border border-blue-500/40 px-1 py-0.5 rounded leading-none">
                     Ctrl+Enter
                   </kbd>
                 </button>
               </div>
             </div>
+          )}
+
+          {/* Interactive Pane Resizer */}
+          {!viewMode && showSidebar && (
+            <div
+              onMouseDown={handleResizeMouseDown}
+              className="w-1 relative shrink-0 cursor-col-resize hover:bg-zinc-400/50 active:bg-zinc-500 dark:hover:bg-zinc-500/50 transition-colors z-20 select-none group"
+              title="Потяните для изменения ширины редактора"
+            >
+              <div className="absolute inset-y-0 -left-1 -right-1 cursor-col-resize" />
+            </div>
+          )}
+          {!viewMode && !showSidebar && (
+            <button
+              onClick={() => setShowSidebar(true)}
+              className="w-2.5 shrink-0 cursor-pointer border-r border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 transition-colors z-20 flex items-center justify-center group"
+              title="Открыть редактор кода"
+            >
+              <div className="w-1 h-8 rounded-full bg-zinc-300 dark:bg-zinc-700 group-hover:bg-zinc-500 dark:group-hover:bg-zinc-400 transition-colors" />
+            </button>
           )}
 
           {/* Right Docked Panel: Diagram Preview & Canvas */}
@@ -1609,12 +1714,14 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 </div>
               )}
 
-              {/* Main Canvas Controls Bar - Docked 40px utility bar */}
-              <div className="h-10 px-3 flex items-center justify-between gap-2 text-xs">
+              {/* Main Canvas Controls Bar - Low-profile 36px cohesive horizontal bar */}
+              <div className={`h-9 px-3 flex items-center justify-between gap-2 text-xs transition-colors ${
+                isDark ? 'bg-zinc-900' : 'bg-white'
+              }`}>
                 {/* Left: Mode toggle (Авто / Ножницы) */}
                 <div className="flex items-center gap-1.5">
                   <div className={`inline-flex p-0.5 rounded-md border gap-0.5 ${
-                    isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-100 border-zinc-200'
+                    isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-100/80 border-zinc-200'
                   }`}>
                     <button
                       onClick={() => {
@@ -1622,9 +1729,9 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         setIsScissorsMode(false);
                         localStorage.setItem('blockcraft_split_mode', 'auto');
                       }}
-                      className={`h-6 px-2.5 text-xs font-medium rounded-sm transition-colors cursor-pointer ${
+                      className={`h-6 px-2.5 text-xs font-medium rounded transition-colors cursor-pointer ${
                         splitMode === 'auto'
-                          ? isDark ? 'bg-zinc-800 text-zinc-100 font-semibold shadow-2xs' : 'bg-white text-zinc-900 font-semibold shadow-2xs'
+                          ? isDark ? 'bg-zinc-800 text-zinc-100 shadow-2xs' : 'bg-white text-zinc-900 shadow-2xs'
                           : isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
                       }`}
                     >
@@ -1641,15 +1748,18 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         }
                       }}
                       title={splitMode === 'manual' && isScissorsMode ? "Ножницы активны (кликните на схему для разреза)" : "Ручной режим (ножницы)"}
-                      className={`h-6 px-2.5 flex items-center justify-center text-xs font-medium rounded-sm transition-colors cursor-pointer ${
+                      className={`h-6 px-2.5 flex items-center gap-1.5 text-xs font-medium rounded transition-colors cursor-pointer ${
                         splitMode === 'manual'
                           ? isScissorsMode
-                            ? 'bg-rose-600 text-white font-medium shadow-2xs'
-                            : isDark ? 'bg-zinc-800 text-zinc-200' : 'bg-white text-zinc-900'
+                            ? isDark
+                              ? 'bg-zinc-800 text-zinc-100 shadow-2xs ring-1 ring-zinc-700'
+                              : 'bg-white text-zinc-900 shadow-2xs ring-1 ring-zinc-300'
+                            : isDark ? 'bg-zinc-800/60 text-zinc-300' : 'bg-white/80 text-zinc-700'
                           : isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
                       }`}
                     >
-                      ✂️ Ножницы
+                      <Scissors className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400 stroke-zinc-600 dark:stroke-zinc-400 shrink-0" />
+                      <span>Ножницы</span>
                     </button>
                   </div>
 
@@ -1660,7 +1770,11 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         setCustomCuts(updated);
                         localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(updated));
                       }}
-                      className="h-6 px-2 text-[11px] font-medium rounded-md text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 transition-colors cursor-pointer"
+                      className={`h-6 px-2 text-xs font-medium rounded border transition-colors cursor-pointer ${
+                        isDark
+                          ? 'text-zinc-400 hover:text-zinc-200 bg-zinc-800/60 hover:bg-zinc-800 border-zinc-700'
+                          : 'text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200 border-zinc-200'
+                      }`}
                       title="Очистить все разрезы"
                     >
                       Сброс разрезов
@@ -1672,13 +1786,13 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 <div className="flex items-center gap-2">
                   {/* Pagination if multiple pages */}
                   {activeGraph && activeGraph.pages.length > 1 && (
-                    <div className={`inline-flex rounded-md border overflow-hidden shadow-2xs ${
-                      isDark ? 'border-zinc-700 bg-zinc-800' : 'border-zinc-200 bg-white'
+                    <div className={`inline-flex rounded border overflow-hidden shadow-2xs ${
+                      isDark ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-200 bg-white'
                     }`}>
                       <button
                         onClick={() => setActivePage(p => Math.max(0, p - 1))}
                         disabled={activePage === 0}
-                        className="h-6 px-2 text-xs font-mono transition-colors cursor-pointer disabled:opacity-30 hover:bg-zinc-50 dark:hover:bg-zinc-700 border-r border-zinc-200 dark:border-zinc-700"
+                        className="h-6 px-2 text-xs font-mono transition-colors cursor-pointer disabled:opacity-30 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-r border-zinc-200 dark:border-zinc-800"
                       >
                         ←
                       </button>
@@ -1688,7 +1802,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       <button
                         onClick={() => setActivePage(p => Math.min(activeGraph.pages.length - 1, p + 1))}
                         disabled={activePage === activeGraph.pages.length - 1}
-                        className="h-6 px-2 text-xs font-mono transition-colors cursor-pointer disabled:opacity-30 hover:bg-zinc-50 dark:hover:bg-zinc-700 border-l border-zinc-200 dark:border-zinc-700"
+                        className="h-6 px-2 text-xs font-mono transition-colors cursor-pointer disabled:opacity-30 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-l border-zinc-200 dark:border-zinc-800"
                       >
                         →
                       </button>
@@ -1696,8 +1810,8 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   )}
 
                   {/* Zoom Slider Control */}
-                  <div className={`h-7 flex items-center px-2 rounded-md border gap-1.5 shadow-2xs ${
-                    isDark ? 'bg-zinc-800/80 border-zinc-700' : 'bg-white border-zinc-200'
+                  <div className={`h-6 flex items-center px-2 rounded border gap-1.5 shadow-2xs ${
+                    isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
                   }`}>
                     <span className="text-[10px] font-mono text-zinc-400 select-none uppercase">Zoom</span>
                     <input
@@ -1707,7 +1821,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       step="0.05"
                       value={scale}
                       onChange={(e) => setScale(parseFloat(e.target.value))}
-                      className="w-16 sm:w-20 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-sm appearance-none cursor-pointer accent-zinc-800 dark:accent-zinc-200"
+                      className="w-16 sm:w-20 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-sm appearance-none cursor-pointer accent-zinc-700 dark:accent-zinc-300"
                       title={`Масштаб: ${Math.round(scale * 100)}%`}
                     />
                     <button
@@ -1716,7 +1830,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         setPan({ x: 0, y: 0 });
                       }}
                       className={`text-xs font-mono font-medium rounded transition-colors cursor-pointer px-1 text-center w-10 ${
-                        isDark ? 'text-zinc-200 hover:text-white' : 'text-zinc-700 hover:text-zinc-900'
+                        isDark ? 'text-zinc-300 hover:text-white' : 'text-zinc-700 hover:text-zinc-900'
                       }`}
                       title="Сбросить масштаб (100%)"
                     >
@@ -1727,7 +1841,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         setScale(1);
                         setPan({ x: 0, y: 0 });
                       }}
-                      className="w-4 h-4 flex items-center justify-center transition-colors cursor-pointer text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                      className="w-3.5 h-3.5 flex items-center justify-center transition-colors cursor-pointer text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
                       title="Центрировать (100%)"
                     >
                       <RotateCcw className="w-3 h-3" />
@@ -1736,7 +1850,11 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 </div>
 
                 {/* Right: Segmented Export Buttons Group */}
-                <div className="inline-flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden divide-x divide-zinc-200 dark:divide-zinc-700 bg-white dark:bg-zinc-800 shadow-2xs">
+                <div className={`h-6 inline-flex rounded border overflow-hidden divide-x shadow-2xs ${
+                  isDark
+                    ? 'border-zinc-800 divide-zinc-800 bg-zinc-900'
+                    : 'border-zinc-200 divide-zinc-200 bg-white'
+                }`}>
                   <button
                     onClick={() => {
                       let name = activeGraph?.title || 'graph';
@@ -1745,7 +1863,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       }
                       downloadSvg(`graph-svg-${activeTab}`, name);
                     }}
-                    className="h-7 px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                    className="h-6 px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                     title="Скачать векторный SVG"
                   >
                     SVG
@@ -1759,7 +1877,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       }
                       downloadPng(`graph-svg-${activeTab}`, name);
                     }}
-                    className="h-7 px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                    className="h-6 px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                     title="Скачать растровый PNG"
                   >
                     PNG
@@ -1773,7 +1891,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       }
                       downloadDrawio(name, fontFamily);
                     }}
-                    className="h-7 px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                    className="h-6 px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                     title="Экспорт в draw.io (.drawio)"
                   >
                     DRAW.IO
@@ -1827,50 +1945,23 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               }
             }}
           >
-            {/* Corner Toggle Button for Code Editor (Open / Collapse) */}
-            {!viewMode && (
-              <div 
-                className="absolute top-3 left-3 z-20"
-                onMouseDown={(e) => e.stopPropagation()}
-              >
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowSidebar(prev => !prev);
-                  }}
-                  className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium transition-colors cursor-pointer select-none"
-                  title={showSidebar ? "Свернуть редактор кода" : "Открыть редактор кода"}
-                >
-                  {showSidebar ? (
-                    <>
-                      <PanelLeftClose className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-                      <span>Свернуть</span>
-                    </>
-                  ) : (
-                    <>
-                      <Code className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-                      <span>Редактор</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
+            {/* Stray corner toggle button removed. Panel toggling is now in header and on split divider */}
               {isScissorsMode && splitMode === 'manual' && (
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 bg-zinc-900 text-white text-xs font-medium rounded-md shadow-xl border border-zinc-700 flex items-center gap-3 animate-in fade-in duration-150">
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 bg-zinc-900 dark:bg-zinc-800 text-white text-xs font-medium rounded-md shadow-xl border border-zinc-700 dark:border-zinc-600 flex items-center gap-3 animate-in fade-in duration-150">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">✂️</span>
+                    <Scissors className="w-3.5 h-3.5 text-zinc-300 stroke-zinc-300" />
                     <span>Режим ножниц: кликните на схему для разделения страниц</span>
                   </div>
                   <div className="flex items-center gap-1.5 ml-auto">
                     <button
                       onClick={() => setIsScissorsMode(false)}
-                      className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 rounded text-[11px] font-medium transition-colors cursor-pointer"
+                      className="px-2 py-0.5 bg-zinc-800 dark:bg-zinc-700 hover:bg-zinc-700 dark:hover:bg-zinc-600 rounded text-[11px] font-medium transition-colors cursor-pointer"
                     >
                       Отмена
                     </button>
                     <button
                       onClick={() => setIsTipsModalOpen(true)}
-                      className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 rounded text-[11px] font-medium transition-colors cursor-pointer"
+                      className="px-2 py-0.5 bg-zinc-800 dark:bg-zinc-700 hover:bg-zinc-700 dark:hover:bg-zinc-600 rounded text-[11px] font-medium transition-colors cursor-pointer"
                     >
                       Справка
                     </button>
@@ -2074,10 +2165,12 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
                       <button
                         onClick={handleLogin}
-                        className="w-full h-8 px-4 rounded-md bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-medium shadow-2xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                        className="w-full h-8 px-4 rounded-md bg-white hover:bg-zinc-50 border border-zinc-300 text-zinc-800 font-medium text-xs shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                       >
-                        <LogIn className="w-3.5 h-3.5" />
-                        <span>Войти через Google</span>
+                        <span className="w-4 h-4 rounded-full bg-[#FC3F1D] text-white flex items-center justify-center text-[10px] font-bold leading-none shrink-0 select-none">
+                          Я
+                        </span>
+                        <span>Войти через Яндекс ID</span>
                       </button>
 
                       <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-[11px] font-mono font-medium text-amber-700 dark:text-amber-400">

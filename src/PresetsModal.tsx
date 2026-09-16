@@ -252,7 +252,7 @@ export const PresetsModal: React.FC<PresetsModalProps> = ({
           <span className="text-[11px] font-mono text-zinc-500">Кликните по шаблону для загрузки</span>
           <button 
             onClick={onClose}
-            className="px-3 py-1 rounded-md bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-medium transition-colors cursor-pointer"
+            className="px-3.5 py-1.5 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 font-medium text-sm transition-colors cursor-pointer"
           >
             Закрыть
           </button>
