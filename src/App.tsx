@@ -1470,13 +1470,6 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
-                  <button
-                    onClick={() => setShowSidebar(false)}
-                    className="h-6 w-6 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                    title="Свернуть редактор"
-                  >
-                    <PanelLeftClose className="w-3.5 h-3.5" />
-                  </button>
                 </div>
               </div>
 
@@ -1790,18 +1783,6 @@ const downloadDrawio = (title: string, fontFamily: string) => {
             </div>
 
 
-          {!showSidebar && !viewMode && (
-            <div className={`absolute top-14 ${isSidebarCollapsed ? 'left-16' : 'left-60'} z-20 transition-all duration-200`}>
-              <button 
-                className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium transition-colors cursor-pointer"
-                onClick={() => setShowSidebar(true)}
-              >
-                <Code className="w-3.5 h-3.5" />
-                <span>Редактор</span>
-              </button>
-            </div>
-          )}
-
           {/* Canvas Viewport: Supports Drag Panning, Mouse Wheel, Scaled Scissors and Dot-Grid background */}
           <div
             ref={canvasContainerRef}
@@ -1846,6 +1827,34 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               }
             }}
           >
+            {/* Corner Toggle Button for Code Editor (Open / Collapse) */}
+            {!viewMode && (
+              <div 
+                className="absolute top-3 left-3 z-20"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowSidebar(prev => !prev);
+                  }}
+                  className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium transition-colors cursor-pointer select-none"
+                  title={showSidebar ? "Свернуть редактор кода" : "Открыть редактор кода"}
+                >
+                  {showSidebar ? (
+                    <>
+                      <PanelLeftClose className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                      <span>Свернуть</span>
+                    </>
+                  ) : (
+                    <>
+                      <Code className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                      <span>Редактор</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
               {isScissorsMode && splitMode === 'manual' && (
                 <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 bg-zinc-900 text-white text-xs font-medium rounded-md shadow-xl border border-zinc-700 flex items-center gap-3 animate-in fade-in duration-150">
                   <div className="flex items-center gap-2">
