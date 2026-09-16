@@ -34,7 +34,14 @@ import {
   ZoomIn,
   ZoomOut,
   Move,
-  Download
+  Download,
+  ShieldCheck,
+  FileText,
+  PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
@@ -292,8 +299,12 @@ export default function App() {
     setUserTokens(null);
   };
 
-const [leftWidth, setLeftWidth] = useState(480);
+  const [leftWidth, setLeftWidth] = useState(480);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    const saved = localStorage.getItem('blockcraft_sidebar_collapsed');
+    return saved !== null ? saved === 'true' : false;
+  });
   const [viewMode, setViewMode] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [tabPages, setTabPages] = useState<Record<number, number>>({});
@@ -396,7 +407,6 @@ const [leftWidth, setLeftWidth] = useState(480);
       }
   };
   const [editingNode, setEditingNode] = useState<{id: string, text: string} | null>(null);
-  const [dragState, setDragState] = useState<{id: string, type: 'node' | 'edge', segment?: number, dragEnd?: 'start' | 'end', startX: number, startY: number, startDx: number, startDy: number, moved?: boolean, isVertical?: boolean} | null>(null);
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -462,35 +472,6 @@ const [leftWidth, setLeftWidth] = useState(480);
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, []);
-
-  // Dragging nodes inside diagram
-  React.useEffect(() => {
-    if (!dragState) return;
-    const handleMouseMove = (e: MouseEvent) => {
-      const effectiveScale = Math.max(0.15, scale);
-      const dx = (e.pageX - dragState.startX) / effectiveScale;
-      const dy = (e.pageY - dragState.startY) / effectiveScale;
-      const next = JSON.parse(JSON.stringify(overridesRef.current));
-      if (!next[activeTab]) next[activeTab] = { nodes: {}, edges: {} };
-      if (!next[activeTab].nodes) next[activeTab].nodes = {};
-      if (!next[activeTab].nodes[dragState.id]) next[activeTab].nodes[dragState.id] = {};
-      next[activeTab].nodes[dragState.id].dx = dragState.startDx + dx;
-      next[activeTab].nodes[dragState.id].dy = dragState.startDy + dy;
-      setOverrides(next);
-    };
-    const handleMouseUp = () => {
-      if (dragState) {
-        pushHistory(overridesRef.current);
-        setDragState(null);
-      }
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [dragState, scale, activeTab]);
 
   const handleZoomIn = () => {
     setScale(prev => Math.min(3.5, Number((prev + 0.15).toFixed(2))));
@@ -655,19 +636,6 @@ const [leftWidth, setLeftWidth] = useState(480);
                   createdAt: now,
                   updatedAt: now
                 });
-              } else {
-                const saved = JSON.parse(localStorage.getItem('blockcraft_local_history') || '[]');
-                saved.unshift({
-                  id: diagId,
-                  userId: 'anonymous',
-                  title: autoTitle,
-                  code: code,
-                  language: saveLang,
-                  isPinned: false,
-                  createdAt: now,
-                  updatedAt: now
-                });
-                localStorage.setItem('blockcraft_local_history', JSON.stringify(saved.slice(0, 50)));
               }
             } catch (histErr) {
               console.warn('Auto-save history error:', histErr);
@@ -1129,30 +1097,47 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
     return (
     <div className={`w-full h-screen ${isDark ? 'dark' : ''}`}>
-      <div className={`w-full h-screen flex flex-col font-sans overflow-hidden select-none transition-colors duration-200 ${
-        isDark ? 'bg-[#080c14] text-slate-100' : 'bg-[#f4f6fa] text-slate-800'
+      <div className={`w-full h-screen flex flex-col font-sans overflow-hidden select-none transition-colors duration-150 antialiased ${
+        isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-100 text-zinc-900'
       }`}>
         {!viewMode && (
-          <header className={`h-14 border-b flex items-center justify-between px-5 shrink-0 z-30 transition-colors duration-200 ${
-            isDark ? 'bg-[#0d131f] border-slate-800/80 text-white' : 'bg-white border-slate-200/90 text-slate-900 shadow-xs'
+          <header className={`h-11 border-b flex items-center justify-between px-3.5 shrink-0 z-30 transition-colors duration-150 ${
+            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
           }`}>
-            {/* Logo and App Title */}
-            <div className="flex items-center gap-3">
-              <SchematorLogo className="w-7 h-7 rounded-lg shadow-xs select-none shrink-0" />
+            {/* Logo, Sidebar Toggle and App Title */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setIsSidebarCollapsed(prev => {
+                    const next = !prev;
+                    localStorage.setItem('blockcraft_sidebar_collapsed', String(next));
+                    return next;
+                  });
+                }}
+                className={`h-7 w-7 rounded-md border flex items-center justify-center transition-colors cursor-pointer ${
+                  isDark
+                    ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
+                    : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+                }`}
+                title={isSidebarCollapsed ? "Развернуть меню" : "Свернуть меню"}
+              >
+                <PanelLeft className="w-3.5 h-3.5" />
+              </button>
+              <SchematorLogo className="w-5 h-5 rounded-md shadow-2xs select-none shrink-0" />
               <div className="flex items-center gap-2">
-                <span className={`text-base font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <span className={`text-xs font-bold tracking-tight uppercase ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
                   Схематор
                 </span>
-                <span className={`hidden md:inline-block text-xs font-normal border-l pl-3 ml-2 ${
-                  isDark ? 'text-slate-400 border-slate-700/80' : 'text-slate-500 border-slate-300'
+                <span className={`hidden sm:inline-flex text-[11px] font-mono border-l pl-2.5 ml-1 ${
+                  isDark ? 'text-zinc-500 border-zinc-800' : 'text-zinc-400 border-zinc-200'
                 }`}>
-                  Блок-схемы из кода — быстро и просто
+                  ГОСТ 19.701-90
                 </span>
               </div>
             </div>
 
             {/* Right Controls in Header */}
-            <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="flex items-center gap-2">
               {/* Theme Toggle */}
               <button
                 onClick={() => {
@@ -1160,67 +1145,67 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   setTheme(next);
                   localStorage.setItem('blockcraft_theme', next);
                 }}
-                className={`p-2 rounded-xl border transition cursor-pointer ${
+                className={`h-7 w-7 rounded-md border flex items-center justify-center transition-colors cursor-pointer ${
                   isDark
-                    ? 'bg-[#131b2e] border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800/80'
-                    : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-200/80'
+                    ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
+                    : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
                 }`}
-                title={isDark ? "Включить светлую тему" : "Включить темную тему"}
+                title={isDark ? "Светлая тема" : "Темная тема"}
               >
-                {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+                {isDark ? <Sun className="w-3.5 h-3.5 text-zinc-300" /> : <Moon className="w-3.5 h-3.5 text-zinc-600" />}
               </button>
 
-              <div className={`w-px h-5 mx-0.5 ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
+              <div className={`w-px h-4 mx-0.5 ${isDark ? 'bg-zinc-800' : 'bg-zinc-200'}`} />
 
               {/* Auth & Tokens */}
               {user ? (
                 <div className="flex items-center gap-2">
-                  <div className={`px-3 py-1 rounded-xl border text-xs flex items-center gap-2 font-medium ${
-                    isDark ? 'bg-[#131b2e] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-200 text-slate-700'
+                  <div className={`px-2.5 h-7 rounded-md border text-xs flex items-center gap-2 font-mono ${
+                    isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-zinc-50 border-zinc-200 text-zinc-700'
                   }`}>
                     <Coins className="w-3.5 h-3.5 text-amber-500" />
                     <span>{userTokens !== null ? userTokens : '...'}</span>
                     <button
                       onClick={() => setIsTariffModalOpen(true)}
-                      className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-0.5 rounded-lg text-[10px] transition cursor-pointer shadow-xs"
+                      className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition-colors cursor-pointer"
                     >
                       Тарифы
                     </button>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     {user.photoURL ? (
-                      <img src={user.photoURL} alt="Avatar" className="w-7 h-7 rounded-full border border-slate-700 object-cover" referrerPolicy="no-referrer" />
+                      <img src={user.photoURL} alt="Avatar" className="w-6 h-6 rounded-md border border-zinc-700 object-cover" referrerPolicy="no-referrer" />
                     ) : (
-                      <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+                      <div className="w-6 h-6 rounded-md bg-zinc-800 text-zinc-200 border border-zinc-700 flex items-center justify-center text-[11px] font-mono font-bold">
                         {user.displayName?.[0] || 'U'}
                       </div>
                     )}
                     <button
                       onClick={handleLogout}
-                      className={`p-1.5 rounded-lg transition cursor-pointer ${
-                        isDark ? 'text-slate-400 hover:text-red-400 hover:bg-slate-800' : 'text-slate-500 hover:text-red-500 hover:bg-slate-100'
+                      className={`h-7 w-7 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
+                        isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-zinc-800' : 'text-zinc-500 hover:text-red-500 hover:bg-zinc-100'
                       }`}
                       title="Выйти из аккаунта"
                     >
-                      <LogOut className="w-4 h-4" />
+                      <LogOut className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => setIsTariffModalOpen(true)}
-                    className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition cursor-pointer ${
+                    className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
                       isDark
-                        ? 'bg-[#131b2e] border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
-                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-200'
+                        ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800'
+                        : 'bg-zinc-50 border-zinc-200 text-zinc-700 hover:text-zinc-900 hover:bg-zinc-100'
                     }`}
                   >
                     Тарифы
                   </button>
                   <button
                     onClick={handleLogin}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
+                    className="h-7 px-3 rounded-md bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <LogIn className="w-3.5 h-3.5" />
                     <span>Войти</span>
@@ -1232,9 +1217,9 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         )}
 
         {authError && (
-          <div className="bg-amber-600 dark:bg-amber-700 text-white text-xs px-6 py-2 flex items-center justify-between shadow-sm z-30 transition-all animate-in fade-in duration-150 shrink-0">
+          <div className="bg-amber-600 dark:bg-amber-700 text-white text-xs px-4 py-1.5 flex items-center justify-between shadow-2xs z-30 transition-all shrink-0">
             <div className="flex items-center gap-2 font-medium">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
               <span>{authError}</span>
             </div>
             <button 
@@ -1246,130 +1231,211 @@ const downloadDrawio = (title: string, fontFamily: string) => {
           </div>
         )}
 
-        {/* Main Content Layout */}
-        <div className="flex-1 flex overflow-hidden p-3 gap-3">
-          {/* Left Sidebar */}
+        {/* Main Docked Split-View Layout */}
+        <div className="flex-1 flex overflow-hidden w-full h-full divide-x divide-zinc-200 dark:divide-zinc-800">
+          {/* Left Sidebar Navigation - Collapsible (w-14 collapsed, w-56 expanded) */}
           {!viewMode && (
-            <aside className={`w-56 shrink-0 rounded-2xl border flex flex-col justify-between p-3 select-none transition-colors duration-200 ${
-              isDark ? 'bg-[#0d131f] border-slate-800/80' : 'bg-white border-slate-200/90 shadow-xs'
+            <aside className={`${
+              isSidebarCollapsed ? 'w-14' : 'w-56'
+            } shrink-0 flex flex-col justify-between py-3 px-1.5 select-none transition-all duration-200 border-r overflow-hidden ${
+              isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
             }`}>
-              {/* Top Navigation Menu */}
-              <div className="flex flex-col gap-1.5">
+              {/* Top Navigation Menu Items */}
+              <div className="flex flex-col gap-1 items-stretch flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
                 {/* Главная */}
                 <button
                   onClick={() => setActiveNav('home')}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  title={isSidebarCollapsed ? "Главная" : undefined}
+                  className={`h-9 flex items-center ${
+                    isSidebarCollapsed ? 'justify-center w-full px-0' : 'justify-start px-2.5 gap-2.5 w-full'
+                  } rounded-md transition-colors cursor-pointer relative group ${
                     activeNav === 'home'
-                      ? 'bg-blue-600/15 text-blue-500 dark:text-blue-400 border border-blue-500/30'
+                      ? isDark
+                        ? 'bg-zinc-800 text-zinc-100 font-semibold'
+                        : 'bg-zinc-200/80 text-zinc-900 font-semibold'
                       : isDark
-                      ? 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+                      : 'text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900'
                   }`}
                 >
-                  <Home className="w-4 h-4" />
-                  <span>Главная</span>
+                  <Home className="w-4 h-4 shrink-0" />
+                  {!isSidebarCollapsed && <span className="text-xs font-medium truncate">Главная</span>}
+                  {isSidebarCollapsed && (
+                    <span className="pointer-events-none absolute left-full ml-2.5 z-50 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[11px] font-medium rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-md select-none">
+                      Главная
+                    </span>
+                  )}
                 </button>
 
                 {/* Примеры */}
                 <button
                   onClick={() => setIsPresetsModalOpen(true)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                  title={isSidebarCollapsed ? "Примеры" : undefined}
+                  className={`h-9 flex items-center ${
+                    isSidebarCollapsed ? 'justify-center w-full px-0' : 'justify-start px-2.5 gap-2.5 w-full'
+                  } rounded-md transition-colors cursor-pointer relative group ${
                     isDark
-                      ? 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+                      : 'text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900'
                   }`}
                 >
-                  <Layers className="w-4 h-4" />
-                  <span>Примеры</span>
+                  <Layers className="w-4 h-4 shrink-0" />
+                  {!isSidebarCollapsed && <span className="text-xs font-medium truncate">Примеры</span>}
+                  {isSidebarCollapsed && (
+                    <span className="pointer-events-none absolute left-full ml-2.5 z-50 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[11px] font-medium rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-md select-none">
+                      Примеры
+                    </span>
+                  )}
                 </button>
 
-                {/* Документация */}
+                {/* Справка */}
                 <button
                   onClick={() => setIsTipsModalOpen(true)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                  title={isSidebarCollapsed ? "Справка" : undefined}
+                  className={`h-9 flex items-center ${
+                    isSidebarCollapsed ? 'justify-center w-full px-0' : 'justify-start px-2.5 gap-2.5 w-full'
+                  } rounded-md transition-colors cursor-pointer relative group ${
                     isDark
-                      ? 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+                      : 'text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900'
                   }`}
                 >
-                  <BookOpen className="w-4 h-4" />
-                  <span>Документация</span>
-                </button>
-
-                {/* История схем */}
-                <button
-                  onClick={() => setIsHistoryOpen(true)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
-                    isDark
-                      ? 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                >
-                  <HistoryIcon className="w-4 h-4" />
-                  <span>История схем</span>
+                  <BookOpen className="w-4 h-4 shrink-0" />
+                  {!isSidebarCollapsed && <span className="text-xs font-medium truncate">Справка</span>}
+                  {isSidebarCollapsed && (
+                    <span className="pointer-events-none absolute left-full ml-2.5 z-50 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[11px] font-medium rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-md select-none">
+                      Справка
+                    </span>
+                  )}
                 </button>
 
                 {/* Настройки */}
                 <button
                   onClick={() => setIsSettingsModalOpen(true)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                  title={isSidebarCollapsed ? "Настройки" : undefined}
+                  className={`h-9 flex items-center ${
+                    isSidebarCollapsed ? 'justify-center w-full px-0' : 'justify-start px-2.5 gap-2.5 w-full'
+                  } rounded-md transition-colors cursor-pointer relative group ${
                     isDark
-                      ? 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+                      : 'text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900'
                   }`}
                 >
-                  <SettingsIcon className="w-4 h-4" />
-                  <span>Настройки</span>
+                  <SettingsIcon className="w-4 h-4 shrink-0" />
+                  {!isSidebarCollapsed && <span className="text-xs font-medium truncate">Настройки</span>}
+                  {isSidebarCollapsed && (
+                    <span className="pointer-events-none absolute left-full ml-2.5 z-50 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[11px] font-medium rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-md select-none">
+                      Настройки
+                    </span>
+                  )}
                 </button>
+
+                {/* Разделитель */}
+                <div className="w-full h-px my-1 bg-zinc-200 dark:bg-zinc-800" />
+
+                {/* История схем (при нажатии автоматически раскрывает сайдбар) */}
+                <button
+                  onClick={() => {
+                    if (isSidebarCollapsed) {
+                      setIsSidebarCollapsed(false);
+                      localStorage.setItem('blockcraft_sidebar_collapsed', 'false');
+                      setIsHistoryOpen(true);
+                    } else {
+                      setIsHistoryOpen(prev => !prev);
+                    }
+                  }}
+                  title={isSidebarCollapsed ? "История схем" : undefined}
+                  className={`h-9 flex items-center ${
+                    isSidebarCollapsed ? 'justify-center w-full px-0' : 'justify-between px-2.5 w-full'
+                  } rounded-md transition-colors cursor-pointer relative group ${
+                    isHistoryOpen
+                      ? isDark
+                        ? 'bg-zinc-800 text-zinc-100 font-semibold'
+                        : 'bg-zinc-200/80 text-zinc-900 font-semibold'
+                      : isDark
+                      ? 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+                      : 'text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <HistoryIcon className="w-4 h-4 shrink-0" />
+                    {!isSidebarCollapsed && <span className="text-xs font-medium truncate">История схем</span>}
+                  </div>
+                  {!isSidebarCollapsed && (
+                    <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-150 ${isHistoryOpen ? 'rotate-180' : ''}`} />
+                  )}
+                  {isSidebarCollapsed && (
+                    <span className="pointer-events-none absolute left-full ml-2.5 z-50 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[11px] font-medium rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-md select-none">
+                      История схем
+                    </span>
+                  )}
+                </button>
+
+                {/* Inline History List inside the Sidebar */}
+                {!isSidebarCollapsed && isHistoryOpen && (
+                  <div className="mt-1 flex-1 min-h-0 overflow-y-auto pr-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <DiagramHistory
+                      user={user}
+                      currentCode={code}
+                      currentLanguage={language}
+                      onSelectDiagram={(selCode, selLang) => {
+                        handleSelectDiagramFromHistory(selCode, selLang);
+                      }}
+                      onOpenLogin={handleLogin}
+                      onNotify={showToast}
+                      theme={theme}
+                    />
+                  </div>
+                )}
               </div>
 
-              {/* Bottom Legal Links */}
-              <div className="flex flex-col pt-2 border-t border-slate-800/40 dark:border-slate-800/40">
-                <div className="flex flex-col gap-1 px-1 text-[11px]">
-                  <button
-                    onClick={() => setLegalModalDoc('privacy')}
-                    className="text-left text-slate-400 hover:text-blue-400 transition cursor-pointer"
-                  >
-                    Политика конфиденциальности
-                  </button>
-                  <button
-                    onClick={() => setLegalModalDoc('offer')}
-                    className="text-left text-slate-400 hover:text-blue-400 transition cursor-pointer"
-                  >
-                    Публичная оферта
-                  </button>
-                </div>
+              {/* Bottom: Legal Links (No collapse button at bottom) */}
+              <div className="flex flex-col gap-1 pt-2 shrink-0 border-t border-zinc-200 dark:border-zinc-800/80">
+                <button
+                  onClick={() => setLegalModalDoc('privacy')}
+                  title={isSidebarCollapsed ? "Конфиденциальность" : undefined}
+                  className={`h-8 flex items-center ${
+                    isSidebarCollapsed ? 'justify-center w-full px-0' : 'justify-start px-2.5 gap-2.5 w-full'
+                  } rounded-md text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer relative group`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                  {!isSidebarCollapsed && <span className="text-[11px] truncate">Конфиденциальность</span>}
+                  {isSidebarCollapsed && (
+                    <span className="pointer-events-none absolute left-full ml-2.5 z-50 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[11px] font-medium rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-md select-none">
+                      Конфиденциальность
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setLegalModalDoc('offer')}
+                  title={isSidebarCollapsed ? "Публичная оферта" : undefined}
+                  className={`h-8 flex items-center ${
+                    isSidebarCollapsed ? 'justify-center w-full px-0' : 'justify-start px-2.5 gap-2.5 w-full'
+                  } rounded-md text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer relative group`}
+                >
+                  <FileText className="w-3.5 h-3.5 shrink-0" />
+                  {!isSidebarCollapsed && <span className="text-[11px] truncate">Публичная оферта</span>}
+                  {isSidebarCollapsed && (
+                    <span className="pointer-events-none absolute left-full ml-2.5 z-50 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[11px] font-medium rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-md select-none">
+                      Публичная оферта
+                    </span>
+                  )}
+                </button>
               </div>
             </aside>
           )}
 
-          {/* Center Card: Code Editor */}
-          {!viewMode && (
-            <div className={`w-[420px] xl:w-[480px] shrink-0 rounded-2xl border flex flex-col overflow-hidden transition-colors duration-200 ${
-              isDark ? 'bg-[#0d131f] border-slate-800/80' : 'bg-white border-slate-200/90 shadow-xs'
+          {/* Center Docked Panel: Code Editor */}
+          {!viewMode && showSidebar && (
+            <div className={`w-[400px] xl:w-[460px] shrink-0 flex flex-col overflow-hidden transition-colors duration-150 ${
+              isDark ? 'bg-zinc-900' : 'bg-white'
             }`}>
-              {/* Card Header */}
-              <div className={`p-4 border-b flex items-start gap-3 ${
-                isDark ? 'bg-[#0d131f] border-slate-800/80' : 'bg-white border-slate-200'
-              }`}>
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
-                  <Code className="w-5 h-5 text-blue-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className={`font-bold text-sm tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    Создание блок-схемы
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-                    Вставьте ваш исходный код слева и нажмите «Создать схему» — мы автоматически построим блок-схему по логике программы.
-                  </p>
-                </div>
-              </div>
-
               {/* Sub-toolbar */}
-              <div className={`px-4 py-2 border-b flex items-center justify-between text-xs ${
-                isDark ? 'bg-[#101726] border-slate-800/80 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
+              <div className={`h-10 px-3 border-b flex items-center justify-between text-xs shrink-0 ${
+                isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-400' : 'bg-zinc-50/80 border-zinc-200 text-zinc-600'
               }`}>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <select
                     value={language}
                     onChange={(e) => {
@@ -1377,36 +1443,16 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       setLanguage(newLang);
                       localStorage.setItem('blockcraft_language', newLang);
                     }}
-                    className={`text-xs rounded-lg px-2.5 py-1 border font-medium focus:outline-none cursor-pointer ${
-                      isDark ? 'bg-[#131b2e] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                    className={`h-7 text-xs font-mono font-medium rounded-md border px-2 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer ${
+                      isDark ? 'bg-zinc-800 border-zinc-700 text-zinc-200' : 'bg-white border-zinc-200 text-zinc-800'
                     }`}
                   >
                     <option value="python">Python</option>
                     <option value="cpp">C++</option>
                   </select>
-
-                  <button
-                    onClick={() => setIsPresetsModalOpen(true)}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border transition cursor-pointer ${
-                      isDark ? 'bg-[#131b2e] border-slate-800 hover:bg-slate-800 text-slate-300' : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    <Layers className="w-3 h-3 text-blue-400" />
-                    <span>Шаблоны</span>
-                  </button>
-
-                  <button
-                    onClick={() => setIsTipsModalOpen(true)}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border transition cursor-pointer ${
-                      isDark ? 'bg-[#131b2e] border-slate-800 hover:bg-slate-800 text-slate-300' : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    <HelpCircle className="w-3 h-3 text-amber-400" />
-                    <span>Справка</span>
-                  </button>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   {code.trim() && (
                     <button
                       onClick={() => {
@@ -1418,21 +1464,28 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         setCode('');
                         showToast('Код очищен (доступно восстановление)');
                       }}
-                      className="text-slate-400 hover:text-red-400 p-1 rounded transition cursor-pointer"
+                      className="h-6 w-6 rounded flex items-center justify-center text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                       title="Очистить код"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
+                  <button
+                    onClick={() => setShowSidebar(false)}
+                    className="h-6 w-6 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                    title="Свернуть редактор"
+                  >
+                    <PanelLeftClose className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
 
               {/* Code Editor Scroller */}
               <div id="code-editor-scroller" className={`flex-grow overflow-auto relative ${
-                isDark ? 'bg-[#080c14]' : 'bg-[#fcfcfd]'
+                isDark ? 'bg-zinc-950' : 'bg-zinc-50/50'
               }`}>
                 <div
-                  className="w-full min-h-full p-3 flex flex-row items-start cursor-text"
+                  className="w-full min-h-full p-2.5 flex flex-row items-start cursor-text"
                   onClick={(e) => {
                     if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('flex-grow')) {
                       const textarea = document.querySelector('#code-editor-scroller textarea') as HTMLTextAreaElement;
@@ -1449,10 +1502,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   `}</style>
                   {/* Line numbers */}
                   <div
-                    className={`flex select-none font-mono text-[13px] leading-relaxed text-right pr-2 mr-3 flex-col shrink-0 border-r ${
-                      isDark ? 'text-slate-600 border-slate-800' : 'text-slate-400 border-slate-200'
+                    className={`flex select-none font-mono text-[12px] leading-relaxed text-right pr-2 mr-2.5 flex-col shrink-0 border-r ${
+                      isDark ? 'text-zinc-600 border-zinc-800' : 'text-zinc-400 border-zinc-200'
                     }`}
-                    style={{ minWidth: '2.5rem', lineHeight: '1.625' }}
+                    style={{ minWidth: '2.2rem', lineHeight: '1.625' }}
                   >
                     {code.split('\n').map((_, idx) => {
                       const isHighlighted = hoveredLineIndex === idx;
@@ -1468,12 +1521,12 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                               setHighlightedNodeId(res.nodeId);
                             }
                           }}
-                          className={`cursor-pointer px-1 rounded transition-colors ${
+                          className={`cursor-pointer px-0.5 rounded-xs transition-colors ${
                             isHighlighted
-                              ? 'bg-yellow-500/30 text-yellow-300 font-bold'
+                              ? 'bg-amber-500/20 text-amber-500 font-bold'
                               : isDark
-                              ? 'hover:text-slate-300'
-                              : 'hover:text-slate-700'
+                              ? 'hover:text-zinc-300'
+                              : 'hover:text-zinc-700'
                           }`}
                         >
                           {idx + 1}
@@ -1493,7 +1546,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       }}
                       padding={0}
                       className={`font-mono text-[13px] leading-relaxed ${
-                        isDark ? 'text-slate-200' : 'text-slate-800'
+                        isDark ? 'text-zinc-200' : 'text-zinc-800'
                       }`}
                       style={{
                         fontFamily: '"JetBrains Mono", "Fira Code", monospace',
@@ -1506,50 +1559,55 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               </div>
 
               {/* Editor Bottom Status Bar */}
-              <div className={`px-4 py-2.5 border-t flex items-center justify-between text-xs ${
-                isDark ? 'bg-[#101726] border-slate-800/80 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
+              <div className={`h-10 px-3 border-t flex items-center justify-between text-xs shrink-0 ${
+                isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-400' : 'bg-zinc-50/90 border-zinc-200 text-zinc-600'
               }`}>
-                <span>{code.split('\n').length} строк • {language === 'cpp' ? 'C++' : 'Python'}</span>
+                <div className="flex items-center gap-1.5 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <span>{code.split('\n').length} lines</span>
+                  <span>•</span>
+                  <span className="uppercase font-semibold">{language === 'cpp' ? 'C++' : 'Python'}</span>
+                </div>
+
                 <button
                   onClick={handleGenerateClick}
                   disabled={isGenerating}
-                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-bold text-xs px-4 py-1.5 rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer"
+                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-medium text-xs h-7 px-3 rounded-md shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Play className="w-3.5 h-3.5 fill-white" />
+                  <Play className="w-3 h-3 fill-white" />
                   <span>{isGenerating ? "Генерация..." : "Создать схему"}</span>
-                  <span className="text-[10px] bg-blue-700/60 px-1.5 py-0.5 rounded text-blue-200">
-                    Ctrl + Enter
-                  </span>
+                  <kbd className="text-[10px] font-mono bg-blue-700/80 px-1 py-0.2 rounded text-blue-100">
+                    Ctrl+Enter
+                  </kbd>
                 </button>
               </div>
             </div>
           )}
 
-          {/* Right Card: Diagram Preview & Canvas */}
-          <div className={`flex-1 flex flex-col rounded-2xl border overflow-hidden relative transition-colors duration-200 ${
-            isDark ? 'bg-[#0d131f] border-slate-800/80' : 'bg-white border-slate-200/90 shadow-xs'
+          {/* Right Docked Panel: Diagram Preview & Canvas */}
+          <div className={`flex-1 flex flex-col overflow-hidden relative transition-colors duration-150 ${
+            isDark ? 'bg-zinc-950' : 'bg-zinc-100'
           }`}>
             {/* Top Toolbar */}
-            <div className={`border-b z-20 flex flex-col shrink-0 transition-colors duration-200 ${
-              isDark ? 'bg-[#0d131f] border-slate-800/80' : 'bg-white border-slate-200/90'
+            <div className={`border-b z-20 flex flex-col shrink-0 transition-colors duration-150 ${
+              isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
             }`}>
               {/* Function Tabs if multiple graphs */}
               {!viewMode && graphs.length > 1 && (
-                <div className={`flex px-3 pt-2 gap-1 overflow-x-auto border-b ${
-                  isDark ? 'border-slate-800/60' : 'border-slate-200/80'
+                <div className={`flex px-2 pt-1 gap-1 overflow-x-auto border-b ${
+                  isDark ? 'border-zinc-800' : 'border-zinc-200'
                 }`}>
                   {graphs.map((graph, idx) => (
                     <button
                       key={idx}
                       onClick={() => setActiveTab(idx)}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap cursor-pointer ${
+                      className={`px-2.5 py-1 text-xs font-medium rounded-t-md transition-colors whitespace-nowrap cursor-pointer ${
                         activeTab === idx
                           ? isDark
-                            ? 'bg-[#131b2e] text-blue-400 border-t border-x border-slate-700/80'
-                            : 'bg-slate-100 text-blue-600 border-t border-x border-slate-300'
+                            ? 'bg-zinc-950 text-zinc-100 border-t border-x border-zinc-800'
+                            : 'bg-zinc-100 text-zinc-900 border-t border-x border-zinc-200'
                           : isDark
-                          ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                          ? 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                          : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50'
                       }`}
                     >
                       {graph.title}
@@ -1558,15 +1616,12 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 </div>
               )}
 
-              {/* Main Canvas Controls Bar */}
-              <div className="px-3 py-2 flex flex-wrap items-center justify-between gap-3 text-xs">
+              {/* Main Canvas Controls Bar - Docked 40px utility bar */}
+              <div className="h-10 px-3 flex items-center justify-between gap-2 text-xs">
                 {/* Left: Mode toggle (Авто / Ножницы) */}
-                <div className="flex items-center gap-2">
-                  <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                    Режим:
-                  </span>
-                  <div className={`flex items-center p-0.5 rounded-lg border gap-0.5 ${
-                    isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-slate-100 border-slate-200'
+                <div className="flex items-center gap-1.5">
+                  <div className={`inline-flex p-0.5 rounded-md border gap-0.5 ${
+                    isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-100 border-zinc-200'
                   }`}>
                     <button
                       onClick={() => {
@@ -1574,10 +1629,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         setIsScissorsMode(false);
                         localStorage.setItem('blockcraft_split_mode', 'auto');
                       }}
-                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                      className={`h-6 px-2.5 text-xs font-medium rounded-sm transition-colors cursor-pointer ${
                         splitMode === 'auto'
-                          ? isDark ? 'bg-blue-600 text-white shadow-xs' : 'bg-white text-slate-900 shadow-xs'
-                          : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                          ? isDark ? 'bg-zinc-800 text-zinc-100 font-semibold shadow-2xs' : 'bg-white text-zinc-900 font-semibold shadow-2xs'
+                          : isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
                       }`}
                     >
                       Авто
@@ -1593,15 +1648,15 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         }
                       }}
                       title={splitMode === 'manual' && isScissorsMode ? "Ножницы активны (кликните на схему для разреза)" : "Ручной режим (ножницы)"}
-                      className={`w-7 h-6 flex items-center justify-center text-xs rounded-md transition-all cursor-pointer ${
+                      className={`h-6 px-2.5 flex items-center justify-center text-xs font-medium rounded-sm transition-colors cursor-pointer ${
                         splitMode === 'manual'
                           ? isScissorsMode
-                            ? 'bg-red-500 text-white shadow-xs'
-                            : isDark ? 'bg-slate-700 text-white' : 'bg-white text-slate-900'
-                          : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                            ? 'bg-rose-600 text-white font-medium shadow-2xs'
+                            : isDark ? 'bg-zinc-800 text-zinc-200' : 'bg-white text-zinc-900'
+                          : isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
                       }`}
                     >
-                      ✂️
+                      ✂️ Ножницы
                     </button>
                   </div>
 
@@ -1612,10 +1667,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         setCustomCuts(updated);
                         localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(updated));
                       }}
-                      className="px-2 py-1 text-xs font-medium rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition cursor-pointer"
+                      className="h-6 px-2 text-[11px] font-medium rounded-md text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 transition-colors cursor-pointer"
                       title="Очистить все разрезы"
                     >
-                      Очистить разрезы
+                      Сброс разрезов
                     </button>
                   )}
                 </div>
@@ -1624,27 +1679,23 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 <div className="flex items-center gap-2">
                   {/* Pagination if multiple pages */}
                   {activeGraph && activeGraph.pages.length > 1 && (
-                    <div className="flex items-center gap-1">
+                    <div className={`inline-flex rounded-md border overflow-hidden shadow-2xs ${
+                      isDark ? 'border-zinc-700 bg-zinc-800' : 'border-zinc-200 bg-white'
+                    }`}>
                       <button
                         onClick={() => setActivePage(p => Math.max(0, p - 1))}
                         disabled={activePage === 0}
-                        className={`px-2 py-1 rounded-lg border text-xs font-medium transition cursor-pointer disabled:opacity-40 ${
-                          isDark ? 'bg-[#131b2e] border-slate-800 text-slate-200 hover:bg-slate-800' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                        }`}
+                        className="h-6 px-2 text-xs font-mono transition-colors cursor-pointer disabled:opacity-30 hover:bg-zinc-50 dark:hover:bg-zinc-700 border-r border-zinc-200 dark:border-zinc-700"
                       >
                         ←
                       </button>
-                      <span className={`text-xs font-semibold px-2 py-1 rounded-lg border ${
-                        isDark ? 'bg-[#131b2e] border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
-                      }`}>
+                      <span className="h-6 px-2 flex items-center text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300">
                         {activePage + 1} / {activeGraph.pages.length}
                       </span>
                       <button
                         onClick={() => setActivePage(p => Math.min(activeGraph.pages.length - 1, p + 1))}
                         disabled={activePage === activeGraph.pages.length - 1}
-                        className={`px-2 py-1 rounded-lg border text-xs font-medium transition cursor-pointer disabled:opacity-40 ${
-                          isDark ? 'bg-[#131b2e] border-slate-800 text-slate-200 hover:bg-slate-800' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                        }`}
+                        className="h-6 px-2 text-xs font-mono transition-colors cursor-pointer disabled:opacity-30 hover:bg-zinc-50 dark:hover:bg-zinc-700 border-l border-zinc-200 dark:border-zinc-700"
                       >
                         →
                       </button>
@@ -1652,10 +1703,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   )}
 
                   {/* Zoom Slider Control */}
-                  <div className={`flex items-center px-2 py-1 rounded-xl border gap-2 ${
-                    isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-slate-100 border-slate-200'
+                  <div className={`h-7 flex items-center px-2 rounded-md border gap-1.5 shadow-2xs ${
+                    isDark ? 'bg-zinc-800/80 border-zinc-700' : 'bg-white border-zinc-200'
                   }`}>
-                    <span className="text-[10px] font-semibold text-slate-400 select-none">Zoom</span>
+                    <span className="text-[10px] font-mono text-zinc-400 select-none uppercase">Zoom</span>
                     <input
                       type="range"
                       min="0.2"
@@ -1663,7 +1714,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       step="0.05"
                       value={scale}
                       onChange={(e) => setScale(parseFloat(e.target.value))}
-                      className="w-20 sm:w-28 h-1.5 bg-slate-700/60 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                      className="w-16 sm:w-20 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-sm appearance-none cursor-pointer accent-zinc-800 dark:accent-zinc-200"
                       title={`Масштаб: ${Math.round(scale * 100)}%`}
                     />
                     <button
@@ -1671,8 +1722,8 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         setScale(1);
                         setPan({ x: 0, y: 0 });
                       }}
-                      className={`px-1.5 py-0.5 text-xs font-semibold rounded-md transition cursor-pointer min-w-[38px] text-center ${
-                        isDark ? 'text-slate-200 hover:bg-slate-800 hover:text-blue-400' : 'text-slate-700 hover:bg-white hover:text-blue-600'
+                      className={`text-xs font-mono font-medium rounded transition-colors cursor-pointer px-1 text-center w-10 ${
+                        isDark ? 'text-zinc-200 hover:text-white' : 'text-zinc-700 hover:text-zinc-900'
                       }`}
                       title="Сбросить масштаб (100%)"
                     >
@@ -1683,16 +1734,16 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         setScale(1);
                         setPan({ x: 0, y: 0 });
                       }}
-                      className="w-6 h-6 flex items-center justify-center rounded-lg transition cursor-pointer text-slate-400 hover:text-blue-400"
+                      className="w-4 h-4 flex items-center justify-center transition-colors cursor-pointer text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
                       title="Центрировать (100%)"
                     >
-                      <RotateCcw className="w-3.5 h-3.5" />
+                      <RotateCcw className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
 
-                {/* Right: Export & Reset Actions */}
-                <div className="flex items-center gap-1.5">
+                {/* Right: Segmented Export Buttons Group */}
+                <div className="inline-flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden divide-x divide-zinc-200 dark:divide-zinc-700 bg-white dark:bg-zinc-800 shadow-2xs">
                   <button
                     onClick={() => {
                       let name = activeGraph?.title || 'graph';
@@ -1701,13 +1752,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       }
                       downloadSvg(`graph-svg-${activeTab}`, name);
                     }}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
-                      isDark ? 'bg-[#131b2e] border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                    }`}
+                    className="h-7 px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
                     title="Скачать векторный SVG"
                   >
-                    <Code className="w-3.5 h-3.5 text-orange-400" />
-                    <span>SVG</span>
+                    SVG
                   </button>
 
                   <button
@@ -1718,15 +1766,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       }
                       downloadPng(`graph-svg-${activeTab}`, name);
                     }}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
-                      isDark ? 'bg-[#131b2e] border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                    }`}
+                    className="h-7 px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
                     title="Скачать растровый PNG"
                   >
-                    <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                    </svg>
-                    <span>PNG</span>
+                    PNG
                   </button>
 
                   <button
@@ -1737,22 +1780,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       }
                       downloadDrawio(name, fontFamily);
                     }}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
-                      isDark ? 'bg-[#131b2e] border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                    }`}
+                    className="h-7 px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
                     title="Экспорт в draw.io (.drawio)"
                   >
-                    <span className="text-emerald-500 font-bold">XML</span>
-                    <span>Draw.io</span>
-                  </button>
-
-                  <button
-                    onClick={handleResetCache}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition cursor-pointer"
-                    title="Сбросить все перемещения узлов и разрезы"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span className="hidden xl:inline">Сброс</span>
+                    DRAW.IO
                   </button>
                 </div>
               </div>
@@ -1760,23 +1791,30 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
 
           {!showSidebar && !viewMode && (
-            <div className="absolute top-24 left-6 z-20">
+            <div className={`absolute top-14 ${isSidebarCollapsed ? 'left-16' : 'left-60'} z-20 transition-all duration-200`}>
               <button 
-                className="flex items-center gap-2 bg-white/90 dark:bg-[#232328]/90 backdrop-blur px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700/80 shadow-sm hover:bg-zinc-50 dark:hover:bg-[#2E2E33] text-zinc-600 dark:text-zinc-300 text-sm font-medium transition-colors"
+                className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium transition-colors cursor-pointer"
                 onClick={() => setShowSidebar(true)}
               >
-                <Code className="w-4 h-4" />
-                <span>Показать редактор</span>
+                <Code className="w-3.5 h-3.5" />
+                <span>Редактор</span>
               </button>
             </div>
           )}
 
-          {/* Canvas Viewport: Supports Drag Panning, Mouse Wheel and Scaled Scissors */}
+          {/* Canvas Viewport: Supports Drag Panning, Mouse Wheel, Scaled Scissors and Dot-Grid background */}
           <div
             ref={canvasContainerRef}
             className={`flex-1 w-full h-full relative overflow-hidden select-none ${
-              isDark ? 'bg-[#080c14]' : 'bg-[#eef2f6]'
-            } ${isScissorsMode ? 'cursor-cell' : isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+              isScissorsMode ? 'cursor-cell' : isPanning ? 'cursor-grabbing' : 'cursor-grab'
+            }`}
+            style={{
+              backgroundColor: isDark ? '#09090b' : '#fafafa',
+              backgroundImage: isDark
+                ? 'radial-gradient(#27272a 1.2px, transparent 1.2px)'
+                : 'radial-gradient(#d4d4d8 1.2px, transparent 1.2px)',
+              backgroundSize: '20px 20px',
+            }}
             onMouseDown={(e) => {
               if (isScissorsMode) return;
               if (e.button === 0 || e.button === 1) {
@@ -1809,21 +1847,21 @@ const downloadDrawio = (title: string, fontFamily: string) => {
             }}
           >
               {isScissorsMode && splitMode === 'manual' && (
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 text-white text-xs font-semibold rounded-2xl shadow-xl shadow-rose-500/20 backdrop-blur border border-rose-400/40 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 bg-zinc-900 text-white text-xs font-medium rounded-md shadow-xl border border-zinc-700 flex items-center gap-3 animate-in fade-in duration-150">
                   <div className="flex items-center gap-2">
-                    <span className="text-base leading-none">✂️</span>
-                    <span>Режим ножниц активен: кликните на схему в месте, где хотите разделить страницы</span>
+                    <span className="text-sm">✂️</span>
+                    <span>Режим ножниц: кликните на схему для разделения страниц</span>
                   </div>
                   <div className="flex items-center gap-1.5 ml-auto">
                     <button
                       onClick={() => setIsScissorsMode(false)}
-                      className="px-2.5 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-[11px] font-bold transition cursor-pointer"
+                      className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 rounded text-[11px] font-medium transition-colors cursor-pointer"
                     >
                       Отмена
                     </button>
                     <button
                       onClick={() => setIsTipsModalOpen(true)}
-                      className="px-2.5 py-1 bg-black/20 hover:bg-black/30 rounded-lg text-[11px] font-bold transition cursor-pointer"
+                      className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 rounded text-[11px] font-medium transition-colors cursor-pointer"
                     >
                       Справка
                     </button>
@@ -1845,7 +1883,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     height={activeGraphPage.height} 
                     viewBox={`0 0 ${activeGraphPage.width} ${activeGraphPage.height}`}
                     preserveAspectRatio="xMidYMid meet"
-                    className={`overflow-visible bg-white border border-slate-300 shadow-2xl shadow-slate-900/15 p-8 rounded-xl my-4 select-none ${isScissorsMode ? 'cursor-cell' : ''}`}
+                    className={`overflow-visible bg-white border border-zinc-300 dark:border-zinc-700/80 shadow-md p-8 rounded-sm my-4 select-none ${isScissorsMode ? 'cursor-cell' : ''}`}
                     onClick={(e) => {
                         if (!isScissorsMode || splitMode !== 'manual') return;
                         const rect = e.currentTarget.getBoundingClientRect();
@@ -1880,52 +1918,19 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     </defs>
 
                     {activeGraphPage.edges.map((edge, i) => (
-                        <g 
-                            key={edge.id || `edge-${i}`} 
-                            opacity={selectedElement?.type === 'edge' && selectedElement.id === edge.id ? 0.5 : 1}
-                            className="group"
-                        >
-                            <EdgePolyline edge={edge} theme="light" />
-                           {edge.segments?.map((seg, idx) => {
-                                // use 1-indexed to match data structure
-                                let segmentKey = idx + 1;
-                                
-                                return (
-                                   <g key={segmentKey}>
-                                       <line 
-                                           x1={seg.startX} y1={seg.startY}
-                                           x2={seg.endX} y2={seg.endY}
-                                           stroke="transparent"
-                                           strokeWidth="20"
-                                           className="pointer-events-auto outline-none cursor-pointer"
-                                           onMouseDown={(e) => {
-                                                if (isScissorsMode) return;
-                                                e.stopPropagation();
-                                                setSelectedElement({ type: 'edge', id: edge.id!, segment: segmentKey });
-                                           }}
-                                       />
-                                   </g>
-                                );
-                           })}
-                        </g>
+                      <g key={edge.id || `edge-${i}`}>
+                        <EdgePolyline edge={edge} theme="light" />
+                      </g>
                     ))}
 
                     {activeGraphPage.nodes.map((node) => (
                       <g 
                         key={node.id} 
-                        className={`cursor-pointer ${selectedElement?.type === 'node' && selectedElement.id === node.id ? 'opacity-70' : 'opacity-100'} transition-opacity`}
-                        onMouseDown={(e) => {
+                        className="cursor-pointer select-none"
+                        onClick={(e) => {
                             if (isScissorsMode) return;
                             e.stopPropagation();
                             setSelectedElement({ type: 'node', id: node.id });
-                            setDragState({
-                                id: node.id,
-                                type: 'node',
-                                startX: e.pageX,
-                                startY: e.pageY,
-                                startDx: overrides[activeTab]?.nodes?.[node.id]?.dx || 0,
-                                startDy: overrides[activeTab]?.nodes?.[node.id]?.dy || 0
-                            });
                             handleNodeClick(node);
                         }}
                         onDoubleClick={(e) => {
@@ -2045,23 +2050,46 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               {graphs.length === 0 && (
                 <div className="flex-1 flex flex-col items-center justify-center p-6 w-full h-full select-none animate-in fade-in duration-200">
                   {!user ? (
-                    <div className="flex flex-col items-center text-center">
+                    <div className="bg-white/85 dark:bg-zinc-900/85 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 shadow-sm rounded-lg p-6 max-w-sm w-full flex flex-col items-center text-center gap-3.5">
+                      <div className="w-10 h-10 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80">
+                        <SchematorLogo className="w-6 h-6" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <h3 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+                          Войдите, чтобы сохранять схемы
+                        </h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                          Генерируйте блок-схемы по ГОСТ, сохраняйте историю в облаке и экспортируйте файлы
+                        </p>
+                      </div>
+
                       <button
                         onClick={handleLogin}
-                        className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-2.5"
+                        className="w-full h-8 px-4 rounded-md bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-medium shadow-2xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                       >
-                        <LogIn className="w-4 h-4" />
-                        <span>Войти</span>
+                        <LogIn className="w-3.5 h-3.5" />
+                        <span>Войти через Google</span>
                       </button>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-2.5 font-medium">
-                        Получите 1 коин бесплатно
-                      </p>
+
+                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-[11px] font-mono font-medium text-amber-700 dark:text-amber-400">
+                        <Coins className="w-3 h-3 text-amber-500" />
+                        <span>+1 коин бесплатно при регистрации</span>
+                      </div>
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm border border-zinc-200 dark:border-zinc-800 rounded-lg p-5 max-w-xs text-center flex flex-col items-center gap-2.5 shadow-2xs">
+                      <div className="w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 border border-zinc-200/60 dark:border-zinc-700/60">
+                        <Play className="w-4 h-4" />
+                      </div>
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                        Нажмите <strong className="text-zinc-800 dark:text-zinc-200 font-medium">«Создать схему»</strong> или сочетание <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono text-[10px]">Ctrl+Enter</kbd>
+                      </div>
+                    </div>
+                  )}
 
                   {authError && (
-                    <div className="mt-6 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl text-xs font-medium text-red-600 dark:text-red-300 max-w-sm text-center">
-                      <strong className="block mb-1 font-bold">Ошибка авторизации</strong> 
+                    <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-md text-xs font-medium text-red-600 dark:text-red-400 max-w-sm text-center">
+                      <strong className="block mb-0.5 font-semibold">Ошибка авторизации</strong> 
                       {authError}
                     </div>
                   )}
@@ -2070,18 +2098,6 @@ const downloadDrawio = (title: string, fontFamily: string) => {
             </div>
           </div>
         </div>
-
-      {/* Diagram History Drawer / Modal */}
-      <DiagramHistory
-        user={user}
-        currentCode={code}
-        currentLanguage={language}
-        isOpen={isHistoryOpen}
-        onToggleOpen={(open) => setIsHistoryOpen(open)}
-        onSelectDiagram={handleSelectDiagramFromHistory}
-        onOpenLogin={handleLogin}
-        onNotify={showToast}
-      />
 
       {/* Presets and Templates Modal */}
       <PresetsModal
@@ -2144,41 +2160,40 @@ const downloadDrawio = (title: string, fontFamily: string) => {
           setIsScissorsMode(nextMode === 'manual');
           localStorage.setItem('blockcraft_split_mode', nextMode);
         }}
-        onResetCache={handleResetCache}
         onNotify={showToast}
       />
 
       {/* Locked Node Text Edit Modal (Centered on Screen & Prevents Panning/Dragging) */}
       {editingNode && (
         <div 
-          className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-100"
           onClick={() => setEditingNode(null)}
         >
           <div 
-            className={`w-full max-w-md rounded-2xl border shadow-2xl p-5 flex flex-col gap-3.5 animate-in zoom-in-95 duration-150 ${
-              isDark ? 'bg-[#0f172a] text-slate-100 border-slate-700' : 'bg-white text-slate-800 border-slate-200'
+            className={`w-full max-w-md rounded-md border shadow-xl p-4 flex flex-col gap-3 animate-in zoom-in-95 duration-100 ${
+              isDark ? 'bg-zinc-900 text-zinc-100 border-zinc-800' : 'bg-white text-zinc-800 border-zinc-200'
             }`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className={`flex justify-between items-center pb-2 border-b ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-              <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <div className={`flex justify-between items-center pb-2 border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'}`}>
+              <h3 className={`font-semibold text-xs tracking-tight ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
                 Редактирование текста блока
               </h3>
               <button 
                 onClick={() => setEditingNode(null)} 
-                className={`rounded-lg p-1 transition cursor-pointer ${
-                  isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                className={`rounded p-1 transition-colors cursor-pointer ${
+                  isDark ? 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800' : 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100'
                 }`}
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
             <textarea 
-              className={`w-full h-32 p-3 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 border transition-colors ${
+              className={`w-full h-32 p-2.5 rounded-md text-xs font-mono focus:outline-none focus:ring-1 focus:ring-zinc-400 border transition-colors ${
                 isDark 
-                  ? 'bg-slate-900 border-slate-700 text-slate-100' 
-                  : 'bg-slate-50 border-slate-200 text-slate-800'
+                  ? 'bg-zinc-950 border-zinc-800 text-zinc-100' 
+                  : 'bg-zinc-50 border-zinc-200 text-zinc-800'
               }`}
               autoFocus
               value={editingNode.text}
@@ -2200,22 +2215,22 @@ const downloadDrawio = (title: string, fontFamily: string) => {
             />
 
             <div className="flex items-center justify-between pt-1 text-xs">
-              <span className="text-slate-400 text-[11px]">
-                Нажмите <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 font-mono text-[10px]">Ctrl+Enter</kbd>
+              <span className="text-zinc-500 font-mono text-[11px]">
+                Сохранить: <kbd className="px-1 py-0.5 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 font-mono text-[10px]">Ctrl+Enter</kbd>
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button 
                   type="button"
                   onClick={() => setEditingNode(null)}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-                    isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                  className={`px-2.5 py-1 text-xs rounded-md font-medium border transition-colors cursor-pointer ${
+                    isDark ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 hover:bg-zinc-200 text-zinc-700'
                   }`}
                 >
                   Отмена
                 </button>
                 <button 
                   type="button"
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg font-semibold transition shadow-xs cursor-pointer"
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 text-xs rounded-md font-medium transition-colors shadow-2xs cursor-pointer"
                   onClick={() => {
                     const next = JSON.parse(JSON.stringify(overridesRef.current));
                     if (!next[activeTab]) next[activeTab] = { nodes: {}, edges: {} };
@@ -2237,11 +2252,11 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
       {/* Accidental Click / Restore Previous Code Floating Banner */}
       {previousBackup && (
-        <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[100] px-3.5 py-1.5 bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 text-[11px] font-medium rounded-xl shadow-xl backdrop-blur border border-zinc-700/80 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <span className="text-zinc-300">Загружена схема из истории. Случайно нажали?</span>
+        <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[100] px-3 py-1.5 bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 text-xs font-medium rounded-md shadow-xl border border-zinc-700 flex items-center gap-2.5 animate-in fade-in duration-150">
+          <span className="text-zinc-300">Загружена схема из истории.</span>
           <button
             onClick={handleRestorePreviousCode}
-            className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-[11px] font-bold transition shadow-xs cursor-pointer"
+            className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[11px] font-medium transition-colors cursor-pointer"
           >
             Вернуть старый код
           </button>
@@ -2257,7 +2272,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
       {/* Floating Toast Notification */}
       {toastMessage && !previousBackup && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 bg-zinc-900/95 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold rounded-full shadow-2xl backdrop-blur border border-white/20 dark:border-black/20 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none flex items-center gap-2">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] px-3.5 py-1.5 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 text-xs font-medium rounded-md shadow-lg border border-zinc-800 dark:border-zinc-200 animate-in fade-in duration-150 pointer-events-none flex items-center gap-2">
           <span>{toastMessage}</span>
         </div>
       )}

@@ -200,27 +200,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div 
-        className="bg-white dark:bg-[#1E1E22] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-zinc-900 dark:text-zinc-100"
+        className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-xl w-full max-w-sm overflow-hidden text-zinc-900 dark:text-zinc-100 animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/30">
-          <div className="flex items-center gap-2.5">
-            <SchematorLogo className="w-8 h-8 rounded-xl shadow-sm select-none shrink-0" />
+        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
+          <div className="flex items-center gap-2">
+            <SchematorLogo className="w-5 h-5 rounded select-none shrink-0" />
             <div>
-              <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
+              <h3 className="font-bold text-xs uppercase tracking-tight text-zinc-900 dark:text-zinc-100">
                 {isVerifying ? 'Подтверждение Email' : 'Авторизация в Схематор'}
               </h3>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                {isVerifying ? 'Активация 1 бесплатного Coin' : '1 бесплатный Coin для создания схем'}
-              </p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+            className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -228,17 +225,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
         {/* Tab Selection (only in main auth view) */}
         {!isVerifying && (
-          <div className="grid grid-cols-2 p-1.5 mx-6 mt-4 bg-zinc-100 dark:bg-zinc-800/80 rounded-xl gap-1 text-xs font-semibold">
+          <div className="grid grid-cols-2 p-1 mx-4 mt-3 bg-zinc-100 dark:bg-zinc-800 rounded-md gap-1 text-xs font-medium">
             <button
               type="button"
               onClick={() => { setTab('yandex'); setError(null); setSuccessMsg(null); }}
-              className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
+              className={`py-1.5 rounded flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                 tab === 'yandex' 
-                  ? 'bg-white dark:bg-[#2A2A30] text-zinc-900 dark:text-white shadow-sm' 
+                  ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-2xs' 
                   : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
               }`}
             >
-              <span className="w-4 h-4 rounded-full bg-[#FC3F1D] text-white flex items-center justify-center text-[10px] font-black leading-none">
+              <span className="w-3.5 h-3.5 rounded-full bg-[#FC3F1D] text-white flex items-center justify-center text-[9px] font-black leading-none">
                 Я
               </span>
               <span>Яндекс ID</span>
@@ -247,29 +244,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             <button
               type="button"
               onClick={() => { setTab('email'); setError(null); setSuccessMsg(null); }}
-              className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
+              className={`py-1.5 rounded flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                 tab === 'email' 
-                  ? 'bg-white dark:bg-[#2A2A30] text-blue-600 dark:text-blue-400 shadow-sm' 
+                  ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-2xs' 
                   : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
               }`}
             >
-              <Mail className="w-3.5 h-3.5" />
+              <Mail className="w-3.5 h-3.5 text-zinc-500" />
               <span>Email</span>
             </button>
           </div>
         )}
 
         {/* Form Body */}
-        <div className="p-6">
+        <div className="p-4">
           {error && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-600 dark:text-red-300 flex items-start gap-2">
+            <div className="mb-3 p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-md text-xs text-red-600 dark:text-red-400 flex items-start gap-1.5">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs text-emerald-700 dark:text-emerald-300 flex items-start gap-2">
+            <div className="mb-3 p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-md text-xs text-emerald-700 dark:text-emerald-300 flex items-start gap-1.5">
               <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{successMsg}</span>
             </div>
@@ -277,25 +274,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
           {/* VIEW: EMAIL VERIFICATION CODE ENTRY */}
           {isVerifying ? (
-            <form onSubmit={handleVerifyCodeSubmit} className="space-y-4">
+            <form onSubmit={handleVerifyCodeSubmit} className="space-y-3">
               <div className="text-center pb-1">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3 shadow-inner">
-                  <ShieldCheck className="w-6 h-6" />
+                <div className="w-9 h-9 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 flex items-center justify-center mx-auto mb-2 border border-zinc-200 dark:border-zinc-700">
+                  <ShieldCheck className="w-5 h-5" />
                 </div>
-                <p className="text-xs text-zinc-600 dark:text-zinc-300 font-medium">
-                  Мы выслали 6-значный код подтверждения на:
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">
+                  Код подтверждения отправлен на:
                 </p>
-                <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5">
+                <p className="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 mt-0.5">
                   {verifyEmail}
                 </p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5 text-center">
-                  Введите 6 цифр кода из письма
+                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 text-center">
+                  6-значный код из письма
                 </label>
-                <div className="relative max-w-[220px] mx-auto">
-                  <KeyRound className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <div className="relative max-w-[200px] mx-auto">
+                  <KeyRound className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     maxLength={6}
@@ -304,10 +301,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                     value={verifyCode}
                     onChange={(e) => setVerifyCode(e.target.value.replace(/[^0-9]/g, ''))}
                     placeholder="123456"
-                    className="w-full pl-10 pr-4 py-2.5 bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-700/80 rounded-xl text-center text-lg tracking-[0.25em] font-mono font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
+                    className="w-full pl-8 pr-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md text-center text-base tracking-[0.2em] font-mono font-bold outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
                   />
                 </div>
-                <p className="text-[11px] text-zinc-400 text-center mt-2">
+                <p className="text-[10px] text-zinc-400 text-center mt-1.5">
                   Проверьте папку «Входящие» и «Спам»
                 </p>
               </div>
@@ -315,29 +312,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
               <button
                 type="submit"
                 disabled={loading || verifyCode.length !== 6}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 text-sm transition transform active:scale-[0.98]"
+                className="w-full py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 disabled:opacity-50 font-medium rounded-md text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <span>{loading ? 'Проверка...' : 'Подтвердить почту (+1 Coin)'}</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
 
-              <div className="flex items-center justify-between pt-2 text-xs">
+              <div className="flex items-center justify-between pt-1 text-xs">
                 <button
                   type="button"
                   onClick={handleResendCode}
                   disabled={loading}
-                  className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-semibold"
+                  className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center gap-1 font-medium cursor-pointer"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Отправить код повторно</span>
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Отправить повторно</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => { setIsVerifying(false); setError(null); setSuccessMsg(null); }}
-                  className="text-zinc-500 dark:text-zinc-400 hover:underline"
+                  className="text-zinc-500 hover:underline cursor-pointer"
                 >
-                  Назад к входу
+                  Назад
                 </button>
               </div>
             </form>
@@ -345,42 +342,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             <>
               {/* TAB 1: YANDEX ID AUTH */}
               {tab === 'yandex' && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {/* 3 Agreement Checkboxes */}
-                  <div className={`p-3.5 rounded-xl border transition-all duration-200 ${
+                  <div className={`p-2.5 rounded-md border transition-all duration-150 ${
                     shakeAgreements 
-                      ? 'border-red-400 dark:border-red-500 bg-red-50/50 dark:bg-red-950/20 ring-2 ring-red-400/30' 
-                      : 'border-zinc-200 dark:border-zinc-800/90 bg-zinc-50/80 dark:bg-zinc-900/50'
+                      ? 'border-red-400 dark:border-red-500 bg-red-50/50 dark:bg-red-950/20' 
+                      : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40'
                   }`}>
-                    <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-zinc-200/70 dark:border-zinc-800/70">
-                      <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300">
+                    <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-zinc-200 dark:border-zinc-800">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                         Обязательные согласия
                       </span>
                       <button
                         type="button"
                         onClick={toggleAllAgreements}
-                        className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                        className="text-[10px] font-medium text-zinc-700 dark:text-zinc-300 hover:underline flex items-center gap-1 cursor-pointer"
                       >
                         <span>{allAgreed ? 'Снять все' : 'Выбрать все'}</span>
                       </button>
                     </div>
 
-                    <div className="space-y-2.5">
+                    <div className="space-y-1.5">
                       {/* 1. Публичная оферта */}
-                      <label className="flex items-start gap-2.5 cursor-pointer group">
+                      <label className="flex items-start gap-2 cursor-pointer group">
                         <button
                           type="button"
                           onClick={() => { setAgreeOffer(!agreeOffer); setError(null); }}
-                          className={`w-4 h-4 mt-0.5 rounded-md border flex items-center justify-center shrink-0 transition ${
+                          className={`w-3.5 h-3.5 mt-0.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
                             agreeOffer 
-                              ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
-                              : 'border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-blue-500'
+                              ? 'bg-zinc-900 dark:bg-zinc-100 border-zinc-900 dark:border-zinc-100 text-white dark:text-zinc-900' 
+                              : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
                           }`}
                         >
-                          {agreeOffer && <Check className="w-3 h-3 stroke-[3]" />}
+                          {agreeOffer && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                         </button>
-                        <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 select-none">
-                          Я ознакомлен(-а) и принимаю условия{' '}
+                        <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400 select-none">
+                          Принимаю условия{' '}
                           <button
                             type="button"
                             onClick={(e) => {
@@ -388,7 +385,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                               e.stopPropagation();
                               onOpenLegal?.('offer');
                             }}
-                            className="text-blue-600 dark:text-blue-400 font-semibold underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300 transition"
+                            className="text-zinc-900 dark:text-zinc-200 font-medium underline underline-offset-2 hover:text-blue-600 transition-colors"
                           >
                             Публичной оферты
                           </button>
@@ -396,20 +393,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                       </label>
 
                       {/* 2. Политика обработки персональных данных (152-ФЗ) */}
-                      <label className="flex items-start gap-2.5 cursor-pointer group">
+                      <label className="flex items-start gap-2 cursor-pointer group">
                         <button
                           type="button"
                           onClick={() => { setAgreePrivacy(!agreePrivacy); setError(null); }}
-                          className={`w-4 h-4 mt-0.5 rounded-md border flex items-center justify-center shrink-0 transition ${
+                          className={`w-3.5 h-3.5 mt-0.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
                             agreePrivacy 
-                              ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
-                              : 'border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-blue-500'
+                              ? 'bg-zinc-900 dark:bg-zinc-100 border-zinc-900 dark:border-zinc-100 text-white dark:text-zinc-900' 
+                              : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
                           }`}
                         >
-                          {agreePrivacy && <Check className="w-3 h-3 stroke-[3]" />}
+                          {agreePrivacy && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                         </button>
-                        <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 select-none">
-                          Даю согласие на{' '}
+                        <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400 select-none">
+                          Согласие на{' '}
                           <button
                             type="button"
                             onClick={(e) => {
@@ -417,28 +414,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                               e.stopPropagation();
                               onOpenLegal?.('privacy');
                             }}
-                            className="text-blue-600 dark:text-blue-400 font-semibold underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300 transition"
+                            className="text-zinc-900 dark:text-zinc-200 font-medium underline underline-offset-2 hover:text-blue-600 transition-colors"
                           >
-                            обработку персональных данных (152-ФЗ)
+                            обработку данных (152-ФЗ)
                           </button>
                         </span>
                       </label>
 
                       {/* 3. Возраст 14+ */}
-                      <label className="flex items-start gap-2.5 cursor-pointer group">
+                      <label className="flex items-start gap-2 cursor-pointer group">
                         <button
                           type="button"
                           onClick={() => { setAgreeAge(!agreeAge); setError(null); }}
-                          className={`w-4 h-4 mt-0.5 rounded-md border flex items-center justify-center shrink-0 transition ${
+                          className={`w-3.5 h-3.5 mt-0.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
                             agreeAge 
-                              ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
-                              : 'border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-blue-500'
+                              ? 'bg-zinc-900 dark:bg-zinc-100 border-zinc-900 dark:border-zinc-100 text-white dark:text-zinc-900' 
+                              : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
                           }`}
                         >
-                          {agreeAge && <Check className="w-3 h-3 stroke-[3]" />}
+                          {agreeAge && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                         </button>
-                        <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 select-none">
-                          Подтверждаю, что мой возраст составляет <strong className="font-semibold text-zinc-800 dark:text-zinc-100">14 лет или более</strong>
+                        <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400 select-none">
+                          Подтверждаю возраст <strong className="font-semibold text-zinc-800 dark:text-zinc-200">14 лет или более</strong>
                         </span>
                       </label>
                     </div>
@@ -448,111 +445,111 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                     type="button"
                     onClick={handleYandexOAuth}
                     disabled={loading}
-                    className="w-full py-3 bg-[#FC3F1D] hover:bg-[#E03415] disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-[#FC3F1D]/25 flex items-center justify-center gap-2.5 text-sm transition transform active:scale-[0.98]"
+                    className="w-full py-2 bg-[#FC3F1D] hover:bg-[#E03415] disabled:opacity-50 text-white font-medium rounded-md flex items-center justify-center gap-2 text-xs transition-colors cursor-pointer shadow-2xs"
                   >
-                    <span className="w-5 h-5 rounded-full bg-white text-[#FC3F1D] flex items-center justify-center text-xs font-black shadow-sm">
+                    <span className="w-4 h-4 rounded-full bg-white text-[#FC3F1D] flex items-center justify-center text-[10px] font-black">
                       Я
                     </span>
                     <span>{loading ? 'Открытие Яндекс...' : 'Войти с Яндекс ID'}</span>
-                    <ArrowRight className="w-4 h-4 ml-1" />
+                    <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
                   </button>
-                  <p className="text-[11px] text-zinc-400 text-center leading-relaxed">
-                    Быстрый вход без паролей через подтвержденный профиль Яндекс ID.
+                  <p className="text-[10px] text-zinc-400 text-center leading-relaxed">
+                    Быстрый вход через профиль Яндекс ID.
                   </p>
                 </div>
               )}
 
               {/* TAB 2: EMAIL AUTH */}
               {tab === 'email' && (
-                <form onSubmit={handleEmailAuth} className="space-y-3.5">
+                <form onSubmit={handleEmailAuth} className="space-y-2.5">
                   {isSignUp && (
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                        Ваше имя
+                      <label className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                        Имя
                       </label>
                       <div className="relative">
-                        <UserIcon className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <UserIcon className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                         <input
                           type="text"
                           value={name}
                           onChange={(e) => setName(e.target.value)}
                           placeholder="Иван"
-                          className="w-full pl-9 pr-3.5 py-2 bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-700/80 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
+                          className="w-full pl-8 pr-2.5 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md text-xs outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
                         />
                       </div>
                     </div>
                   )}
 
                   <div>
-                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    <label className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                       Электронная почта
                     </label>
                     <div className="relative">
-                      <Mail className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <Mail className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                       <input
                         type="email"
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="ivan@yandex.ru"
-                        className="w-full pl-9 pr-3.5 py-2 bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-700/80 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
+                        className="w-full pl-8 pr-2.5 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md text-xs outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    <label className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                       Пароль
                     </label>
                     <div className="relative">
-                      <Lock className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <Lock className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                       <input
                         type="password"
                         required
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full pl-9 pr-3.5 py-2 bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-700/80 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
+                        className="w-full pl-8 pr-2.5 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md text-xs outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
                       />
                     </div>
                   </div>
 
                   {/* 3 Agreement Checkboxes for Registration */}
                   {isSignUp && (
-                    <div className={`p-3.5 rounded-xl border transition-all duration-200 ${
+                    <div className={`p-2.5 rounded-md border transition-all duration-150 ${
                       shakeAgreements 
-                        ? 'border-red-400 dark:border-red-500 bg-red-50/50 dark:bg-red-950/20 ring-2 ring-red-400/30' 
-                        : 'border-zinc-200 dark:border-zinc-800/90 bg-zinc-50/80 dark:bg-zinc-900/50'
+                        ? 'border-red-400 dark:border-red-500 bg-red-50/50 dark:bg-red-950/20' 
+                        : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40'
                     }`}>
-                      <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-zinc-200/70 dark:border-zinc-800/70">
-                        <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300">
+                      <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-zinc-200 dark:border-zinc-800">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                           Обязательные согласия
                         </span>
                         <button
                           type="button"
                           onClick={toggleAllAgreements}
-                          className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                          className="text-[10px] font-medium text-zinc-700 dark:text-zinc-300 hover:underline flex items-center gap-1 cursor-pointer"
                         >
                           <span>{allAgreed ? 'Снять все' : 'Выбрать все'}</span>
                         </button>
                       </div>
 
-                      <div className="space-y-2.5">
+                      <div className="space-y-1.5">
                         {/* 1. Публичная оферта */}
-                        <label className="flex items-start gap-2.5 cursor-pointer group">
+                        <label className="flex items-start gap-2 cursor-pointer group">
                           <button
                             type="button"
                             onClick={() => { setAgreeOffer(!agreeOffer); setError(null); }}
-                            className={`w-4 h-4 mt-0.5 rounded-md border flex items-center justify-center shrink-0 transition ${
+                            className={`w-3.5 h-3.5 mt-0.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
                               agreeOffer 
-                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
-                                : 'border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-blue-500'
+                                ? 'bg-zinc-900 dark:bg-zinc-100 border-zinc-900 dark:border-zinc-100 text-white dark:text-zinc-900' 
+                                : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
                             }`}
                           >
-                            {agreeOffer && <Check className="w-3 h-3 stroke-[3]" />}
+                            {agreeOffer && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                           </button>
-                          <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 select-none">
-                            Я ознакомлен(-а) и принимаю условия{' '}
+                          <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400 select-none">
+                            Принимаю условия{' '}
                             <button
                               type="button"
                               onClick={(e) => {
@@ -560,7 +557,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                                 e.stopPropagation();
                                 onOpenLegal?.('offer');
                               }}
-                              className="text-blue-600 dark:text-blue-400 font-semibold underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300 transition"
+                              className="text-zinc-900 dark:text-zinc-200 font-medium underline underline-offset-2 hover:text-blue-600 transition-colors"
                             >
                               Публичной оферты
                             </button>
@@ -568,20 +565,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                         </label>
 
                         {/* 2. Политика обработки персональных данных (152-ФЗ) */}
-                        <label className="flex items-start gap-2.5 cursor-pointer group">
+                        <label className="flex items-start gap-2 cursor-pointer group">
                           <button
                             type="button"
                             onClick={() => { setAgreePrivacy(!agreePrivacy); setError(null); }}
-                            className={`w-4 h-4 mt-0.5 rounded-md border flex items-center justify-center shrink-0 transition ${
+                            className={`w-3.5 h-3.5 mt-0.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
                               agreePrivacy 
-                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
-                                : 'border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-blue-500'
+                                ? 'bg-zinc-900 dark:bg-zinc-100 border-zinc-900 dark:border-zinc-100 text-white dark:text-zinc-900' 
+                                : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
                             }`}
                           >
-                            {agreePrivacy && <Check className="w-3 h-3 stroke-[3]" />}
+                            {agreePrivacy && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                           </button>
-                          <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 select-none">
-                            Даю согласие на{' '}
+                          <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400 select-none">
+                            Согласие на{' '}
                             <button
                               type="button"
                               onClick={(e) => {
@@ -589,28 +586,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                                 e.stopPropagation();
                                 onOpenLegal?.('privacy');
                               }}
-                              className="text-blue-600 dark:text-blue-400 font-semibold underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300 transition"
+                              className="text-zinc-900 dark:text-zinc-200 font-medium underline underline-offset-2 hover:text-blue-600 transition-colors"
                             >
-                              обработку персональных данных (152-ФЗ)
+                              обработку данных (152-ФЗ)
                             </button>
                           </span>
                         </label>
 
                         {/* 3. Возраст 14+ */}
-                        <label className="flex items-start gap-2.5 cursor-pointer group">
+                        <label className="flex items-start gap-2 cursor-pointer group">
                           <button
                             type="button"
                             onClick={() => { setAgreeAge(!agreeAge); setError(null); }}
-                            className={`w-4 h-4 mt-0.5 rounded-md border flex items-center justify-center shrink-0 transition ${
+                            className={`w-3.5 h-3.5 mt-0.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
                               agreeAge 
-                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
-                                : 'border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-blue-500'
+                                ? 'bg-zinc-900 dark:bg-zinc-100 border-zinc-900 dark:border-zinc-100 text-white dark:text-zinc-900' 
+                                : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
                             }`}
                           >
-                            {agreeAge && <Check className="w-3 h-3 stroke-[3]" />}
+                            {agreeAge && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                           </button>
-                          <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 select-none">
-                            Подтверждаю, что мой возраст составляет <strong className="font-semibold text-zinc-800 dark:text-zinc-100">14 лет или более</strong>
+                          <span className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400 select-none">
+                            Подтверждаю возраст <strong className="font-semibold text-zinc-800 dark:text-zinc-200">14 лет или более</strong>
                           </span>
                         </label>
                       </div>
@@ -620,17 +617,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 mt-2 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 text-white dark:text-zinc-950 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 text-sm transition transform active:scale-[0.98]"
+                    className="w-full py-2 mt-1 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-white text-white dark:text-zinc-900 disabled:opacity-50 font-medium rounded-md flex items-center justify-center gap-1.5 text-xs transition-colors cursor-pointer shadow-2xs"
                   >
                     <span>{loading ? 'Загрузка...' : isSignUp ? 'Зарегистрироваться' : 'Войти в аккаунт'}</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
 
-                  <div className="text-center pt-2">
+                  <div className="text-center pt-1">
                     <button
                       type="button"
                       onClick={() => { setIsSignUp(!isSignUp); setError(null); setSuccessMsg(null); }}
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+                      className="text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:underline font-medium cursor-pointer"
                     >
                       {isSignUp ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Зарегистрироваться'}
                     </button>
@@ -642,7 +639,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         </div>
 
         {/* Footer info */}
-        <div className="px-6 py-3 bg-zinc-50 dark:bg-zinc-900/50 border-t border-zinc-100 dark:border-zinc-800/80 text-[11px] text-zinc-400 text-center">
+        <div className="px-4 py-2.5 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 text-[10px] text-zinc-400 text-center">
           {isVerifying 
             ? 'Токен будет начислен сразу после подтверждения почты' 
             : 'Только подтвержденные аккаунты могут создавать схемы'}

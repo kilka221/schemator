@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Settings, Scissors, Trash2, Sun, Moon, Check } from 'lucide-react';
+import { X, Settings, Scissors, Sun, Moon, Check } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -13,7 +13,7 @@ interface SettingsModalProps {
   splitMode: 'auto' | 'manual';
   setSplitMode?: (mode: 'auto' | 'manual') => void;
   onSplitModeChange?: (mode: 'auto' | 'manual') => void;
-  onResetCache: () => void;
+  onResetCache?: () => void;
   onNotify?: (msg: string) => void;
 }
 
@@ -29,7 +29,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   splitMode,
   setSplitMode,
   onSplitModeChange,
-  onResetCache,
   onNotify,
 }) => {
   if (!isOpen) return null;
@@ -56,118 +55,109 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div 
-        className={`w-full max-w-md rounded-2xl border shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 transition-colors ${
+        className={`w-full max-w-md rounded-md border shadow-xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150 transition-colors ${
           isDark 
-            ? 'bg-[#0f172a] text-slate-100 border-slate-700/80' 
-            : 'bg-white text-slate-800 border-slate-200'
+            ? 'bg-zinc-900 text-zinc-100 border-zinc-800' 
+            : 'bg-white text-zinc-900 border-zinc-200'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className={`flex items-center justify-between px-6 py-4 border-b ${
-          isDark ? 'border-slate-800 bg-[#131d38]' : 'border-slate-200 bg-slate-50'
+        <div className={`flex items-center justify-between px-4 py-3 border-b ${
+          isDark ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-200 bg-zinc-50'
         }`}>
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl border flex items-center justify-center ${
-              isDark 
-                ? 'bg-blue-600/20 border-blue-500/30 text-blue-400' 
-                : 'bg-blue-50 border-blue-200 text-blue-600'
-            }`}>
-              <Settings className="w-5 h-5" />
-            </div>
+          <div className="flex items-center gap-2">
+            <Settings className="w-4 h-4 text-zinc-500" />
             <div>
-              <h2 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Настройки Схематора
+              <h2 className={`text-xs font-bold tracking-tight uppercase ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
+                Настройки
               </h2>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Параметры отображения и генерации
-              </p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className={`p-1.5 rounded-lg transition cursor-pointer ${
+            className={`p-1 rounded transition-colors cursor-pointer ${
               isDark 
-                ? 'text-slate-400 hover:text-white hover:bg-slate-800' 
-                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200'
+                ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' 
+                : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200'
             }`}
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-5">
+        <div className="p-4 space-y-4 text-xs">
           {/* Theme setting */}
           <div>
-            <label className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
-              isDark ? 'text-slate-400' : 'text-slate-500'
+            <label className={`block text-[10px] font-mono uppercase tracking-wider mb-1.5 ${
+              isDark ? 'text-zinc-400' : 'text-zinc-500'
             }`}>
-              Тема интерфейса сайта
+              Тема интерфейса
             </label>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => handleTheme('dark')}
-                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
                   theme === 'dark'
-                    ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                    ? 'bg-zinc-800 border-zinc-700 text-zinc-100 font-semibold shadow-2xs'
                     : isDark
-                      ? 'bg-[#131b2e] border-slate-800 text-slate-400 hover:text-white'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                      ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900'
                 }`}
               >
-                <Moon className="w-4 h-4" />
-                <span>Тёмная (Dark)</span>
+                <Moon className="w-3.5 h-3.5" />
+                <span>Тёмная</span>
               </button>
               <button
                 onClick={() => handleTheme('light')}
-                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
                   theme === 'light'
-                    ? 'bg-blue-500/10 border-blue-500 text-blue-600 font-bold'
+                    ? 'bg-white border-zinc-300 text-zinc-900 font-semibold shadow-2xs'
                     : isDark
-                      ? 'bg-[#131b2e] border-slate-800 text-slate-400 hover:text-white'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                      ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900'
                 }`}
               >
-                <Sun className="w-4 h-4 text-amber-500" />
-                <span>Светлая (Light)</span>
+                <Sun className="w-3.5 h-3.5 text-amber-500" />
+                <span>Светлая</span>
               </button>
             </div>
           </div>
 
           {/* Font setting */}
           <div>
-            <label className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
-              isDark ? 'text-slate-400' : 'text-slate-500'
+            <label className={`block text-[10px] font-mono uppercase tracking-wider mb-1.5 ${
+              isDark ? 'text-zinc-400' : 'text-zinc-500'
             }`}>
-              Шрифт текста в блок-схеме
+              Шрифт в схеме
             </label>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {[
-                { id: 'monospace', label: 'Monospace (по умолчанию)', desc: 'Чёткий моноширинный технический шрифт' },
-                { id: 'Times New Roman, serif', label: 'Times New Roman (ГОСТ 19.701-90)', desc: 'Классический стандарт для курсовых и отчетов' },
-                { id: 'Inter, sans-serif', label: 'Sans-serif (современный)', desc: 'Элегантный гротеск без засечек' },
+                { id: 'monospace', label: 'Monospace (JetBrains Mono / Consolas)', desc: 'Стандартный моноширинный' },
+                { id: 'Times New Roman, serif', label: 'Times New Roman (Serif)', desc: 'Классический для отчетов' },
+                { id: 'Inter, sans-serif', label: 'Sans-serif (современный)', desc: 'Чистый гротеск без засечек' },
               ].map((f) => (
                 <button
                   key={f.id}
                   onClick={() => handleFont(f.id)}
-                  className={`w-full flex items-center justify-between p-3 rounded-xl border text-left text-xs transition cursor-pointer ${
+                  className={`w-full flex items-center justify-between p-2.5 rounded-md border text-left text-xs transition-colors cursor-pointer ${
                     fontFamily === f.id
                       ? isDark
-                        ? 'bg-blue-600/20 border-blue-500 text-white'
-                        : 'bg-blue-50 border-blue-500 text-blue-900'
+                        ? 'bg-zinc-800 border-zinc-600 text-white font-medium'
+                        : 'bg-zinc-100 border-zinc-300 text-zinc-900 font-medium'
                       : isDark
-                        ? 'bg-[#131b2e] border-slate-800 text-slate-300 hover:bg-slate-800/60'
-                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                        ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800/60'
+                        : 'bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100'
                   }`}
                 >
                   <div>
-                    <span className="font-semibold block text-sm">{f.label}</span>
-                    <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{f.desc}</span>
+                    <span className="font-semibold block text-xs">{f.label}</span>
+                    <span className={`text-[11px] ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>{f.desc}</span>
                   </div>
-                  {fontFamily === f.id && <Check className={`w-4 h-4 shrink-0 ml-2 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />}
+                  {fontFamily === f.id && <Check className={`w-3.5 h-3.5 shrink-0 ml-2 ${isDark ? 'text-zinc-200' : 'text-zinc-900'}`} />}
                 </button>
               ))}
             </div>
@@ -175,25 +165,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Split Mode */}
           <div>
-            <label className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
-              isDark ? 'text-slate-400' : 'text-slate-500'
+            <label className={`block text-[10px] font-mono uppercase tracking-wider mb-1.5 ${
+              isDark ? 'text-zinc-400' : 'text-zinc-500'
             }`}>
-              Режим разбиения на страницы
+              Разбиение страниц
             </label>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => {
                   handleSplitMode('auto');
                   notify('Режим разбиения: Автоматический');
                 }}
-                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
                   splitMode === 'auto'
                     ? isDark 
-                      ? 'bg-blue-600/20 border-blue-500 text-blue-400'
-                      : 'bg-blue-50 border-blue-500 text-blue-600'
+                      ? 'bg-zinc-800 border-zinc-600 text-white font-medium'
+                      : 'bg-white border-zinc-300 text-zinc-900 font-medium shadow-2xs'
                     : isDark
-                      ? 'bg-[#131b2e] border-slate-800 text-slate-400 hover:text-white'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                      ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
+                      : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900'
                 }`}
               >
                 <span>Авто-разбиение</span>
@@ -203,50 +193,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   handleSplitMode('manual');
                   notify('Режим ножниц активирован');
                 }}
-                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
                   splitMode === 'manual'
                     ? isDark
-                      ? 'bg-blue-600/20 border-blue-500 text-blue-400'
-                      : 'bg-blue-50 border-blue-500 text-blue-600'
+                      ? 'bg-zinc-800 border-zinc-600 text-white font-medium'
+                      : 'bg-white border-zinc-300 text-zinc-900 font-medium shadow-2xs'
                     : isDark
-                      ? 'bg-[#131b2e] border-slate-800 text-slate-400 hover:text-white'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                      ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
+                      : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900'
                 }`}
               >
                 <Scissors className="w-3.5 h-3.5" />
-                <span>Ручной (ножницы)</span>
+                <span>Ножницы</span>
               </button>
             </div>
-          </div>
-
-          {/* Reset cache */}
-          <div className={`pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-            <button
-              onClick={() => {
-                onResetCache();
-                notify('Кэш перемещений и разрезов успешно сброшен');
-              }}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-xs font-semibold transition cursor-pointer ${
-                isDark 
-                  ? 'border-red-500/30 bg-red-950/20 hover:bg-red-900/30 text-red-400'
-                  : 'border-red-200 bg-red-50 hover:bg-red-100 text-red-600'
-              }`}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Сбросить ручные перемещения и кэш</span>
-            </button>
           </div>
         </div>
 
         {/* Footer */}
-        <div className={`px-6 py-3 border-t flex items-center justify-end ${
-          isDark ? 'border-slate-800 bg-[#131d38]' : 'border-slate-200 bg-slate-50'
+        <div className={`px-4 py-2.5 border-t flex items-center justify-end ${
+          isDark ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-200 bg-zinc-50'
         }`}>
           <button 
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition cursor-pointer"
+            className="px-3 py-1 rounded-md bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-medium transition-colors cursor-pointer"
           >
-            Готово
+            Закрыть
           </button>
         </div>
       </div>

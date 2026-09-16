@@ -3,24 +3,28 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
+  body {
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  code, kbd, samp, pre {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+  }
+  
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
     @apply bg-transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-zinc-300 rounded-full transition-colors;
+    @apply bg-zinc-300 dark:bg-zinc-700 rounded-sm transition-colors;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-zinc-400;
-  }
-  
-  .dark ::-webkit-scrollbar-thumb {
-    @apply bg-zinc-700;
-  }
-  .dark ::-webkit-scrollbar-thumb:hover {
-    @apply bg-zinc-600;
+    @apply bg-zinc-400 dark:bg-zinc-600;
   }
 }

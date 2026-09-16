@@ -25,56 +25,53 @@ export const LegalModal: React.FC<LegalModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div 
-        className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-[#1E1E24] text-zinc-900 dark:text-zinc-100 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col overflow-hidden"
+        className="relative w-full max-w-4xl max-h-[85vh] bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-md shadow-xl border border-zinc-200 dark:border-zinc-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between shrink-0 bg-zinc-50 dark:bg-[#25252D]">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              {activeTab === 'privacy' ? <Shield className="w-5 h-5" /> : <Scale className="w-5 h-5" />}
+        <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-50 dark:bg-zinc-900">
+          <div className="flex items-center gap-2">
+            <div className="text-zinc-700 dark:text-zinc-300 flex items-center justify-center">
+              {activeTab === 'privacy' ? <Shield className="w-4 h-4" /> : <Scale className="w-4 h-4" />}
             </div>
             <div>
-              <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+              <h2 className="text-xs font-bold uppercase tracking-tight text-zinc-900 dark:text-zinc-100">
                 {activeTab === 'privacy' ? 'Политика обработки персональных данных' : 'Пользовательское соглашение (Публичная оферта)'}
               </h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Сервис «Схематор» • https://schemator.ru/ • Редакция от 30.08.2026
-              </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800 transition"
+            className="p-1 rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
             title="Закрыть"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100/70 dark:bg-[#202026] px-6 gap-2">
+        <div className="flex border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 gap-1">
           <button
             onClick={() => setActiveTab('privacy')}
-            className={`py-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition ${
+            className={`py-2 px-3 text-xs font-medium flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
               activeTab === 'privacy'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-white/70 dark:bg-[#1E1E24]'
-                : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+                ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800/60'
+                : 'border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
-            <span>Политика обработки персональных данных (152-ФЗ)</span>
+            <span>Политика обработки данных (152-ФЗ)</span>
           </button>
 
           <button
             onClick={() => setActiveTab('offer')}
-            className={`py-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition ${
+            className={`py-2 px-3 text-xs font-medium flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
               activeTab === 'offer'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-white/70 dark:bg-[#1E1E24]'
-                : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+                ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800/60'
+                : 'border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
@@ -83,14 +80,14 @@ export const LegalModal: React.FC<LegalModalProps> = ({
         </div>
 
         {/* Document Content (Scrollable) */}
-        <div className="flex-1 overflow-y-auto p-6 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300 space-y-6 font-sans">
+        <div className="flex-1 overflow-y-auto p-5 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300 space-y-5 font-sans">
           {activeTab === 'privacy' ? (
-            <div className="space-y-5">
-              <div className="p-4 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/50 rounded-xl text-blue-950 dark:text-blue-200">
-                <p className="font-bold text-xs mb-1">
+            <div className="space-y-4">
+              <div className="p-3 bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800 rounded-md text-zinc-800 dark:text-zinc-200">
+                <p className="font-bold text-xs mb-0.5">
                   ПОЛИТИКА ОБРАБОТКИ ПЕРСОНАЛЬНЫХ ДАННЫХ СЕРВИСА Схематор
                 </p>
-                <p className="text-[11px] text-blue-800 dark:text-blue-300">
+                <p className="text-[11px] text-zinc-500">
                   Редакция от 30.08.2026 • Разработана в соответствии с Федеральным законом от 27.07.2006 № 152-ФЗ «О персональных данных».
                 </p>
               </div>
@@ -561,13 +558,13 @@ export const LegalModal: React.FC<LegalModalProps> = ({
         </div>
 
         {/* Footer actions */}
-        <div className="px-6 py-3.5 border-t border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between shrink-0 bg-zinc-50/70 dark:bg-[#25252D]">
-          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+        <div className="px-4 py-2.5 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-50 dark:bg-zinc-900">
+          <span className="text-[10px] text-zinc-500">
             Используя сайт, вы соглашаетесь с условиями Соглашения и Политики обработки данных.
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs transition shadow-sm"
+            className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 font-medium rounded-md text-xs transition-colors cursor-pointer"
           >
             Понятно
           </button>

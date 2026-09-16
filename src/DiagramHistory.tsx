@@ -1,23 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  History, 
   Pin, 
   PinOff, 
   Trash2, 
-  Edit3, 
-  Check, 
-  X, 
-  Clock, 
   Search, 
-  ChevronDown, 
-  ChevronUp, 
-  LogIn, 
-  Sparkles, 
   Plus, 
-  FileCode2,
-  ExternalLink,
-  Code2,
-  FolderOpen
+  FolderOpen,
+  LogIn
 } from 'lucide-react';
 import { saveYdbDiagramItem, fetchYdbDiagrams, deleteYdbDiagramItem } from './ydbClient';
 import { AppUserProfile } from './App';
@@ -56,67 +45,30 @@ interface DiagramHistoryProps {
   user: AppUserProfile | null;
   currentCode: string;
   currentLanguage: string;
-  isOpen?: boolean;
-  onToggleOpen?: (open: boolean) => void;
   onSelectDiagram: (code: string, language: 'python' | 'cpp') => void;
-  onOpenLogin: () => void;
+  onOpenLogin?: () => void;
   onNotify: (msg: string) => void;
+  theme?: 'light' | 'dark';
 }
 
 export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
   user,
   currentCode,
   currentLanguage,
-  isOpen: externalIsOpen,
-  onToggleOpen: externalOnToggleOpen,
   onSelectDiagram,
   onOpenLogin,
   onNotify,
 }) => {
-  const [internalIsOpen, setInternalIsOpen] = useState(false);
-  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
-  const setIsOpen = (val: boolean | ((prev: boolean) => boolean)) => {
-    const nextVal = typeof val === 'function' ? val(isOpen) : val;
-    if (externalOnToggleOpen) {
-      externalOnToggleOpen(nextVal);
-    }
-    setInternalIsOpen(nextVal);
-  };
   const [diagrams, setDiagrams] = useState<SavedDiagram[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitleText, setEditTitleText] = useState('');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [isSavingCurrent, setIsSavingCurrent] = useState(false);
   const [customSaveTitle, setCustomSaveTitle] = useState('');
   const [showSaveInput, setShowSaveInput] = useState(false);
 
-  // YDB Synchronization - refresh when user or drawer open state changes
+  // If user is not logged in, clear local history and do not allow saving
   useEffect(() => {
+    localStorage.removeItem('blockcraft_local_history');
     if (!user) {
-      try {
-        const saved = localStorage.getItem('blockcraft_local_history');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          const formatted = parsed.map((d: any) => {
-            const detectedLang = detectLanguage(d.code || '', d.language);
-            let title = d.title || 'Безымянная схема';
-            if (detectedLang === 'cpp' && (title === 'Схема Python' || title.startsWith('Схема Python ('))) {
-              title = title.replace('Схема Python', 'Схема C++');
-            }
-            return {
-              ...d,
-              title,
-              language: detectedLang
-            };
-          });
-          setDiagrams(formatted);
-        } else {
-          setDiagrams([]);
-        }
-      } catch {
-        setDiagrams([]);
-      }
+      setDiagrams([]);
       return;
     }
 
@@ -151,10 +103,16 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
     }).catch((err) => {
       console.warn('YDB fetch diagrams error:', err);
     });
-  }, [user, isOpen]);
+  }, [user]);
 
   // Save current code as a new diagram in history
   const handleSaveCurrent = async () => {
+    if (!user) {
+      onNotify('Войдите в аккаунт, чтобы сохранять схемы в историю');
+      onOpenLogin?.();
+      return;
+    }
+
     if (!currentCode.trim()) {
       onNotify('Редактор пуст — нечего сохранять');
       return;
@@ -168,7 +126,7 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
 
     const newDiagram: SavedDiagram = {
       id,
-      userId: user?.uid || 'anonymous',
+      userId: user.uid,
       title,
       code: currentCode,
       language: lang,
@@ -177,20 +135,13 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
       isPinned: false,
     };
 
-    if (user) {
-      try {
-        await saveYdbDiagramItem(user.uid, newDiagram);
-        setDiagrams((prev) => [newDiagram, ...prev]);
-        onNotify(`Схема «${title}» сохранена в Yandex Cloud DB`);
-      } catch (e) {
-        console.error('Error saving to YDB:', e);
-        onNotify('Ошибка сохранения в БД');
-      }
-    } else {
-      const updated = [newDiagram, ...diagrams];
-      setDiagrams(updated);
-      localStorage.setItem('blockcraft_local_history', JSON.stringify(updated));
-      onNotify(`Схема «${title}» сохранена локально`);
+    try {
+      await saveYdbDiagramItem(user.uid, newDiagram);
+      setDiagrams((prev) => [newDiagram, ...prev]);
+      onNotify(`Схема «${title}» сохранена`);
+    } catch (e) {
+      console.error('Error saving to YDB:', e);
+      onNotify('Ошибка сохранения в БД');
     }
 
     setCustomSaveTitle('');
@@ -222,78 +173,52 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
 
   const handleTogglePin = async (diagram: SavedDiagram, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!user) return;
     const newPinned = !diagram.isPinned;
     const updatedDiag = { ...diagram, isPinned: newPinned, updatedAt: new Date().toISOString() };
 
-    if (user) {
-      try {
-        await saveYdbDiagramItem(user.uid, updatedDiag);
-        setDiagrams((prev) => 
-          prev.map((d) => (d.id === diagram.id ? updatedDiag : d))
-            .sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0))
-        );
-        onNotify(newPinned ? 'Схема закреплена вверху' : 'Схема откреплена');
-      } catch (err) {
-        console.error('Error toggling pin:', err);
-      }
-    } else {
-      const updated = diagrams.map(d => d.id === diagram.id ? updatedDiag : d);
-      updated.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
-      setDiagrams(updated);
-      localStorage.setItem('blockcraft_local_history', JSON.stringify(updated));
+    try {
+      await saveYdbDiagramItem(user.uid, updatedDiag);
+      setDiagrams((prev) => 
+        prev.map((d) => (d.id === diagram.id ? updatedDiag : d))
+          .sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0))
+      );
+      onNotify(newPinned ? 'Схема закреплена' : 'Схема откреплена');
+    } catch (err) {
+      console.error('Error toggling pin:', err);
     }
-  };
-
-  const handleStartRename = (diagram: SavedDiagram, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingId(diagram.id);
-    setEditTitleText(diagram.title);
-  };
-
-  const handleSaveRename = async (diagram: SavedDiagram, e?: React.MouseEvent | React.FormEvent) => {
-    if (e) e.stopPropagation();
-    const newTitle = editTitleText.trim();
-    if (!newTitle) {
-      setEditingId(null);
-      return;
-    }
-
-    const updatedDiag = { ...diagram, title: newTitle, updatedAt: new Date().toISOString() };
-
-    if (user) {
-      try {
-        await saveYdbDiagramItem(user.uid, updatedDiag);
-        setDiagrams((prev) => prev.map((d) => (d.id === diagram.id ? updatedDiag : d)));
-        onNotify(`Схема переименована в «${newTitle}»`);
-      } catch (err) {
-        console.error('Error renaming diagram:', err);
-      }
-    } else {
-      const updated = diagrams.map(d => d.id === diagram.id ? updatedDiag : d);
-      setDiagrams(updated);
-      localStorage.setItem('blockcraft_local_history', JSON.stringify(updated));
-    }
-    setEditingId(null);
   };
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (user) {
-      try {
-        await deleteYdbDiagramItem(user.uid, id);
-        setDiagrams((prev) => prev.filter((d) => d.id !== id));
-        onNotify('Схема удалена из истории YDB');
-      } catch (err) {
-        console.error('Error deleting diagram:', err);
-      }
-    } else {
-      const updated = diagrams.filter(d => d.id !== id);
-      setDiagrams(updated);
-      localStorage.setItem('blockcraft_local_history', JSON.stringify(updated));
+    if (!user) return;
+    try {
+      await deleteYdbDiagramItem(user.uid, id);
+      setDiagrams((prev) => prev.filter((d) => d.id !== id));
       onNotify('Схема удалена');
+    } catch (err) {
+      console.error('Error deleting diagram:', err);
     }
-    setDeletingId(null);
   };
+
+  // If not logged in, prompt user to log in
+  if (!user) {
+    return (
+      <div className="my-1 p-3 bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 rounded-md flex flex-col items-center text-center gap-2 animate-in fade-in slide-in-from-top-1 duration-150 select-none">
+        <LogIn className="w-4 h-4 text-zinc-400 mt-0.5" />
+        <div className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-tight">
+          История доступна только после входа в аккаунт
+        </div>
+        <button
+          onClick={() => onOpenLogin?.()}
+          className="w-full py-1 text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 rounded transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+        >
+          <LogIn className="w-3 h-3" />
+          <span>Войти</span>
+        </button>
+      </div>
+    );
+  }
 
   // Filtered diagrams
   const filteredDiagrams = diagrams.filter(d => {
@@ -308,344 +233,136 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
       const now = new Date();
       const isToday = d.toDateString() === now.toDateString();
       if (isToday) {
-        return `Сегодня, ${d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+        return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
       }
-      return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
     } catch {
       return '';
     }
   };
 
   return (
-    <div className="fixed bottom-12 right-6 z-40 flex flex-col items-end">
-      {/* Expanded History Modal / Panel */}
-      {isOpen && (
-        <div 
-          className="mb-3 w-[380px] sm:w-[420px] max-h-[560px] bg-white dark:bg-[#1a1b20] border border-zinc-200 dark:border-zinc-700/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-200"
-          style={{ boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.3)' }}
+    <div className="my-1 py-1.5 px-1 bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 rounded-md flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-150 text-xs select-none">
+      {/* Top Header inside inline history */}
+      <div className="flex items-center justify-between px-1">
+        <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold">
+          Схемы ({diagrams.length})
+        </span>
+
+        <button
+          onClick={() => setShowSaveInput(!showSaveInput)}
+          title="Сохранить текущую схему в историю"
+          className="text-[10px] font-medium flex items-center gap-1 px-1.5 py-0.5 rounded bg-zinc-200/80 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
         >
-          {/* Header */}
-          <div className="px-4 py-3 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-700/60 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-blue-600/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
-                <History className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5 leading-none">
-                  История блок-схем
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-semibold">
-                    {diagrams.length}
-                  </span>
-                </h3>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  {user ? (user.email || user.displayName || 'Личный аккаунт') : 'Локальное сохранение'}
-                </p>
-              </div>
-            </div>
+          <Plus className="w-3 h-3" />
+          <span>Сохранить</span>
+        </button>
+      </div>
 
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setShowSaveInput(!showSaveInput)}
-                title="Сохранить текущий код в историю"
-                className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${
-                  showSaveInput 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                }`}
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline text-xs">Сохранить</span>
-              </button>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
-              >
-                <ChevronDown className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Quick Save Current Input */}
-          {showSaveInput && (
-            <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 border-b border-blue-100 dark:border-blue-900/40">
-              <div className="text-[11px] font-semibold text-blue-900 dark:text-blue-200 mb-1.5 flex items-center justify-between">
-                <span>Сохранить текущую блок-схему:</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-200/60 dark:bg-blue-800/60 uppercase font-mono">
-                  {currentLanguage}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Название (например: Алгоритм Дейкстры)"
-                  value={customSaveTitle}
-                  onChange={(e) => setCustomSaveTitle(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCurrent(); }}
-                  className="flex-1 px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-blue-200 dark:border-blue-800 rounded-lg text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  autoFocus
-                />
-                <button
-                  onClick={handleSaveCurrent}
-                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition shrink-0"
-                >
-                  OK
-                </button>
-                <button
-                  onClick={() => setShowSaveInput(false)}
-                  className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Non-authenticated banner notice */}
-          {!user && (
-            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900/60 flex items-center justify-between gap-3 text-xs">
-              <div className="text-amber-800 dark:text-amber-300 text-[11px] leading-tight">
-                Войдите в аккаунт, чтобы история синхронизировалась с облаком.
-              </div>
-              <button
-                onClick={() => { onOpenLogin(); setIsOpen(false); }}
-                className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-md font-bold text-[11px] shrink-0 shadow-sm"
-              >
-                Войти
-              </button>
-            </div>
-          )}
-
-          {/* Search bar */}
-          {diagrams.length > 2 && (
-            <div className="p-2 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-[#1a1b20]">
-              <div className="relative flex items-center">
-                <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Поиск по названию или коду..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-7 py-1 text-xs bg-zinc-100 dark:bg-zinc-800/80 border border-transparent focus:border-blue-500 rounded-lg text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none"
-                />
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2 text-zinc-400 hover:text-zinc-600"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Diagrams list */}
-          <div className="flex-1 overflow-y-auto p-2 space-y-2 max-h-[380px] custom-scrollbar">
-            {filteredDiagrams.length === 0 ? (
-              <div className="py-10 text-center flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-500 px-4">
-                <FolderOpen className="w-10 h-10 mb-2 stroke-[1.2] opacity-60" />
-                <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-                  {searchQuery ? 'Ничего не найдено' : 'История пуста'}
-                </p>
-                <p className="text-[11px] text-zinc-400 mt-1 max-w-[240px]">
-                  {searchQuery 
-                    ? 'Попробуйте изменить поисковый запрос' 
-                    : 'При каждом создании блок-схемы она автоматически сохраняется в этот список'}
-                </p>
-              </div>
-            ) : (
-              filteredDiagrams.map((diag) => {
-                const isEditing = editingId === diag.id;
-                const isDeleting = deletingId === diag.id;
-                const lines = diag.code.split('\n').filter(Boolean);
-                const previewSnippet = lines.slice(0, 2).join('\n');
-                const detectedLang = detectLanguage(diag.code, diag.language);
-                const isCpp = detectedLang === 'cpp';
-                let displayTitle = diag.title;
-                if (isCpp && (displayTitle === 'Схема Python' || displayTitle.startsWith('Схема Python ('))) {
-                  displayTitle = displayTitle.replace('Схема Python', 'Схема C++');
-                }
-
-                return (
-                  <div
-                    key={diag.id}
-                    onClick={() => {
-                      if (!isEditing && !isDeleting) {
-                        onSelectDiagram(diag.code, isCpp ? 'cpp' : 'python');
-                        onNotify(`Загружена схема: ${displayTitle}`);
-                        setIsOpen(false);
-                      }
-                    }}
-                    className={`group relative p-2.5 rounded-xl border transition cursor-pointer select-none ${
-                      diag.isPinned
-                        ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-800/40 hover:border-amber-400 dark:hover:border-amber-700'
-                        : 'bg-zinc-50/80 dark:bg-zinc-800/40 border-zinc-200/70 dark:border-zinc-700/50 hover:bg-white dark:hover:bg-zinc-800 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm'
-                    }`}
-                  >
-                    {/* Top row with badges and actions */}
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <div className="flex items-center gap-1.5 overflow-hidden">
-                        {diag.isPinned && (
-                          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-[10px] font-bold shrink-0">
-                            <Pin className="w-2.5 h-2.5 fill-amber-500 text-amber-600 dark:text-amber-300" />
-                            Закреплено
-                          </span>
-                        )}
-                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded uppercase shrink-0 ${
-                          isCpp
-                            ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
-                            : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
-                        }`}>
-                          {isCpp ? 'C++' : 'Python'}
-                        </span>
-                        <span className="text-[10px] text-zinc-400 truncate">
-                          {formatDate(diag.updatedAt || diag.createdAt)}
-                        </span>
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="flex items-center gap-0.5 opacity-80 group-hover:opacity-100 transition" onClick={(e) => e.stopPropagation()}>
-                        {/* Pin / Unpin button */}
-                        <button
-                          onClick={(e) => handleTogglePin(diag, e)}
-                          title={diag.isPinned ? 'Открепить' : 'Закрепить вверху'}
-                          className={`p-1 rounded-md transition ${
-                            diag.isPinned 
-                              ? 'text-amber-600 dark:text-amber-400 bg-amber-100/60 dark:bg-amber-900/40' 
-                              : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                          }`}
-                        >
-                          {diag.isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
-                        </button>
-
-                        {/* Rename button */}
-                        <button
-                          onClick={(e) => handleStartRename(diag, e)}
-                          title="Переименовать"
-                          className="p-1 rounded-md text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-
-                        {/* Delete button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeletingId(diag.id);
-                          }}
-                          title="Удалить"
-                          className="p-1 rounded-md text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Title or Inline Edit */}
-                    {isEditing ? (
-                      <div className="flex items-center gap-1 mt-1 mb-1.5" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="text"
-                          value={editTitleText}
-                          onChange={(e) => setEditTitleText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveRename(diag, e);
-                            if (e.key === 'Escape') setEditingId(null);
-                          }}
-                          className="flex-1 px-2 py-1 text-xs bg-white dark:bg-zinc-900 border border-blue-500 rounded text-zinc-900 dark:text-zinc-100 focus:outline-none"
-                          autoFocus
-                        />
-                        <button
-                          onClick={(e) => handleSaveRename(diag, e)}
-                          className="p-1 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="p-1 text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition truncate mb-1">
-                        {displayTitle}
-                      </h4>
-                    )}
-
-                    {/* Code Snippet Preview */}
-                    <div className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-900/80 border border-zinc-200/50 dark:border-zinc-800 text-[11px] font-mono text-zinc-600 dark:text-zinc-400 leading-tight overflow-hidden">
-                      <pre className="truncate">{previewSnippet || '// Пустой код'}</pre>
-                    </div>
-
-                    {/* Delete Confirmation Box */}
-                    {isDeleting && (
-                      <div 
-                        className="mt-2 p-2 bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900 rounded-lg flex items-center justify-between text-xs"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span className="text-red-700 dark:text-red-300 text-[11px]">Удалить схему?</span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={(e) => handleDelete(diag.id, e)}
-                            className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-bold"
-                          >
-                            Да
-                          </button>
-                          <button
-                            onClick={() => setDeletingId(null)}
-                            className="px-2 py-0.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded text-[11px]"
-                          >
-                            Нет
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Footer of modal */}
-          <div className="p-2.5 bg-zinc-50 dark:bg-zinc-800/40 border-t border-zinc-200 dark:border-zinc-700/60 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
-            <span>Нажмите на схему для загрузки</span>
+      {/* Quick Save Input Box */}
+      {showSaveInput && (
+        <div className="p-1.5 bg-white dark:bg-zinc-900 rounded border border-zinc-200 dark:border-zinc-800 flex flex-col gap-1.5 shadow-2xs">
+          <input
+            type="text"
+            value={customSaveTitle}
+            onChange={(e) => setCustomSaveTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSaveCurrent();
+              if (e.key === 'Escape') setShowSaveInput(false);
+            }}
+            placeholder="Название схемы..."
+            className="w-full px-2 py-1 text-[11px] rounded bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+            autoFocus
+          />
+          <div className="flex items-center justify-end gap-1">
             <button
-              onClick={() => setIsOpen(false)}
-              className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+              onClick={() => setShowSaveInput(false)}
+              className="px-2 py-0.5 text-[10px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 rounded cursor-pointer"
             >
-              Свернуть
+              Отмена
+            </button>
+            <button
+              onClick={handleSaveCurrent}
+              className="px-2.5 py-0.5 text-[10px] bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 rounded font-medium transition-colors cursor-pointer"
+            >
+              ОК
             </button>
           </div>
         </div>
       )}
 
-      {/* Floating Trigger Button (Bottom-Right) */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        title="История сохраненных блок-схем"
-        className={`group relative flex items-center gap-2 px-3.5 py-2.5 rounded-full font-bold text-xs shadow-xl transition-all transform hover:scale-105 select-none ${
-          isOpen
-            ? 'bg-blue-700 text-white ring-4 ring-blue-500/20'
-            : 'bg-zinc-900 text-white dark:bg-blue-600 dark:text-white hover:bg-blue-600 dark:hover:bg-blue-500 ring-2 ring-black/5 dark:ring-white/10'
-        }`}
-      >
-        <History className="w-4 h-4 transition-transform group-hover:rotate-[-20deg]" />
-        <span>История схем</span>
-        
-        {diagrams.length > 0 && (
-          <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-blue-500 dark:bg-white text-white dark:text-blue-700 shadow-sm">
-            {diagrams.length}
-          </span>
-        )}
+      {/* Search Input when diagram count > 3 */}
+      {diagrams.length > 3 && (
+        <div className="relative px-0.5">
+          <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Поиск..."
+            className="w-full pl-6 pr-2 py-1 text-[11px] rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+          />
+        </div>
+      )}
 
-        {isOpen ? (
-          <ChevronDown className="w-3.5 h-3.5 ml-0.5 opacity-80" />
+      {/* Scrollable Diagram List */}
+      <div className="max-h-[calc(100vh-280px)] overflow-y-auto space-y-1 pr-0.5 scrollbar-thin">
+        {filteredDiagrams.length === 0 ? (
+          <div className="py-3 px-2 text-center text-[11px] text-zinc-400 flex flex-col items-center gap-1">
+            <FolderOpen className="w-4 h-4 opacity-40" />
+            <span>{searchQuery ? 'Ничего не найдено' : 'История пуста'}</span>
+          </div>
         ) : (
-          <ChevronUp className="w-3.5 h-3.5 ml-0.5 opacity-80" />
+          filteredDiagrams.map((diag) => (
+            <div
+              key={diag.id}
+              onClick={() => onSelectDiagram(diag.code, diag.language)}
+              className="group relative flex items-center justify-between p-1.5 rounded-md bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-800/80 transition-all cursor-pointer shadow-2xs"
+              title="Нажмите для открытия схемы в редакторе"
+            >
+              <div className="flex items-center gap-1.5 min-w-0 pr-1 flex-1">
+                <span className={`text-[9px] font-mono font-bold px-1 py-0.2 rounded shrink-0 border ${
+                  diag.language === 'cpp'
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800'
+                    : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border-blue-300 dark:border-blue-800'
+                }`}>
+                  {diag.language === 'cpp' ? 'C++' : 'PY'}
+                </span>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-[11px] font-medium text-zinc-800 dark:text-zinc-200 truncate group-hover:text-zinc-900 dark:group-hover:text-white">
+                    {diag.title}
+                  </span>
+                  <span className="text-[9px] text-zinc-400 truncate">
+                    {formatDate(diag.updatedAt || diag.createdAt)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Hover actions */}
+              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <button
+                  onClick={(e) => handleTogglePin(diag, e)}
+                  title={diag.isPinned ? 'Открепить' : 'Закрепить'}
+                  className={`p-1 rounded transition-colors ${
+                    diag.isPinned
+                      ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/40'
+                      : 'text-zinc-400 hover:text-amber-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                  }`}
+                >
+                  {diag.isPinned ? <PinOff className="w-3 h-3 text-amber-500" /> : <Pin className="w-3 h-3" />}
+                </button>
+                <button
+                  onClick={(e) => handleDelete(diag.id, e)}
+                  title="Удалить"
+                  className="p-1 rounded text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          ))
         )}
-      </button>
+      </div>
     </div>
   );
 };

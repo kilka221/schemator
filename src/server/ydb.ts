@@ -834,7 +834,7 @@ export async function getYdbDiagrams(userId: string, email?: string) {
 
     return allRows.map((item: any) => ({
       id: String(item.id || ''),
-      title: String(item.title || 'Схема по ГОСТ 19.701-90'),
+      title: String(item.title || 'Безымянная схема'),
       code: String(item.code || ''),
       language: String(item.language || 'python'),
       isPinned: Boolean(item.isPinned),
@@ -864,7 +864,7 @@ export async function saveYdbDiagram(userId: string, diagram: any) {
     await session.executeQuery(prep, {
       $userId: TypedValues.utf8(userId),
       $id: TypedValues.utf8(diagram.id),
-      $title: TypedValues.utf8(diagram.title || 'Схема по ГОСТ 19.701-90'),
+      $title: TypedValues.utf8(diagram.title || 'Безымянная схема'),
       $code: TypedValues.utf8(diagram.code || ''),
       $language: TypedValues.utf8(diagram.language || 'python'),
       $isPinned: TypedValues.bool(!!diagram.isPinned),

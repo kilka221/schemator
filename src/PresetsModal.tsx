@@ -158,100 +158,85 @@ export const PresetsModal: React.FC<PresetsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div 
-        className={`w-full max-w-2xl rounded-2xl border shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-200 transition-colors ${
+        className={`w-full max-w-2xl rounded-md border shadow-xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-150 transition-colors ${
           isDark 
-            ? 'bg-[#0f172a] text-slate-100 border-slate-700/80' 
-            : 'bg-white text-slate-800 border-slate-200'
+            ? 'bg-zinc-900 text-zinc-100 border-zinc-800' 
+            : 'bg-white text-zinc-900 border-zinc-200'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className={`flex items-center justify-between px-6 py-4 border-b ${
-          isDark ? 'border-slate-800 bg-[#131d38]' : 'border-slate-200 bg-slate-50'
+        <div className={`flex items-center justify-between px-4 py-3 border-b ${
+          isDark ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-200 bg-zinc-50'
         }`}>
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl border flex items-center justify-center ${
-              isDark 
-                ? 'bg-blue-600/20 border-blue-500/30 text-blue-400' 
-                : 'bg-blue-50 border-blue-200 text-blue-600'
-            }`}>
-              <Layers className="w-5 h-5" />
-            </div>
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-zinc-500" />
             <div>
-              <h2 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Примеры и готовые шаблоны
+              <h2 className={`text-xs font-bold tracking-tight uppercase ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
+                Шаблоны алгоритмов
               </h2>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Выберите готовый алгоритм для быстрой вставки в редактор
-              </p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className={`p-1.5 rounded-lg transition cursor-pointer ${
+            className={`p-1 rounded transition-colors cursor-pointer ${
               isDark 
-                ? 'text-slate-400 hover:text-white hover:bg-slate-800' 
-                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200'
+                ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' 
+                : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200'
             }`}
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {TEMPLATES_CATALOG.map((item) => (
               <button
                 key={item.id}
                 onClick={() => handleSelectTemplate(item)}
-                className={`group flex flex-col text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer relative ${
+                className={`group flex flex-col text-left p-3 rounded-md border transition-colors cursor-pointer relative ${
                   isDark
-                    ? 'bg-[#131b2e] hover:bg-[#1a253f] border-slate-800 hover:border-blue-500/50'
-                    : 'bg-slate-50 hover:bg-blue-50/50 border-slate-200 hover:border-blue-300'
+                    ? 'bg-zinc-950/60 hover:bg-zinc-800/60 border-zinc-800 hover:border-zinc-700 text-zinc-200'
+                    : 'bg-zinc-50/70 hover:bg-zinc-100 border-zinc-200 hover:border-zinc-300 text-zinc-800'
                 }`}
               >
-                <div className="flex items-center justify-between w-full mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-7 h-7 rounded-lg border flex items-center justify-center ${
-                      isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200'
-                    }`}>
-                      {renderIcon(item.type)}
-                    </div>
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border font-mono ${
+                <div className="flex items-center justify-between w-full mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[10px] font-mono font-medium px-1.5 py-0.5 rounded border ${
                       item.language === 'cpp'
                         ? isDark 
-                          ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' 
-                          : 'bg-orange-50 text-orange-600 border-orange-200'
+                          ? 'bg-orange-950/40 text-orange-400 border-orange-900/60' 
+                          : 'bg-orange-50 text-orange-700 border-orange-200'
                         : isDark
-                          ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                          : 'bg-blue-50 text-blue-600 border-blue-200'
+                          ? 'bg-blue-950/40 text-blue-400 border-blue-900/60' 
+                          : 'bg-blue-50 text-blue-700 border-blue-200'
                     }`}>
                       {item.language === 'cpp' ? 'C++' : 'Python'}
                     </span>
+                    <span className="text-[11px] font-mono text-zinc-500">{item.category}</span>
                   </div>
-                  <ArrowRight className={`w-4 h-4 transition-all group-hover:translate-x-0.5 ${
-                    isDark ? 'text-slate-500 group-hover:text-blue-400' : 'text-slate-400 group-hover:text-blue-600'
-                  }`} />
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-100 transition-colors" />
                 </div>
-                <h3 className={`font-semibold text-sm transition-colors mb-1 ${
-                  isDark ? 'text-white group-hover:text-blue-300' : 'text-slate-900 group-hover:text-blue-600'
+                <h3 className={`font-semibold text-xs transition-colors mb-0.5 ${
+                  isDark ? 'text-zinc-100 group-hover:text-white' : 'text-zinc-900 group-hover:text-black'
                 }`}>
                   {item.title}
                 </h3>
-                <p className={`text-xs line-clamp-2 leading-relaxed mb-3 ${
-                  isDark ? 'text-slate-400' : 'text-slate-600'
+                <p className={`text-[11px] line-clamp-2 leading-relaxed mb-2 ${
+                  isDark ? 'text-zinc-400' : 'text-zinc-500'
                 }`}>
                   {item.desc}
                 </p>
-                <div className={`mt-auto w-full rounded-lg p-2 font-mono text-[11px] border overflow-hidden line-clamp-2 ${
+                <div className={`mt-auto w-full rounded p-1.5 font-mono text-[10px] border overflow-hidden line-clamp-1 ${
                   isDark 
-                    ? 'bg-slate-950/60 text-slate-400 border-slate-800/60' 
-                    : 'bg-white text-slate-600 border-slate-200'
+                    ? 'bg-zinc-950 text-zinc-400 border-zinc-800' 
+                    : 'bg-white text-zinc-600 border-zinc-200'
                 }`}>
-                  {item.code.split('\n').slice(0, 2).join(' ')}...
+                  {item.code.split('\n').slice(0, 2).join(' ')}
                 </div>
               </button>
             ))}
@@ -259,19 +244,15 @@ export const PresetsModal: React.FC<PresetsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className={`px-6 py-3.5 border-t flex items-center justify-between text-xs ${
+        <div className={`px-4 py-2.5 border-t flex items-center justify-between text-xs ${
           isDark 
-            ? 'border-slate-800 bg-[#131d38] text-slate-400' 
-            : 'border-slate-200 bg-slate-50 text-slate-600'
+            ? 'border-zinc-800 bg-zinc-900 text-zinc-400' 
+            : 'border-zinc-200 bg-zinc-50 text-zinc-600'
         }`}>
-          <span>Поддерживаются циклы, ветвления, подпрограммы и ГОСТ-символ @</span>
+          <span className="text-[11px] font-mono text-zinc-500">Кликните по шаблону для загрузки</span>
           <button 
             onClick={onClose}
-            className={`px-4 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-              isDark 
-                ? 'bg-slate-800 hover:bg-slate-700 text-white' 
-                : 'bg-slate-200 hover:bg-slate-300 text-slate-800'
-            }`}
+            className="px-3 py-1 rounded-md bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-medium transition-colors cursor-pointer"
           >
             Закрыть
           </button>
