@@ -63,6 +63,10 @@ import { TipsModal } from './TipsModal';
 import { SchematorLogo } from './SchematorLogo';
 import { PresetsModal, CodeTemplate } from './PresetsModal';
 import { SettingsModal } from './SettingsModal';
+import { MobileCodeSheet } from './MobileCodeSheet';
+import { MobileExportSheet } from './MobileExportSheet';
+import { MobileMenuDrawer } from './MobileMenuDrawer';
+import { MobileBottomNav } from './MobileBottomNav';
 
 export interface AppUserProfile {
   uid: string;
@@ -156,6 +160,11 @@ export default function App() {
   const [previousBackup, setPreviousBackup] = useState<{ code: string; language: 'python' | 'cpp'; title?: string } | null>(null);
   const sessionGeneratedCodesRef = React.useRef<Set<string>>(new Set());
   const [legalModalDoc, setLegalModalDoc] = useState<LegalDocType | null>(null);
+  const [isMobileCodeOpen, setIsMobileCodeOpen] = useState(false);
+  const [isMobileExportOpen, setIsMobileExportOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
+  const touchDistRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     try {
@@ -579,6 +588,53 @@ export default function App() {
         setPan(p => ({ ...p, y: p.y - e.deltaY }));
       }
     }
+  };
+
+  const handleCanvasTouchStart = (e: React.TouchEvent) => {
+    if (isScissorsMode || editingNode) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.cursor-pointer') || target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.tagName === 'TEXTAREA') {
+      return;
+    }
+    if (e.touches.length === 1) {
+      setIsPanning(true);
+      startPanRef.current = {
+        x: e.touches[0].clientX - pan.x,
+        y: e.touches[0].clientY - pan.y,
+      };
+    } else if (e.touches.length === 2) {
+      setIsPanning(false);
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      touchDistRef.current = dist;
+    }
+  };
+
+  const handleCanvasTouchMove = (e: React.TouchEvent) => {
+    if (isScissorsMode || editingNode) return;
+    if (e.touches.length === 1 && isPanning) {
+      setPan({
+        x: e.touches[0].clientX - startPanRef.current.x,
+        y: e.touches[0].clientY - startPanRef.current.y,
+      });
+    } else if (e.touches.length === 2 && touchDistRef.current !== null) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      if (touchDistRef.current > 0) {
+        const factor = dist / touchDistRef.current;
+        setScale(s => Math.min(3.5, Math.max(0.18, +(s * factor).toFixed(2))));
+      }
+      touchDistRef.current = dist;
+    }
+  };
+
+  const handleCanvasTouchEnd = () => {
+    setIsPanning(false);
+    touchDistRef.current = null;
   };
   
   const graphs = useMemo(() => {
@@ -1156,7 +1212,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     return next;
                   });
                 }}
-                className={`h-7 w-7 rounded-md border flex items-center justify-center transition-colors cursor-pointer ${
+                className={`hidden md:flex h-7 w-7 rounded-md border items-center justify-center transition-colors cursor-pointer ${
                   isDark
                     ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
                     : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
@@ -1180,10 +1236,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
             {/* Right Controls in Header */}
             <div className="flex items-center gap-2">
-              {/* Code Editor Toggle */}
+              {/* Code Editor Toggle (Desktop only, mobile has bottom bar button) */}
               <button
                 onClick={() => setShowSidebar(prev => !prev)}
-                className={`h-7 px-2.5 rounded-md border flex items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                className={`hidden md:flex h-7 px-2.5 rounded-md border items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer ${
                   showSidebar
                     ? isDark
                       ? 'bg-zinc-800 border-zinc-700 text-zinc-100'
@@ -1215,7 +1271,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 {isDark ? <Sun className="w-3.5 h-3.5 text-zinc-300" /> : <Moon className="w-3.5 h-3.5 text-zinc-600" />}
               </button>
 
-              <div className={`w-px h-4 mx-0.5 ${isDark ? 'bg-zinc-800' : 'bg-zinc-200'}`} />
+              <div className={`hidden sm:block w-px h-4 mx-0.5 ${isDark ? 'bg-zinc-800' : 'bg-zinc-200'}`} />
 
               {/* Auth & Tokens */}
               {user ? (
@@ -1225,10 +1281,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   }`}>
                     <Coins className="w-3 h-3 text-zinc-500 dark:text-zinc-400 shrink-0" />
                     <span className="font-medium">{userTokens !== null ? userTokens : '...'}</span>
-                    <span className="text-zinc-300 dark:text-zinc-600 select-none">|</span>
+                    <span className="hidden sm:inline text-zinc-300 dark:text-zinc-600 select-none">|</span>
                     <button
                       onClick={() => setIsTariffModalOpen(true)}
-                      className="text-[11px] font-mono text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors cursor-pointer"
+                      className="hidden sm:inline text-[11px] font-mono text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors cursor-pointer"
                     >
                       Тарифы
                     </button>
@@ -1243,7 +1299,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     )}
                     <button
                       onClick={handleLogout}
-                      className={`h-7 w-7 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
+                      className={`hidden md:flex h-7 w-7 rounded-md items-center justify-center transition-colors cursor-pointer ${
                         isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-zinc-800' : 'text-zinc-500 hover:text-red-500 hover:bg-zinc-100'
                       }`}
                       title="Выйти из аккаунта"
@@ -1256,7 +1312,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => setIsTariffModalOpen(true)}
-                    className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
+                    className={`hidden sm:inline-flex h-7 px-2.5 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
                       isDark
                         ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800'
                         : 'bg-zinc-50 border-zinc-200 text-zinc-700 hover:text-zinc-900 hover:bg-zinc-100'
@@ -1296,9 +1352,9 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         <div className="flex-1 flex overflow-hidden w-full h-full divide-x divide-zinc-200 dark:divide-zinc-800">
           {/* Left Sidebar Navigation - Collapsible (w-14 collapsed, w-56 expanded) */}
           {!viewMode && (
-            <aside className={`${
+            <aside className={`hidden md:flex ${
               isSidebarCollapsed ? 'w-14' : 'w-56'
-            } shrink-0 flex flex-col justify-between py-3 px-1.5 select-none transition-all duration-200 border-r overflow-hidden ${
+            } shrink-0 flex-col justify-between py-3 px-1.5 select-none transition-all duration-200 border-r overflow-hidden ${
               isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
             }`}>
               {/* Top Navigation Menu Items */}
@@ -1487,11 +1543,11 @@ const downloadDrawio = (title: string, fontFamily: string) => {
             </aside>
           )}
 
-          {/* Center Docked Panel: Code Editor */}
+          {/* Center Docked Panel: Code Editor (Desktop only) */}
           {!viewMode && showSidebar && (
             <div 
               style={{ width: `${leftWidth}px` }}
-              className={`shrink-0 flex flex-col overflow-hidden transition-colors duration-150 ${
+              className={`hidden md:flex shrink-0 flex-col overflow-hidden transition-colors duration-150 ${
                 isDark ? 'bg-zinc-900' : 'bg-white'
               }`}
             >
@@ -1677,7 +1733,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
           {!viewMode && showSidebar && (
             <div
               onMouseDown={handleResizeMouseDown}
-              className="w-1 relative shrink-0 cursor-col-resize hover:bg-zinc-400/50 active:bg-zinc-500 dark:hover:bg-zinc-500/50 transition-colors z-20 select-none group"
+              className="hidden md:block w-1 relative shrink-0 cursor-col-resize hover:bg-zinc-400/50 active:bg-zinc-500 dark:hover:bg-zinc-500/50 transition-colors z-20 select-none group"
               title="Потяните для изменения ширины редактора"
             >
               <div className="absolute inset-y-0 -left-1 -right-1 cursor-col-resize" />
@@ -1686,7 +1742,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
           {!viewMode && !showSidebar && (
             <button
               onClick={() => setShowSidebar(true)}
-              className="w-2.5 shrink-0 cursor-pointer border-r border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 transition-colors z-20 flex items-center justify-center group"
+              className="hidden md:flex w-2.5 shrink-0 cursor-pointer border-r border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 transition-colors z-20 items-center justify-center group"
               title="Открыть редактор кода"
             >
               <div className="w-1 h-8 rounded-full bg-zinc-300 dark:bg-zinc-700 group-hover:bg-zinc-500 dark:group-hover:bg-zinc-400 transition-colors" />
@@ -1861,8 +1917,8 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   </div>
                 </div>
 
-                {/* Right: Segmented Export Buttons Group */}
-                <div className={`h-6 inline-flex rounded border overflow-hidden divide-x shadow-2xs ${
+                {/* Right: Segmented Export Buttons Group (Desktop & Tablet) */}
+                <div className={`hidden sm:inline-flex h-6 rounded border overflow-hidden divide-x shadow-2xs ${
                   isDark
                     ? 'border-zinc-800 divide-zinc-800 bg-zinc-900'
                     : 'border-zinc-200 divide-zinc-200 bg-white'
@@ -1913,10 +1969,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
             </div>
 
 
-          {/* Canvas Viewport: Supports Drag Panning, Mouse Wheel, Scaled Scissors and Dot-Grid background */}
+          {/* Canvas Viewport: Supports Drag Panning, Mouse Wheel, Touch Pinch/Pan, Scaled Scissors and Dot-Grid background */}
           <div
             ref={canvasContainerRef}
-            className={`flex-1 w-full h-full relative overflow-hidden select-none ${
+            className={`flex-1 w-full h-full relative overflow-hidden select-none pb-16 md:pb-0 touch-none ${
               isScissorsMode ? 'cursor-cell' : isPanning ? 'cursor-grabbing' : 'cursor-grab'
             }`}
             style={{
@@ -1926,6 +1982,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 : 'radial-gradient(#d4d4d8 1.2px, transparent 1.2px)',
               backgroundSize: '20px 20px',
             }}
+            onTouchStart={handleCanvasTouchStart}
+            onTouchMove={handleCanvasTouchMove}
+            onTouchEnd={handleCanvasTouchEnd}
+            onTouchCancel={handleCanvasTouchEnd}
             onMouseDown={(e) => {
               if (isScissorsMode) return;
               if (e.button === 0 || e.button === 1) {
@@ -2208,7 +2268,12 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         <Play className="w-4 h-4" />
                       </div>
                       <div className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                        Нажмите <strong className="text-zinc-800 dark:text-zinc-200 font-medium">«Создать схему»</strong> или сочетание <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono text-[10px]">Ctrl+Enter</kbd>
+                        <span className="hidden md:inline">
+                          Нажмите <strong className="text-zinc-800 dark:text-zinc-200 font-medium">«Создать схему»</strong> или сочетание <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono text-[10px]">Ctrl+Enter</kbd>
+                        </span>
+                        <span className="md:hidden">
+                          Нажмите кнопку <strong className="text-blue-600 dark:text-blue-400 font-medium">«Код»</strong> внизу, чтобы ввести алгоритм, или выберите <strong className="text-zinc-800 dark:text-zinc-200 font-medium">«Примеры»</strong>
+                        </span>
                       </div>
                     </div>
                   )}
@@ -2439,6 +2504,125 @@ const downloadDrawio = (title: string, fontFamily: string) => {
           showToast('Пример кода успешно вставлен в редактор');
         }}
       />
+
+      {/* Mobile Bottom Navigation Bar */}
+      <MobileBottomNav
+        onOpenCode={() => setIsMobileCodeOpen(true)}
+        onGenerate={handleGenerateClick}
+        isGenerating={isGenerating}
+        onOpenExport={() => setIsMobileExportOpen(true)}
+        onOpenPresets={() => setIsPresetsModalOpen(true)}
+        onOpenMenu={() => setIsMobileMenuOpen(true)}
+        lineCount={code.split('\n').length}
+        hasDiagram={graphs.length > 0}
+      />
+
+      {/* Mobile Code Editor Sheet */}
+      <MobileCodeSheet
+        isOpen={isMobileCodeOpen}
+        onClose={() => setIsMobileCodeOpen(false)}
+        code={code}
+        setCode={setCode}
+        language={language as 'python' | 'cpp'}
+        setLanguage={(l) => {
+          setLanguage(l);
+          localStorage.setItem('blockcraft_language', l);
+        }}
+        onGenerate={() => {
+          handleGenerateClick();
+          setIsMobileCodeOpen(false);
+        }}
+        isGenerating={isGenerating}
+        onOpenPresets={() => {
+          setIsMobileCodeOpen(false);
+          setIsPresetsModalOpen(true);
+        }}
+        isDark={isDark}
+      />
+
+      {/* Mobile Export Sheet */}
+      <MobileExportSheet
+        isOpen={isMobileExportOpen}
+        onClose={() => setIsMobileExportOpen(false)}
+        onDownloadSvg={() => {
+          let name = activeGraph?.title || 'graph';
+          if (activeGraph && activeGraph.pages.length > 1) {
+            name += `_стр_${activePage + 1}`;
+          }
+          downloadSvg(`graph-svg-${activeTab}`, name);
+        }}
+        onDownloadPng={() => {
+          let name = activeGraph?.title || 'graph';
+          if (activeGraph && activeGraph.pages.length > 1) {
+            name += `_стр_${activePage + 1}`;
+          }
+          downloadPng(`graph-svg-${activeTab}`, name);
+        }}
+        onDownloadDrawio={() => {
+          let name = activeGraph?.title || 'graph';
+          if (activeGraph && activeGraph.pages.length > 1) {
+            name += `_стр_${activePage + 1}`;
+          }
+          downloadDrawio(name, fontFamily);
+        }}
+        activePage={activePage}
+        totalPages={activeGraph?.pages.length || 1}
+        onPageChange={setActivePage}
+      />
+
+      {/* Mobile Menu Drawer */}
+      <MobileMenuDrawer
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        user={user}
+        userTokens={userTokens}
+        onLogin={handleLogin}
+        onLogout={handleLogout}
+        onOpenTariff={() => setIsTariffModalOpen(true)}
+        onOpenPresets={() => setIsPresetsModalOpen(true)}
+        onOpenTips={() => setIsTipsModalOpen(true)}
+        onOpenSettings={() => setIsSettingsModalOpen(true)}
+        onOpenHistory={() => setIsMobileHistoryOpen(true)}
+        onOpenLegal={(doc) => setLegalModalDoc(doc)}
+        isDark={isDark}
+        onToggleTheme={() => {
+          const next = isDark ? 'light' : 'dark';
+          setTheme(next);
+          localStorage.setItem('blockcraft_theme', next);
+        }}
+      />
+
+      {/* Mobile Diagram History Sheet */}
+      {isMobileHistoryOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 animate-in slide-in-from-bottom duration-200">
+          <div className="h-12 px-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-50 dark:bg-zinc-900">
+            <div className="flex items-center gap-2 font-semibold text-sm">
+              <HistoryIcon className="w-4 h-4 text-zinc-500" />
+              <span>История блок-схем</span>
+            </div>
+            <button
+              onClick={() => setIsMobileHistoryOpen(false)}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <DiagramHistory
+              user={user}
+              currentCode={code}
+              currentLanguage={language}
+              onSelectDiagram={(selCode, selLang) => {
+                handleSelectDiagramFromHistory(selCode, selLang);
+                setIsMobileHistoryOpen(false);
+              }}
+              onOpenLogin={handleLogin}
+              onNotify={showToast}
+              theme={theme}
+            />
+          </div>
+        </div>
+      )}
     </div>
     </div>
   );
