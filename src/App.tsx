@@ -772,6 +772,9 @@ export default function App() {
     setHoveredLineIndex(null);
     setSelectedElement(null);
     setEditingNode(null);
+    if (diagramTitle) {
+      showToast(`Загружена схема «${diagramTitle}»`);
+    }
   };
 
   const handleRestorePreviousCode = () => {
@@ -1495,8 +1498,8 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       user={user}
                       currentCode={code}
                       currentLanguage={language}
-                      onSelectDiagram={(selCode, selLang) => {
-                        handleSelectDiagramFromHistory(selCode, selLang);
+                      onSelectDiagram={(selCode, selLang, selTitle) => {
+                        handleSelectDiagramFromHistory(selCode, selLang, selTitle);
                       }}
                       onOpenLogin={handleLogin}
                       onNotify={showToast}
@@ -2612,8 +2615,8 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               user={user}
               currentCode={code}
               currentLanguage={language}
-              onSelectDiagram={(selCode, selLang) => {
-                handleSelectDiagramFromHistory(selCode, selLang);
+              onSelectDiagram={(selCode, selLang, selTitle) => {
+                handleSelectDiagramFromHistory(selCode, selLang, selTitle);
                 setIsMobileHistoryOpen(false);
               }}
               onOpenLogin={handleLogin}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Pin, 
   PinOff, 
@@ -6,7 +6,10 @@ import {
   Search, 
   Plus, 
   FolderOpen,
-  LogIn
+  LogIn,
+  Pencil,
+  Check,
+  X
 } from 'lucide-react';
 import { saveYdbDiagramItem, fetchYdbDiagrams, deleteYdbDiagramItem } from './ydbClient';
 import { AppUserProfile } from './App';
@@ -45,7 +48,7 @@ interface DiagramHistoryProps {
   user: AppUserProfile | null;
   currentCode: string;
   currentLanguage: string;
-  onSelectDiagram: (code: string, language: 'python' | 'cpp') => void;
+  onSelectDiagram: (code: string, language: 'python' | 'cpp', title?: string) => void;
   onOpenLogin?: () => void;
   onNotify: (msg: string) => void;
   theme?: 'light' | 'dark';
@@ -63,6 +66,17 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [customSaveTitle, setCustomSaveTitle] = useState('');
   const [showSaveInput, setShowSaveInput] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingId]);
 
   // If user is not logged in, clear local history and do not allow saving
   useEffect(() => {
@@ -186,6 +200,51 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
       onNotify(newPinned ? 'Схема закреплена' : 'Схема откреплена');
     } catch (err) {
       console.error('Error toggling pin:', err);
+    }
+  };
+
+  const handleStartRename = (diag: SavedDiagram, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingId(diag.id);
+    setEditingTitle(diag.title);
+  };
+
+  const handleCancelRename = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingId(null);
+    setEditingTitle('');
+  };
+
+  const handleSaveRename = async (diag: SavedDiagram, e?: React.MouseEvent | React.FormEvent) => {
+    e?.stopPropagation();
+    if (!user) return;
+    const trimmed = editingTitle.trim();
+    if (!trimmed) {
+      onNotify('Название схемы не может быть пустым');
+      return;
+    }
+    if (trimmed === diag.title) {
+      setEditingId(null);
+      return;
+    }
+
+    setIsSavingEdit(true);
+    const updatedDiag: SavedDiagram = {
+      ...diag,
+      title: trimmed,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      await saveYdbDiagramItem(user.uid, updatedDiag);
+      setDiagrams((prev) => prev.map((d) => (d.id === diag.id ? updatedDiag : d)));
+      onNotify(`Схема переименована в «${trimmed}»`);
+      setEditingId(null);
+    } catch (err) {
+      console.error('Error renaming diagram:', err);
+      onNotify('Ошибка сохранения нового названия');
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -316,49 +375,113 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
           filteredDiagrams.map((diag) => (
             <div
               key={diag.id}
-              onClick={() => onSelectDiagram(diag.code, diag.language)}
+              onClick={() => {
+                if (editingId === diag.id) return;
+                onSelectDiagram(diag.code, diag.language, diag.title);
+              }}
               className="group relative flex items-center justify-between p-1.5 rounded-md bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-800/80 transition-all cursor-pointer shadow-2xs"
-              title="Нажмите для открытия схемы в редакторе"
+              title={editingId === diag.id ? undefined : "Нажмите для открытия схемы в редакторе"}
             >
-              <div className="flex items-center gap-1.5 min-w-0 pr-1 flex-1">
-                <span className={`text-[9px] font-mono font-bold px-1 py-0.2 rounded shrink-0 border ${
-                  diag.language === 'cpp'
-                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800'
-                    : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border-blue-300 dark:border-blue-800'
-                }`}>
-                  {diag.language === 'cpp' ? 'C++' : 'PY'}
-                </span>
-                <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-[11px] font-medium text-zinc-800 dark:text-zinc-200 truncate group-hover:text-zinc-900 dark:group-hover:text-white">
-                    {diag.title}
+              {editingId === diag.id ? (
+                <div 
+                  className="flex items-center gap-1.5 w-full min-w-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className={`text-[9px] font-mono font-bold px-1 py-0.2 rounded shrink-0 border ${
+                    diag.language === 'cpp'
+                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800'
+                      : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border-blue-300 dark:border-blue-800'
+                  }`}>
+                    {diag.language === 'cpp' ? 'C++' : 'PY'}
                   </span>
-                  <span className="text-[9px] text-zinc-400 truncate">
-                    {formatDate(diag.updatedAt || diag.createdAt)}
-                  </span>
+                  <input
+                    ref={editInputRef}
+                    type="text"
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveRename(diag, e);
+                      if (e.key === 'Escape') handleCancelRename(e as any);
+                    }}
+                    placeholder="Название схемы..."
+                    className="flex-1 min-w-0 px-1.5 py-0.5 text-[11px] rounded bg-zinc-50 dark:bg-zinc-950 border border-blue-500 dark:border-blue-400 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                    autoFocus
+                  />
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => handleSaveRename(diag, e)}
+                      disabled={isSavingEdit}
+                      title="Сохранить название (Enter)"
+                      className="p-1 rounded text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleCancelRename(e)}
+                      disabled={isSavingEdit}
+                      title="Отмена (Esc)"
+                      className="p-1 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-1.5 min-w-0 pr-1 flex-1">
+                    <span className={`text-[9px] font-mono font-bold px-1 py-0.2 rounded shrink-0 border ${
+                      diag.language === 'cpp'
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800'
+                        : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border-blue-300 dark:border-blue-800'
+                    }`}>
+                      {diag.language === 'cpp' ? 'C++' : 'PY'}
+                    </span>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span 
+                        onDoubleClick={(e) => handleStartRename(diag, e)}
+                        className="text-[11px] font-medium text-zinc-800 dark:text-zinc-200 truncate group-hover:text-zinc-900 dark:group-hover:text-white"
+                        title="Нажмите для открытия, дважды — для переименования"
+                      >
+                        {diag.title}
+                      </span>
+                      <span className="text-[9px] text-zinc-400 truncate">
+                        {formatDate(diag.updatedAt || diag.createdAt)}
+                      </span>
+                    </div>
+                  </div>
 
-              {/* Hover actions */}
-              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                <button
-                  onClick={(e) => handleTogglePin(diag, e)}
-                  title={diag.isPinned ? 'Открепить' : 'Закрепить'}
-                  className={`p-1 rounded transition-colors ${
-                    diag.isPinned
-                      ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/40'
-                      : 'text-zinc-400 hover:text-amber-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                  }`}
-                >
-                  {diag.isPinned ? <PinOff className="w-3 h-3 text-amber-500" /> : <Pin className="w-3 h-3" />}
-                </button>
-                <button
-                  onClick={(e) => handleDelete(diag.id, e)}
-                  title="Удалить"
-                  className="p-1 rounded text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
+                  {/* Actions */}
+                  <div className="flex items-center gap-0.5 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
+                    <button
+                      onClick={(e) => handleStartRename(diag, e)}
+                      title="Переименовать схему"
+                      className="p-1 rounded text-zinc-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors cursor-pointer"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => handleTogglePin(diag, e)}
+                      title={diag.isPinned ? 'Открепить' : 'Закрепить'}
+                      className={`p-1 rounded transition-colors cursor-pointer ${
+                        diag.isPinned
+                          ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/40'
+                          : 'text-zinc-400 hover:text-amber-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                      }`}
+                    >
+                      {diag.isPinned ? <PinOff className="w-3 h-3 text-amber-500" /> : <Pin className="w-3 h-3" />}
+                    </button>
+                    <button
+                      onClick={(e) => handleDelete(diag.id, e)}
+                      title="Удалить"
+                      className="p-1 rounded text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ))
         )}
