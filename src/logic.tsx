@@ -5,7 +5,6 @@ import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-c';
 import 'prismjs/components/prism-cpp';
-import 'prismjs/themes/prism.css';
 
 import { parseCppSourceWhole } from './parseCpp';
 import { mathify, cleanIoArgs, consolidateBlocks, isSubprogramCall, formatRangeToGost } from './mathify';
@@ -2266,8 +2265,21 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
 
                         // We only care if there's at least one vertical segment coming from previous page
                         if (edgesIn.length > 0 && allFromPrevPage && isRelevant) {
+                            let otherEdgesMaxY = 0;
+                            allEdgesFinal.forEach(e => {
+                                if (edgesIn.includes(e) || edgesOut.includes(e)) return;
+                                if (e.segments) {
+                                    e.segments.forEach(seg => {
+                                        if (seg.startY < yB && seg.endY < yB && (seg.startY >= yMin || seg.endY >= yMin)) {
+                                            otherEdgesMaxY = Math.max(otherEdgesMaxY, seg.startY, seg.endY);
+                                        }
+                                    });
+                                }
+                            });
+
                             let maxNodeBottom = lastPageNodes.length > 0 ? Math.max(...lastPageNodes.map(n => n.y + (n.height || 64)/2)) : maxStartY;
-                            let newY = Math.max(maxStartY + 20, maxNodeBottom + 15);
+                            let baseBottom = Math.max(maxNodeBottom, otherEdgesMaxY);
+                            let newY = Math.max(maxStartY + 20, baseBottom + 20);
                             
                             if (newY < yB - 5) {
                                 edgesIn.forEach(e => {
