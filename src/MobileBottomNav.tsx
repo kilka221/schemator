@@ -57,7 +57,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           type="button"
           onClick={onGenerate}
           disabled={isGenerating}
-          className="flex-1 -mt-4 py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white shadow-md shadow-blue-600/30 transition-all cursor-pointer disabled:opacity-50"
+          className="flex-1 -mt-4 py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white shadow-md shadow-emerald-600/30 transition-all cursor-pointer disabled:opacity-50"
         >
           <Play className="w-5 h-5 fill-current" />
           <span className="text-[10px] font-bold leading-none tracking-tight">

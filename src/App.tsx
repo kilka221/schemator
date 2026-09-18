@@ -1224,15 +1224,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               >
                 <PanelLeft className="w-3.5 h-3.5" />
               </button>
-              <SchematorLogo className="w-5 h-5 rounded-md shadow-2xs select-none shrink-0" />
+              <SchematorLogo className="w-6 h-6 select-none shrink-0" />
               <div className="flex items-center gap-2">
                 <span className={`text-xs font-bold tracking-tight uppercase ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
                   Схематор
-                </span>
-                <span className={`hidden sm:inline-flex text-[11px] font-mono border-l pl-2.5 ml-1 ${
-                  isDark ? 'text-zinc-500 border-zinc-800' : 'text-zinc-400 border-zinc-200'
-                }`}>
-                  ГОСТ 19.701-90
                 </span>
               </div>
             </div>
@@ -1720,11 +1715,11 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 <button
                   onClick={handleGenerateClick}
                   disabled={isGenerating}
-                  className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium text-xs h-7 px-3 rounded-md shadow-sm transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-medium text-xs h-7 px-3 rounded-md shadow-sm transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <Play className="w-3 h-3 fill-current" />
                   <span>{isGenerating ? "Генерация..." : "Создать схему"}</span>
-                  <kbd className="text-[10px] font-mono bg-blue-700/80 text-blue-100 border border-blue-500/40 px-1 py-0.5 rounded leading-none">
+                  <kbd className="text-[10px] font-mono bg-emerald-700/80 text-emerald-100 border border-emerald-500/40 px-1 py-0.5 rounded leading-none">
                     Ctrl+Enter
                   </kbd>
                 </button>
@@ -2226,9 +2221,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 <div className="flex-1 flex flex-col items-center justify-center p-6 w-full h-full select-none animate-in fade-in duration-200">
                   {!user ? (
                     <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 shadow-sm rounded-xl p-6 max-w-sm w-full flex flex-col items-center text-center gap-4 animate-in zoom-in-95 duration-200">
-                      <div className="w-12 h-12 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-800 dark:text-zinc-200 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs">
-                        <SchematorLogo className="w-6 h-6 select-none" />
-                      </div>
+                      <SchematorLogo className="w-10 h-10 select-none shrink-0" />
 
                       <div className="flex flex-col gap-1.5">
                         <h3 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
@@ -2496,6 +2489,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         onOpenLogin={handleLogin}
         onOpenLegal={(doc) => setLegalModalDoc(doc)}
         onNotify={showToast}
+        theme={theme}
       />
 
       {/* Hints, Tips and Syntax Guide Modal */}

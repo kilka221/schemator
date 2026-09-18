@@ -188,11 +188,11 @@ export const MobileCodeSheet: React.FC<MobileCodeSheetProps> = ({
           type="button"
           onClick={handleGenerateAndClose}
           disabled={isGenerating}
-          className="w-full h-11 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          className="w-full h-11 px-4 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
         >
           <Play className="w-4 h-4 fill-current" />
           <span>{isGenerating ? 'Создание схемы...' : 'Создать блок-схему'}</span>
-          <span className="text-xs font-normal text-blue-200 ml-1">
+          <span className="text-xs font-normal text-emerald-100 ml-1">
             ({formatLinesRu(lineCount)})
           </span>
         </button>

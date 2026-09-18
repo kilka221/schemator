@@ -66,13 +66,8 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
         <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <SchematorLogo className="w-6 h-6 rounded-md select-none shrink-0" />
-            <div>
-              <div className="text-xs font-bold uppercase tracking-tight text-zinc-900 dark:text-zinc-100">
-                Схематор
-              </div>
-              <div className="text-[10px] text-zinc-400 font-mono">
-                ГОСТ 19.701-90
-              </div>
+            <div className="text-xs font-bold uppercase tracking-tight text-zinc-900 dark:text-zinc-100">
+              Схематор
             </div>
           </div>
           <button

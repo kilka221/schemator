@@ -1,4 +1,4 @@
-import React, { useId } from 'react';
+import React from 'react';
 
 interface SchematorLogoProps {
   className?: string;
@@ -6,69 +6,62 @@ interface SchematorLogoProps {
 }
 
 export const SchematorLogo: React.FC<SchematorLogoProps> = ({ 
-  className = "w-8 h-8 rounded-lg shadow-sm select-none", 
+  className = "w-7 h-7 select-none shrink-0", 
   size 
 }) => {
-  const uniqueId = useId().replace(/:/g, '_');
-  const blueId = `blueGrad_${uniqueId}`;
-  const orangeId = `orangeGrad_${uniqueId}`;
-  const greenId = `greenGrad_${uniqueId}`;
-  const purpleId = `purpleGrad_${uniqueId}`;
-
   return (
     <svg 
       xmlns="http://www.w3.org/2000/svg" 
       viewBox="0 0 512 512" 
       className={className}
       style={size ? { width: size, height: size } : undefined}
+      fill="none"
       role="img"
       aria-label="Схематор"
     >
-      <defs>
-        <linearGradient id={blueId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#0066FF" />
-          <stop offset="100%" stopColor="#3B82F6" />
-        </linearGradient>
-        <linearGradient id={orangeId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FF9900" />
-          <stop offset="100%" stopColor="#FF5500" />
-        </linearGradient>
-        <linearGradient id={greenId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#00E676" />
-          <stop offset="100%" stopColor="#00B0FF" />
-        </linearGradient>
-        <linearGradient id={purpleId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#9C27B0" />
-          <stop offset="100%" stopColor="#7C4DFF" />
-        </linearGradient>
-      </defs>
-
-      {/* Dark connecting paths */}
-      <g stroke="#334155" strokeWidth="22" strokeLinecap="round" strokeLinejoin="round" fill="none">
-        {/* Vertical line from top block to diamond */}
-        <path d="M 256 120 L 256 180" />
-        {/* Line from diamond left, down, and bottom curve */}
-        <path d="M 190 256 L 115 256 C 115 256, 115 410, 115 420 C 115 430, 125 430, 220 430 L 256 430" />
-        {/* Line from diamond right, down, and bottom curve */}
-        <path d="M 322 256 L 397 256 C 397 256, 397 410, 397 420 C 397 430, 387 430, 292 430 L 256 430" />
+      {/* Dark teal branch connector lines */}
+      <g stroke="#094A3D" strokeWidth="18" strokeLinecap="round" strokeLinejoin="round">
+        {/* Left branch from diamond down-left, then vertically into left pill */}
+        <path d="M 215 215 L 155 275 L 155 315" />
+        {/* Right branch from diamond down-right, then vertically into right pill */}
+        <path d="M 297 215 L 357 275 L 357 315" />
       </g>
 
-      {/* Top Blue Block */}
-      <rect x="176" y="50" width="160" height="70" rx="22" fill={`url(#${blueId})`} />
-
-      {/* Center Orange Diamond Block */}
-      <g transform="translate(256, 256) rotate(45)">
-        <rect x="-48" y="-48" width="96" height="96" rx="16" fill={`url(#${orangeId})`} />
+      {/* Top Emerald Green Diamond (Decision node) */}
+      <g transform="translate(256, 175) rotate(45)">
+        <rect 
+          x="-55" 
+          y="-55" 
+          width="110" 
+          height="110" 
+          rx="14" 
+          fill="#00C853" 
+        />
       </g>
 
-      {/* Left Green Block */}
-      <rect x="60" y="300" width="110" height="65" rx="20" fill={`url(#${greenId})`} />
+      {/* Left Bottom Pill (Terminal/Process node) */}
+      <rect 
+        x="75" 
+        y="312" 
+        width="160" 
+        height="66" 
+        rx="33" 
+        stroke="#00C853" 
+        strokeWidth="22" 
+        fill="none" 
+      />
 
-      {/* Right Purple Block */}
-      <rect x="342" y="300" width="110" height="65" rx="20" fill={`url(#${purpleId})`} />
-
-      {/* Bottom Circle Node */}
-      <circle cx="256" cy="430" r="22" fill="#FFFFFF" stroke="#334155" strokeWidth="16" />
+      {/* Right Bottom Pill (Terminal/Process node) */}
+      <rect 
+        x="277" 
+        y="312" 
+        width="160" 
+        height="66" 
+        rx="33" 
+        stroke="#00C853" 
+        strokeWidth="22" 
+        fill="none" 
+      />
     </svg>
   );
 };
