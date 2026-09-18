@@ -42,7 +42,9 @@ import {
   PanelLeftOpen,
   ChevronLeft,
   ChevronRight,
-  Scissors
+  Scissors,
+  Mail,
+  Gift
 } from 'lucide-react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
@@ -102,6 +104,15 @@ while i <= n:
     summa = summa + i
     i = i + 1
 print(f"Сумма: {summa}")`;
+
+const formatLinesRu = (n: number) => {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 19) return `${n} строк`;
+  if (mod10 === 1) return `${n} строка`;
+  if (mod10 >= 2 && mod10 <= 4) return `${n} строки`;
+  return `${n} строк`;
+};
 
 export default function App() {
   const [code, setCode] = useState(() => {
@@ -252,7 +263,10 @@ export default function App() {
     }
   }, []);
   
-  const handleLogin = () => {
+  const [authModalTab, setAuthModalTab] = useState<'yandex' | 'email'>('yandex');
+
+  const handleLogin = (tab: 'yandex' | 'email' = 'yandex') => {
+    setAuthModalTab(tab);
     setAuthError(null);
     setIsAuthModalOpen(true);
   };
@@ -1640,10 +1654,8 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               <div className={`h-10 px-3 border-t flex items-center justify-between text-xs shrink-0 ${
                 isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-400' : 'bg-zinc-50/90 border-zinc-200 text-zinc-600'
               }`}>
-                <div className="flex items-center gap-1.5 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
-                  <span>{code.split('\n').length} lines</span>
-                  <span>•</span>
-                  <span className="uppercase font-semibold">{language === 'cpp' ? 'C++' : 'Python'}</span>
+                <div className="flex items-center text-xs text-zinc-500 dark:text-zinc-400 select-none">
+                  <span>{formatLinesRu(code.split('\n').length)}</span>
                 </div>
 
                 <button
@@ -2150,33 +2162,45 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               {graphs.length === 0 && (
                 <div className="flex-1 flex flex-col items-center justify-center p-6 w-full h-full select-none animate-in fade-in duration-200">
                   {!user ? (
-                    <div className="bg-white/85 dark:bg-zinc-900/85 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 shadow-sm rounded-lg p-6 max-w-sm w-full flex flex-col items-center text-center gap-3.5">
-                      <div className="w-10 h-10 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80">
-                        <SchematorLogo className="w-6 h-6" />
+                    <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 shadow-sm rounded-xl p-6 max-w-sm w-full flex flex-col items-center text-center gap-4 animate-in zoom-in-95 duration-200">
+                      <div className="w-12 h-12 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-800 dark:text-zinc-200 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs">
+                        <SchematorLogo className="w-6 h-6 select-none" />
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <h3 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+
+                      <div className="flex flex-col gap-1.5">
+                        <h3 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
                           Войдите, чтобы сохранять схемы
                         </h3>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                          Генерируйте блок-схемы по ГОСТ, сохраняйте историю в облаке и экспортируйте файлы
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed px-1">
+                          Генерируйте блок-схемы по ГОСТ, сохраняйте историю в облаке и продолжайте работу с любого устройства
                         </p>
                       </div>
 
-                      <button
-                        onClick={handleLogin}
-                        className="w-full h-8 px-4 rounded-md bg-white hover:bg-zinc-50 border border-zinc-300 text-zinc-800 font-medium text-xs shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <span className="w-4 h-4 rounded-full bg-[#FC3F1D] text-white flex items-center justify-center text-[10px] font-bold leading-none shrink-0 select-none">
-                          Я
-                        </span>
-                        <span>Войти через Яндекс ID</span>
-                      </button>
+                      {/* Кнопки авторизации: Яндекс ID и Почта в едином чистом стиле */}
+                      <div className="w-full flex flex-col gap-2 pt-0.5">
+                        <button
+                          onClick={() => handleLogin('yandex')}
+                          className="w-full h-9 px-4 rounded-lg bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100 font-medium text-xs shadow-2xs transition-colors flex items-center justify-center gap-2.5 cursor-pointer"
+                        >
+                          <span className="w-4 h-4 rounded-full bg-[#FC3F1D] text-white flex items-center justify-center text-[10px] font-black leading-none shrink-0 select-none">
+                            Я
+                          </span>
+                          <span>Войти через Яндекс ID</span>
+                        </button>
 
-                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-[11px] font-mono font-medium text-amber-700 dark:text-amber-400">
-                        <Coins className="w-3 h-3 text-amber-500" />
-                        <span>+1 коин бесплатно при регистрации</span>
+                        <button
+                          onClick={() => handleLogin('email')}
+                          className="w-full h-9 px-4 rounded-lg bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100 font-medium text-xs shadow-2xs transition-colors flex items-center justify-center gap-2.5 cursor-pointer"
+                        >
+                          <Mail className="w-4 h-4 text-zinc-700 dark:text-zinc-300 shrink-0" />
+                          <span>Войти по почте</span>
+                        </button>
                       </div>
+
+                      {/* Естественная спокойная подпись без баннеров и искусственных рамок */}
+                      <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                        1 бесплатная схема начисляется сразу после входа
+                      </p>
                     </div>
                   ) : (
                     <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm border border-zinc-200 dark:border-zinc-800 rounded-lg p-5 max-w-xs text-center flex flex-col items-center gap-2.5 shadow-2xs">
@@ -2385,6 +2409,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         onClose={() => setIsAuthModalOpen(false)} 
         onSuccess={handleAuthSuccess} 
         onOpenLegal={(doc) => setLegalModalDoc(doc)}
+        initialTab={authModalTab}
       />
 
       {/* Legal Documents Modal */}

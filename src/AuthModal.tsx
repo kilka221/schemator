@@ -10,9 +10,10 @@ interface AuthModalProps {
   onClose: () => void;
   onSuccess: (user: any) => void;
   onOpenLegal?: (doc: LegalDocType) => void;
+  initialTab?: 'yandex' | 'email';
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess, onOpenLegal }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess, onOpenLegal, initialTab = 'yandex' }) => {
   const [tab, setTab] = useState<'yandex' | 'email'>('yandex');
   const [isSignUp, setIsSignUp] = useState(false);
   
@@ -39,7 +40,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
   useEffect(() => {
     if (isOpen) {
-      setTab('yandex');
+      setTab(initialTab);
       setIsSignUp(false);
       setIsVerifying(false);
       setVerifyEmail('');
