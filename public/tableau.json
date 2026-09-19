@@ -1,0 +1,8 @@
+{
+  "api_version": 4,
+  "layout": {
+    "logo": "/android-chrome-192x192.png",
+    "color": "#081412",
+    "show_title": false
+  }
+}
