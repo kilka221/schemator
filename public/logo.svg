@@ -1,12 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
-  <!-- Background rounded squircle for perfect contrast in light and dark browser tabs -->
-  <rect width="512" height="512" rx="116" fill="#081412" />
-  <rect x="6" y="6" width="500" height="500" rx="110" fill="none" stroke="#133529" stroke-width="8" />
-
-  <!-- Flowchart vector symbol (centered and scaled) -->
-  <g transform="translate(256, 256) scale(1.18) translate(-256, -237.5)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%" fill="none">
+  <!-- Centered, scaled transparent flowchart symbol -->
+  <g transform="translate(256, 256) scale(1.32) translate(-256, -237.5)">
     <!-- Branch connector lines -->
-    <g stroke="#00C853" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#00C853" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
       <path d="M 215 215 L 155 275 L 155 315" />
       <path d="M 297 215 L 357 275 L 357 315" />
     </g>
@@ -17,9 +13,9 @@
     </g>
 
     <!-- Left Bottom Pill -->
-    <rect x="75" y="312" width="160" height="66" rx="33" stroke="#00E676" stroke-width="24" fill="#081412" />
+    <rect x="75" y="312" width="160" height="66" rx="33" stroke="#00E676" stroke-width="26" fill="none" />
 
     <!-- Right Bottom Pill -->
-    <rect x="277" y="312" width="160" height="66" rx="33" stroke="#00E676" stroke-width="24" fill="#081412" />
+    <rect x="277" y="312" width="160" height="66" rx="33" stroke="#00E676" stroke-width="26" fill="none" />
   </g>
 </svg>
