@@ -1973,10 +1973,10 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
     if (ast.length > 0) rootW = Math.max(...ast.map(n => n.width || NODE_WIDTH));
     
     const rootCx = Math.max(200, rootW) / 2 + 50;
-    const startY = 60;
-    const startH = 64;
-    
     let startText = isMain ? 'Начало' : `Вход в п/п\n${title}`;
+    const startH = getNodeHeight(startText, 'start', style);
+    const startY = 40 + startH / 2;
+    
     allNodes.push({ id: 'start', type: 'start', text: startText, x: rootCx, y: startY, height: startH });
     let rootInPts = [{ x: rootCx, y: startY + startH/2 }];
     
@@ -2039,9 +2039,10 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
 
     if (res.endPoints.length > 0) {
         let endText = isMain ? 'Конец' : `Выход из п/п\n${cleanTitle}` + (returnType ? ` (${returnType})` : ``);
-        allNodes.push({ id: 'end', type: 'end', text: endText, x: endCx, y: finalY, height: 64 });
+        const endH = getNodeHeight(endText, 'end', style);
+        allNodes.push({ id: 'end', type: 'end', text: endText, x: endCx, y: finalY, height: endH });
         
-        const targetPoint = {x: endCx, y: finalY - 64/2};
+        const targetPoint = {x: endCx, y: finalY - endH/2};
         const mergeY = targetPoint.y - 20;
         for (let p of res.endPoints) {
             if (p.from) {
@@ -2745,18 +2746,27 @@ export function getNodeHeight(text: string, type?: string, style?: DiagramStyleC
     const styleObj = typeof style === 'string' ? getDiagramStyle(style) : (style || getDiagramStyle());
     const isStartEnd = type === 'start' || type === 'end';
     const isDecision = type === 'decision';
+    const isLoop = type === 'loop' || type === 'loop_begin' || type === 'loop_end';
     
-    // Narrow vertical height for start/end in student styles (32-40px, or standard 50-56px)
-    const baseH = isStartEnd 
-        ? (styleObj.startBaseHeight || 38)
-        : (isDecision && styleObj.rhombusBaseHeight ? styleObj.rhombusBaseHeight : styleObj.baseHeight);
+    // Narrow vertical height for start/end in student styles (30-40px, or standard 54-56px)
+    let baseH = styleObj.baseHeight;
+    if (isStartEnd) {
+        baseH = styleObj.startBaseHeight || 38;
+    } else if (isDecision) {
+        baseH = styleObj.rhombusBaseHeight || Math.round(styleObj.baseHeight * 0.85);
+    } else if (isLoop) {
+        baseH = Math.round(styleObj.baseHeight * 0.95);
+    }
 
     if (!text) return baseH;
     const lines = getNodeLines(text, type, styleObj);
-    const lineStep = styleObj.fontSize ? styleObj.fontSize * 1.25 : 18.5;
-    
+    if (lines.length <= 1) {
+        return baseH;
+    }
+
+    const lineStep = styleObj.fontSize ? styleObj.fontSize * 1.3 : 19;
     // Vertical padding: tighter for narrow start/end pills, balanced for decision and process
-    const pad = isStartEnd ? 14 : (isDecision ? 24 : 20);
+    const pad = isStartEnd ? 12 : (isDecision ? 20 : 16);
     return Math.max(baseH, lines.length * lineStep + pad);
 }
 
