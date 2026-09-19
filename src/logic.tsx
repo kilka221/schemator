@@ -9,6 +9,7 @@ import 'prismjs/components/prism-cpp';
 import { parseCppSourceWhole } from './parseCpp';
 import { mathify, cleanIoArgs, consolidateBlocks, isSubprogramCall, formatRangeToGost } from './mathify';
 import { translatePythonLine } from './translate';
+import { DiagramStyleConfig, getDiagramStyle } from './diagramStyles';
 
 export type ASTNode = 
   | { type: 'stmt', id: string, text: string, kind: 'process'|'io'|'subprogram'|'end', width?: number, leftW?: number, rightW?: number, lineIndex?: number }
@@ -1122,29 +1123,30 @@ function orthogonalRoute(p1: {x:number, y:number}, p2: {x:number, y:number}) {
     return [p1, {x: p1.x, y: midY}, {x: p2.x, y: midY}, p2];
 }
 
-export function buildGraphs(code: string, language: string, activeOverrides: any = {}, splitMode: 'auto' | 'manual' = 'auto', allCustomCuts: Record<number, number[]> = {}, isScissorsMode: boolean = false) {
+export function buildGraphs(code: string, language: string, activeOverrides: any = {}, splitMode: 'auto' | 'manual' = 'auto', allCustomCuts: Record<number, number[]> = {}, isScissorsMode: boolean = false, diagramStyleId: string = 'classic_gost') {
     const parsed = language === 'cpp' ? parseCppSourceWhole(code) : parsePythonSourceWhole(code);
     let graphs = [];
     let idx = 0;
     if (parsed.main.length > 0) {
-        graphs.push(buildGraphForAst(parsed.main, 'Main', undefined, true, activeOverrides[idx] || {}, splitMode, allCustomCuts[idx] || [], isScissorsMode));
+        graphs.push(buildGraphForAst(parsed.main, 'Main', undefined, true, activeOverrides[idx] || {}, splitMode, allCustomCuts[idx] || [], isScissorsMode, diagramStyleId));
         idx++;
     }
     for (let f of parsed.functions) {
-        graphs.push(buildGraphForAst(f.ast, f.name, (f as any).returnType, false, activeOverrides[idx] || {}, splitMode, allCustomCuts[idx] || [], isScissorsMode));
+        graphs.push(buildGraphForAst(f.ast, f.name, (f as any).returnType, false, activeOverrides[idx] || {}, splitMode, allCustomCuts[idx] || [], isScissorsMode, diagramStyleId));
         idx++;
     }
     return graphs;
 }
 
-function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | undefined, isMain: boolean, graphOverrides: any = {}, splitMode: 'auto' | 'manual' = 'auto', customCuts: number[] = [], isScissorsMode: boolean = false) {
-    const NODE_WIDTH = 220;
-    const X_SEP = 60;
-    const Y_MARGIN = 20;
+function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | undefined, isMain: boolean, graphOverrides: any = {}, splitMode: 'auto' | 'manual' = 'auto', customCuts: number[] = [], isScissorsMode: boolean = false, diagramStyleId: string = 'classic_gost') {
+    const style = getDiagramStyle(diagramStyleId);
+    const NODE_WIDTH = style.nodeWidth;
+    const X_SEP = style.xSep;
+    const Y_MARGIN = style.yMargin;
     const cleanTitle = isMain ? '' : title.split('(')[0].trim();
 
     function getASTNodeHeight(node: ASTNode | undefined): number {
-        if (!node) return 64;
+        if (!node) return style.baseHeight;
         let t = node.type === 'stmt' ? node.text : node.condition;
         
         if (graphOverrides?.nodes?.[node.id]?.text !== undefined) {
@@ -1158,7 +1160,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
             }
         }
         let shapeType = node.type === 'stmt' ? node.kind : (node.type === 'while' ? 'decision' : (node.type === 'for' ? 'loop' : (node.type === 'with' ? 'process' : 'decision')));
-        return getNodeHeight(t, shapeType);
+        return getNodeHeight(t, shapeType, style);
     }
     
     function yStep(n1: ASTNode | undefined, n2: ASTNode | undefined) {
@@ -2614,8 +2616,22 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
         }
     }
     return { pages, title };}
-export function EdgePolyline({ edge, theme = 'light' }: { edge: FlowEdge; theme?: string; key?: React.Key }) {
+export function EdgePolyline({ 
+    edge, 
+    theme = 'light',
+    diagramStyle = 'classic_gost',
+    fontFamily = 'monospace'
+}: { 
+    edge: FlowEdge; 
+    theme?: string; 
+    diagramStyle?: string | DiagramStyleConfig;
+    fontFamily?: string;
+    key?: React.Key 
+}) {
     if (!edge.segments || edge.segments.length === 0) return null;
+    const style = typeof diagramStyle === 'string' ? getDiagramStyle(diagramStyle) : (diagramStyle || getDiagramStyle());
+    const filter = style.isRough ? "url(#rough-sketch)" : undefined;
+    const strokeWidth = style.strokeWidth ? style.strokeWidth.toString() : "1.5";
     
     let pathData = '';
     edge.segments.forEach((seg, i) => {
@@ -2642,16 +2658,19 @@ export function EdgePolyline({ edge, theme = 'light' }: { edge: FlowEdge; theme?
         }
     }
 
+    const edgeStrokeColor = style.strokeColor || "#18181b";
+
     return (
-        <g>
-            <path d={pathData} fill="none" stroke="#18181b" strokeWidth="1.5" markerEnd={edge.noArrow ? undefined : `url(#arrowhead)`} strokeLinejoin="round" />
+        <g filter={filter}>
+            <path d={pathData} fill="none" stroke={edgeStrokeColor} strokeWidth={strokeWidth} markerEnd={edge.noArrow ? undefined : `url(#arrowhead)`} strokeLinejoin="round" />
             {labelPoint && labelStr && (
                 <text 
                     x={labelPoint.x} 
                     y={labelPoint.y} 
-                    fontSize="13" 
+                    fontSize={Math.max(11, style.fontSize - 2).toString()} 
                     fontWeight="bold" 
-                    fill="#18181b" 
+                    fontFamily={fontFamily}
+                    fill={edgeStrokeColor} 
                     stroke="#ffffff"
                     strokeWidth="4"
                     paintOrder="stroke"
@@ -2707,91 +2726,142 @@ function splitTextIntoLines(text: string, maxCharsPerLine: number = 28): string[
   return lines;
 }
 
-function getNodeLines(text: string, type?: string): string[] {
+export function getNodeLines(text: string, type?: string, style?: DiagramStyleConfig | string): string[] {
     if (!text) return [];
+    const styleObj = typeof style === 'string' ? getDiagramStyle(style) : (style || getDiagramStyle());
     let maxC = 24;
-    if (type === 'decision') maxC = 26;
-    else if (type === 'loop' || type === 'loop_begin' || type === 'loop_end') maxC = 20;
-    else if (type === 'io') maxC = 22;
+    if (styleObj.nodeWidth) {
+        maxC = Math.max(16, Math.floor((styleObj.nodeWidth / 220) * (15 / styleObj.fontSize) * 25));
+    }
+    if (type === 'decision') maxC = Math.floor(maxC * 0.85);
+    else if (type === 'start' || type === 'end') maxC = Math.floor(maxC * 0.88);
+    else if (type === 'loop' || type === 'loop_begin' || type === 'loop_end') maxC = Math.floor(maxC * 0.85);
+    else if (type === 'io') maxC = Math.floor(maxC * 0.85);
 
     return text.split('\n').flatMap(l => splitTextIntoLines(l.trim(), maxC));
 }
 
-export function getNodeHeight(text: string, type?: string): number {
-    if (!text) return 64;
-    const lines = getNodeLines(text, type);
-    return Math.max(64, lines.length * 18.5 + 24);
+export function getNodeHeight(text: string, type?: string, style?: DiagramStyleConfig | string): number {
+    const styleObj = typeof style === 'string' ? getDiagramStyle(style) : (style || getDiagramStyle());
+    const isStartEnd = type === 'start' || type === 'end';
+    const isDecision = type === 'decision';
+    
+    // Narrow vertical height for start/end in student styles (32-40px, or standard 50-56px)
+    const baseH = isStartEnd 
+        ? (styleObj.startBaseHeight || 38)
+        : (isDecision && styleObj.rhombusBaseHeight ? styleObj.rhombusBaseHeight : styleObj.baseHeight);
+
+    if (!text) return baseH;
+    const lines = getNodeLines(text, type, styleObj);
+    const lineStep = styleObj.fontSize ? styleObj.fontSize * 1.25 : 18.5;
+    
+    // Vertical padding: tighter for narrow start/end pills, balanced for decision and process
+    const pad = isStartEnd ? 14 : (isDecision ? 24 : 20);
+    return Math.max(baseH, lines.length * lineStep + pad);
 }
 
-export function GostShape({ node, highlighted = false, fontFamily = 'monospace', theme = 'light' }: { node: FlowNode; highlighted?: boolean; fontFamily?: string; theme?: string; key?: React.Key }) {
-  const WIDTH = 220;
-  const HEIGHT = node.height || (node.type === 'circle' ? 64 : getNodeHeight(node.text, node.type));
+export function GostShape({ 
+  node, 
+  highlighted = false, 
+  fontFamily = 'monospace', 
+  theme = 'light',
+  diagramStyle = 'classic_gost'
+}: { 
+  node: FlowNode; 
+  highlighted?: boolean; 
+  fontFamily?: string; 
+  theme?: string; 
+  diagramStyle?: string | DiagramStyleConfig;
+  key?: React.Key 
+}) {
+  const style = typeof diagramStyle === 'string' ? getDiagramStyle(diagramStyle) : (diagramStyle || getDiagramStyle());
+  
+  // ALL BLOCKS IN A DIAGRAM HAVE STRICTLY EQUAL UNIFORM WIDTH!
+  // Horizontal expansion is forbidden; blocks expand vertically only.
+  const WIDTH = style.nodeWidth;
+  const HEIGHT = node.height || (node.type === 'circle' ? 40 : getNodeHeight(node.text, node.type, style));
+
   const cx = node.x;
   const cy = node.y;
   const x = cx - WIDTH / 2;
   const y = cy - HEIGHT / 2;
 
-  // Block schemes must always be white with dark borders and clear text (ГОСТ standards)
+  // Block schemes must always be white with dark/gray borders and clear text (ГОСТ standards)
   const fill = highlighted ? "#fef08a" : "#ffffff";
-  const stroke = highlighted ? "#ca8a04" : "#18181b";
-  const textColor = "#18181b";
-  const strokeWidth = highlighted ? "2.5" : "1.5";
+  const stroke = highlighted ? "#ca8a04" : (style.strokeColor || "#18181b");
+  const textColor = style.strokeColor === '#4b5563' ? "#1f2937" : "#18181b";
+  const strokeWidth = highlighted ? "2.5" : style.strokeWidth.toString();
+  const filter = style.isRough ? "url(#rough-sketch)" : undefined;
 
   let shapeElement;
 
   switch (node.type) {
     case 'start':
-    case 'end':
-      shapeElement = <rect x={x} y={y} width={WIDTH} height={HEIGHT} rx={HEIGHT/2} ry={HEIGHT/2} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+    case 'end': {
+      const rxVal = HEIGHT / 2;
+      shapeElement = <rect x={x} y={y} width={WIDTH} height={HEIGHT} rx={rxVal} ry={rxVal} fill={fill} stroke={stroke} strokeWidth={strokeWidth} filter={filter} />;
       break;
-    case 'circle':
+    }
+    case 'circle': {
       const r = 20;
-      shapeElement = <circle cx={cx} cy={cy} r={r} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+      shapeElement = <circle cx={cx} cy={cy} r={r} fill={fill} stroke={stroke} strokeWidth={strokeWidth} filter={filter} />;
       break;
-    case 'process':
-      shapeElement = <rect x={x} y={y} width={WIDTH} height={HEIGHT} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+    }
+    case 'process': {
+      shapeElement = <rect x={x} y={y} width={WIDTH} height={HEIGHT} rx={style.processRx || 0} ry={style.processRx || 0} fill={fill} stroke={stroke} strokeWidth={strokeWidth} filter={filter} />;
       break;
-    case 'io':
-      const skew = 18;
-      shapeElement = <polygon points={`${x+skew},${y} ${x+WIDTH},${y} ${x+WIDTH-skew},${y+HEIGHT} ${x},${y+HEIGHT}`} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+    }
+    case 'io': {
+      const skew = style.ioSkew || 18;
+      shapeElement = <polygon points={`${x+skew},${y} ${x+WIDTH},${y} ${x+WIDTH-skew},${y+HEIGHT} ${x},${y+HEIGHT}`} fill={fill} stroke={stroke} strokeWidth={strokeWidth} filter={filter} />;
       break;
-    case 'decision':
-      shapeElement = <polygon points={`${cx},${y} ${x+WIDTH},${cy} ${cx},${y+HEIGHT} ${x},${cy}`} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+    }
+    case 'decision': {
+      shapeElement = <polygon points={`${cx},${y} ${x+WIDTH},${cy} ${cx},${y+HEIGHT} ${x},${cy}`} fill={fill} stroke={stroke} strokeWidth={strokeWidth} filter={filter} />;
       break;
-    case 'loop':
-      const hexTip = 26;
-      shapeElement = <polygon points={`${x+hexTip},${y} ${x+WIDTH-hexTip},${y} ${x+WIDTH},${cy} ${x+WIDTH-hexTip},${y+HEIGHT} ${x+hexTip},${y+HEIGHT} ${x},${cy}`} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+    }
+    case 'loop': {
+      const hexTip = style.loopHexTip || 24;
+      shapeElement = <polygon points={`${x+hexTip},${y} ${x+WIDTH-hexTip},${y} ${x+WIDTH},${cy} ${x+WIDTH-hexTip},${y+HEIGHT} ${x+hexTip},${y+HEIGHT} ${x},${cy}`} fill={fill} stroke={stroke} strokeWidth={strokeWidth} filter={filter} />;
       break;
-    case 'loop_begin':
-      const cl = 20;
-      shapeElement = <polygon points={`${x+cl},${y} ${x+WIDTH-cl},${y} ${x+WIDTH},${y+cl} ${x+WIDTH},${y+HEIGHT} ${x},${y+HEIGHT} ${x},${y+cl}`} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+    }
+    case 'loop_begin': {
+      const cl = style.loopHexTip ? Math.round(style.loopHexTip * 0.75) : 18;
+      shapeElement = <polygon points={`${x+cl},${y} ${x+WIDTH-cl},${y} ${x+WIDTH},${y+cl} ${x+WIDTH},${y+HEIGHT} ${x},${y+HEIGHT} ${x},${y+cl}`} fill={fill} stroke={stroke} strokeWidth={strokeWidth} filter={filter} />;
       break;
-    case 'loop_end':
-      const ce = 20;
-      shapeElement = <polygon points={`${x},${y} ${x+WIDTH},${y} ${x+WIDTH},${y+HEIGHT-ce} ${x+WIDTH-ce},${y+HEIGHT} ${x+ce},${y+HEIGHT} ${x},${y+HEIGHT-ce}`} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+    }
+    case 'loop_end': {
+      const ce = style.loopHexTip ? Math.round(style.loopHexTip * 0.75) : 18;
+      shapeElement = <polygon points={`${x},${y} ${x+WIDTH},${y} ${x+WIDTH},${y+HEIGHT-ce} ${x+WIDTH-ce},${y+HEIGHT} ${x+ce},${y+HEIGHT} ${x},${y+HEIGHT-ce}`} fill={fill} stroke={stroke} strokeWidth={strokeWidth} filter={filter} />;
       break;
-    case 'subprogram':
+    }
+    case 'subprogram': {
+      const stripe = style.subprogramStripeOffset || 15;
       shapeElement = (
-        <g>
-           <rect x={x} y={y} width={WIDTH} height={HEIGHT} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />
-           <line x1={x + 15} y1={y} x2={x + 15} y2={y + HEIGHT} stroke={stroke} strokeWidth={strokeWidth} />
-           <line x1={x + WIDTH - 15} y1={y} x2={x + WIDTH - 15} y2={y + HEIGHT} stroke={stroke} strokeWidth={strokeWidth} />
+        <g filter={filter}>
+           <rect x={x} y={y} width={WIDTH} height={HEIGHT} rx={style.processRx || 0} ry={style.processRx || 0} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />
+           <line x1={x + stripe} y1={y} x2={x + stripe} y2={y + HEIGHT} stroke={stroke} strokeWidth={strokeWidth} />
+           <line x1={x + WIDTH - stripe} y1={y} x2={x + WIDTH - stripe} y2={y + HEIGHT} stroke={stroke} strokeWidth={strokeWidth} />
         </g>
       );
       break;
+    }
     default:
-      shapeElement = <rect x={x} y={y} width={WIDTH} height={HEIGHT} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+      shapeElement = <rect x={x} y={y} width={WIDTH} height={HEIGHT} rx={style.processRx || 0} ry={style.processRx || 0} fill={fill} stroke={stroke} strokeWidth={strokeWidth} filter={filter} />;
   }
 
-  const textLines = node.type === 'circle' ? [node.text] : getNodeLines(node.text, node.type);
+  const textLines = node.type === 'circle' ? [node.text] : getNodeLines(node.text, node.type, style);
+  const fontSz = node.type === 'circle' ? (style.fontSize + 3) : style.fontSize;
+  const fontW = node.type === 'circle' ? "bold" : style.fontWeight;
+
   return (
     <g>
       {shapeElement}
       <text 
         x={cx} 
         y={cy} 
-        fontSize={node.type === 'circle' ? "18" : "15"} 
-        fontWeight={node.type === 'circle' ? "bold" : "600"} 
+        fontSize={fontSz.toString()} 
+        fontWeight={fontW} 
         fontFamily={fontFamily}
         fill={textColor} 
         textAnchor="middle" 

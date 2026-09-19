@@ -44,7 +44,9 @@ import {
   ChevronRight,
   Scissors,
   Mail,
-  Gift
+  Gift,
+  Sliders,
+  Shuffle
 } from 'lucide-react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
@@ -53,6 +55,8 @@ import 'prismjs/components/prism-c';
 import 'prismjs/components/prism-cpp';
 import 'prismjs/themes/prism.css';
 
+import { FONTS_CATALOG, ensureFontLoaded } from './fonts';
+import { DIAGRAM_STYLES, getDiagramStyle } from './diagramStyles';
 import { syncYdbUser, getYdbUserTokens, decrementYdbUserToken, saveYdbDiagramItem } from './ydbClient';
 import { fetchYandexProfileByToken } from './yandexAuth';
 import { AuthModal } from './AuthModal';
@@ -128,6 +132,7 @@ export default function App() {
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light'|'dark'>(() => (localStorage.getItem('blockcraft_theme') as 'light'|'dark') || 'dark');
   const [fontFamily, setFontFamily] = useState<string>(() => localStorage.getItem('blockcraft_font') || 'Inter, sans-serif');
+  const [diagramStyle, setDiagramStyle] = useState<string>(() => localStorage.getItem('blockcraft_diagram_style') || 'classic_gost');
 
   const [language, setLanguage] = useState(() => localStorage.getItem('blockcraft_language') || 'python');
   const [authError, setAuthError] = useState<string | null>(null);
@@ -390,7 +395,11 @@ export default function App() {
   React.useEffect(() => { localStorage.setItem('blockcraft_historyIndex', historyIndex.toString()); }, [historyIndex]);
   React.useEffect(() => { localStorage.setItem('blockcraft_language', language); }, [language]);
   React.useEffect(() => { localStorage.setItem('blockcraft_theme', theme); }, [theme]);
-  React.useEffect(() => { localStorage.setItem('blockcraft_font', fontFamily); }, [fontFamily]);
+  React.useEffect(() => { 
+    localStorage.setItem('blockcraft_font', fontFamily);
+    ensureFontLoaded(fontFamily);
+  }, [fontFamily]);
+  React.useEffect(() => { localStorage.setItem('blockcraft_diagram_style', diagramStyle); }, [diagramStyle]);
 
   const [splitMode, setSplitMode] = useState<'auto' | 'manual'>(() => {
     return (localStorage.getItem('blockcraft_split_mode') as 'auto' | 'manual') || 'auto';
@@ -646,12 +655,12 @@ export default function App() {
           const isGenerated = trimmedCode === lastGeneratedCode?.trim() || sessionGeneratedCodesRef.current.has(trimmedCode);
           if (!isGenerated) return [];
 
-          return buildGraphs(code, language, overrides, splitMode, customCuts, isScissorsMode);
+          return buildGraphs(code, language, overrides, splitMode, customCuts, isScissorsMode, diagramStyle);
       } catch (e) {
           console.error('buildGraphs error:', e);
           return [];
       }
-  }, [code, lastGeneratedCode, language, overrides, splitMode, customCuts, isScissorsMode]);
+  }, [code, lastGeneratedCode, language, overrides, splitMode, customCuts, isScissorsMode, diagramStyle]);
 
   const handleGenerateClick = async () => {
       const trimmedCode = code?.trim() || '';
@@ -1015,12 +1024,16 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         return pts;
     };
 
+    const currentStyle = getDiagramStyle(diagramStyle);
+    const strokeColor = currentStyle.strokeColor || '#18181b';
+    const strokeWidth = currentStyle.strokeWidth || 1.5;
+
     const findClosestNode = (pt: {x: number; y: number}) => {
         let closestNode = null;
         let minDist = 999999;
         activeGraphPage.nodes.forEach(node => {
-            const width = node.type === 'circle' ? 40 : 220;
-            const height = node.type === 'circle' ? 40 : (node.height || getNodeHeight(node.text, node.type));
+            const width = node.type === 'circle' ? 40 : currentStyle.nodeWidth;
+            const height = node.type === 'circle' ? 40 : (node.height || getNodeHeight(node.text, node.type, currentStyle));
             const ports = [
                 { x: node.x, y: node.y },
                 { x: node.x, y: node.y - height / 2 },
@@ -1043,28 +1056,28 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
     // 1. Add Nodes
     activeGraphPage.nodes.forEach(node => {
-        const width = node.type === 'circle' ? 40 : 220;
-        const height = node.type === 'circle' ? 40 : (node.height || getNodeHeight(node.text, node.type));
+        const width = node.type === 'circle' ? 40 : currentStyle.nodeWidth;
+        const height = node.type === 'circle' ? 40 : (node.height || getNodeHeight(node.text, node.type, currentStyle));
         const xMin = node.x - width / 2;
         const yMin = node.y - height / 2;
 
-        let style = `rounded=0;whiteSpace=wrap;html=1;strokeColor=#18181b;fillColor=#ffffff;strokeWidth=1.5;fontFamily=${fontName};`;
+        let style = `rounded=0;whiteSpace=wrap;html=1;strokeColor=${strokeColor};fillColor=#ffffff;strokeWidth=${strokeWidth};fontFamily=${fontName};`;
         if (node.type === 'start' || node.type === 'end') {
-            style = `rounded=1;whiteSpace=wrap;html=1;arcSize=50;strokeColor=#18181b;fillColor=#ffffff;strokeWidth=1.5;align=center;fontWeight=bold;fontFamily=${fontName};`;
+            style = `rounded=1;whiteSpace=wrap;html=1;arcSize=50;strokeColor=${strokeColor};fillColor=#ffffff;strokeWidth=${strokeWidth};align=center;fontWeight=bold;fontFamily=${fontName};`;
         } else if (node.type === 'circle') {
-            style = `ellipse;whiteSpace=wrap;html=1;aspect=fixed;strokeColor=#18181b;fillColor=#ffffff;strokeWidth=1.5;fontFamily=${fontName};`;
+            style = `ellipse;whiteSpace=wrap;html=1;aspect=fixed;strokeColor=${strokeColor};fillColor=#ffffff;strokeWidth=${strokeWidth};fontFamily=${fontName};`;
         } else if (node.type === 'io') {
-            style = `shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;strokeColor=#18181b;fillColor=#ffffff;strokeWidth=1.5;fontFamily=${fontName};`;
+            style = `shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;strokeColor=${strokeColor};fillColor=#ffffff;strokeWidth=${strokeWidth};fontFamily=${fontName};`;
         } else if (node.type === 'decision') {
-            style = `rhombus;whiteSpace=wrap;html=1;strokeColor=#18181b;fillColor=#ffffff;strokeWidth=1.5;fontFamily=${fontName};`;
+            style = `rhombus;whiteSpace=wrap;html=1;strokeColor=${strokeColor};fillColor=#ffffff;strokeWidth=${strokeWidth};fontFamily=${fontName};`;
         } else if (node.type === 'loop_begin') {
-            style = `shape=loopLimit;whiteSpace=wrap;html=1;strokeColor=#18181b;fillColor=#ffffff;strokeWidth=1.5;fontFamily=${fontName};`;
+            style = `shape=loopLimit;whiteSpace=wrap;html=1;strokeColor=${strokeColor};fillColor=#ffffff;strokeWidth=${strokeWidth};fontFamily=${fontName};`;
         } else if (node.type === 'loop_end') {
-            style = `shape=loopLimit;whiteSpace=wrap;html=1;rotation=180;strokeColor=#18181b;fillColor=#ffffff;strokeWidth=1.5;fontFamily=${fontName};`;
+            style = `shape=loopLimit;whiteSpace=wrap;html=1;rotation=180;strokeColor=${strokeColor};fillColor=#ffffff;strokeWidth=${strokeWidth};fontFamily=${fontName};`;
         } else if (node.type === 'loop') {
-            style = `shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;strokeColor=#18181b;fillColor=#ffffff;strokeWidth=1.5;fontFamily=${fontName};`;
+            style = `shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;strokeColor=${strokeColor};fillColor=#ffffff;strokeWidth=${strokeWidth};fontFamily=${fontName};`;
         } else if (node.type === 'subprogram') {
-            style = `shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;strokeColor=#18181b;fillColor=#ffffff;strokeWidth=1.5;fontFamily=${fontName};`;
+            style = `shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;strokeColor=${strokeColor};fillColor=#ffffff;strokeWidth=${strokeWidth};fontFamily=${fontName};`;
         }
 
         xml += `        <mxCell id="${node.id}" value="${escapeXml(node.text)}" style="${style}" vertex="1" parent="1">\n`;
@@ -1084,7 +1097,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         const sourceNode = findClosestNode(startPt);
         const targetNode = findClosestNode(endPt);
 
-        let style = `html=1;strokeColor=#18181b;strokeWidth=1.5;fontSize=11;fontFamily=${fontName};rounded=0;`;
+        let style = `html=1;strokeColor=${strokeColor};strokeWidth=${strokeWidth};fontSize=11;fontFamily=${fontName};rounded=0;`;
         if (edge.noArrow) {
             style += "endArrow=none;";
         } else {
@@ -1846,6 +1859,45 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       Сброс разрезов
                     </button>
                   )}
+
+                  {/* Quick Style & Font Switcher */}
+                  <div className="flex items-center gap-1 ml-1">
+                    <button
+                      onClick={() => setIsSettingsModalOpen(true)}
+                      title="Выбрать стиль блок-схемы (20 вариантов) и шрифт (64 шрифта)"
+                      className={`h-6 px-2 flex items-center gap-1.5 text-xs font-medium rounded border transition-colors cursor-pointer ${
+                        isDark
+                          ? 'bg-zinc-800/80 hover:bg-zinc-800 text-zinc-200 border-zinc-700'
+                          : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-300'
+                      }`}
+                    >
+                      <Sliders className="w-3 h-3 text-blue-500 shrink-0" />
+                      <span className="truncate max-w-[110px] text-[11px] font-semibold">{getDiagramStyle(diagramStyle).name}</span>
+                      <span className="text-zinc-400">·</span>
+                      <span className="truncate max-w-[90px] text-[11px] text-zinc-500 dark:text-zinc-400">
+                        {FONTS_CATALOG.find(f => f.id === fontFamily)?.name || 'Шрифт'}
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const randomStyle = DIAGRAM_STYLES[Math.floor(Math.random() * DIAGRAM_STYLES.length)];
+                        const randomFont = FONTS_CATALOG[Math.floor(Math.random() * FONTS_CATALOG.length)];
+                        setDiagramStyle(randomStyle.id);
+                        setFontFamily(randomFont.id);
+                        ensureFontLoaded(randomFont.id);
+                        showToast(`Случайный стиль: ${randomStyle.name} + ${randomFont.name}`);
+                      }}
+                      title="Рандомизировать стиль и шрифт (уникальный вид схемы)"
+                      className={`h-6 px-1.5 flex items-center justify-center rounded border transition-colors cursor-pointer ${
+                        isDark
+                          ? 'bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border-zinc-700'
+                          : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 border-zinc-300'
+                      }`}
+                    >
+                      <Shuffle className="w-3 h-3 text-amber-500 shrink-0" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Center: Pagination & Zoom Controls */}
@@ -2077,19 +2129,23 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   >
                     <defs>
                       <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                        <polygon points="0 1, 7 4, 0 7" fill="#18181b" />
+                        <polygon points="0 1, 7 4, 0 7" fill={getDiagramStyle(diagramStyle).strokeColor || "#18181b"} />
                       </marker>
                       <marker id="arrowhead-light" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                        <polygon points="0 1, 7 4, 0 7" fill="#18181b" />
+                        <polygon points="0 1, 7 4, 0 7" fill={getDiagramStyle(diagramStyle).strokeColor || "#18181b"} />
                       </marker>
                       <marker id="arrowhead-dark" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                        <polygon points="0 1, 7 4, 0 7" fill="#18181b" />
+                        <polygon points="0 1, 7 4, 0 7" fill={getDiagramStyle(diagramStyle).strokeColor || "#18181b"} />
                       </marker>
+                      <filter id="rough-sketch" x="-5%" y="-5%" width="110%" height="110%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" result="noise" />
+                        <feDisplacementMap in="SourceGraphic" in2="noise" scale="2" xChannelSelector="R" yChannelSelector="G" />
+                      </filter>
                     </defs>
 
                     {activeGraphPage.edges.map((edge, i) => (
                       <g key={edge.id || `edge-${i}`}>
-                        <EdgePolyline edge={edge} theme="light" />
+                        <EdgePolyline edge={edge} theme="light" diagramStyle={diagramStyle} fontFamily={fontFamily} />
                       </g>
                     ))}
 
@@ -2114,6 +2170,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                           highlighted={highlightedNodeId === node.id || (node.lineIndex !== undefined && node.lineIndex !== null && node.lineIndex === hoveredLineIndex)} 
                           fontFamily={fontFamily}
                           theme="light"
+                          diagramStyle={diagramStyle}
                         />
                       </g>
                     ))}
@@ -2500,6 +2557,34 @@ const downloadDrawio = (title: string, fontFamily: string) => {
           setCode(sampleCode);
           showToast('Пример кода успешно вставлен в редактор');
         }}
+      />
+
+      {/* Settings Modal (20 Diagram Styles & 64 Fonts Browser) */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        fontFamily={fontFamily}
+        setFontFamily={(f) => {
+          setFontFamily(f);
+          localStorage.setItem('blockcraft_font', f);
+          ensureFontLoaded(f);
+        }}
+        diagramStyle={diagramStyle}
+        setDiagramStyle={(s) => {
+          setDiagramStyle(s);
+          localStorage.setItem('blockcraft_diagram_style', s);
+        }}
+        theme={theme}
+        setTheme={(t) => {
+          setTheme(t);
+          localStorage.setItem('blockcraft_theme', t);
+        }}
+        splitMode={splitMode}
+        setSplitMode={(m) => {
+          setSplitMode(m);
+          localStorage.setItem('blockcraft_split_mode', m);
+        }}
+        onNotify={showToast}
       />
 
       {/* Mobile Bottom Navigation Bar */}
