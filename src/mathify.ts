@@ -146,6 +146,10 @@ export function formatRangeToGost(varName: string, rangeArgs: string[]): string 
 
 export function cleanIoArgs(args: string): string {
     if (args.includes('for ') && args.includes(' in ')) {
+        let m = args.match(/^\[\s*round\s*\(\s*([a-zA-Z0-9_]+)\s*,\s*(\d+)\s*\)\s+for\s+\1\s+in\s+([a-zA-Z0-9_]+)\s*\]$/);
+        if (m) {
+            return `список ${m[3]} (округл. до ${m[2]} зн.)`;
+        }
         return args;
     }
     

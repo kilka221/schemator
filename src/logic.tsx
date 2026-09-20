@@ -745,13 +745,27 @@ export function parsePythonSourceWhole(code: string) {
                     let condition = isFor ? text.substring(4).trim() : text.substring(6).trim();
                     
                     if (isFor) {
-                        let rangeMatch = condition.match(/([a-zA-Z0-9_]+)\s+in\s+range\((.*?)\)/);
-                        let enumMatch = condition.match(/^([a-zA-Z0-9_,\s]+)\s+in\s+enumerate\((.*?)\)$/);
+                        let rangeMatch = condition.match(/^([a-zA-Z0-9_]+)\s+in\s+range\((.*)\)$/);
+                        let enumMatch = condition.match(/^([a-zA-Z0-9_,\s]+)\s+in\s+enumerate\((.*)\)$/);
                         let inMatch = condition.match(/^([a-zA-Z0-9_,\s]+)\s+in\s+(.*?)$/);
                         
                         if (rangeMatch) {
                             let varName = rangeMatch[1];
-                            let args = rangeMatch[2].split(',').map(s => s.trim());
+                            let rawArgs = rangeMatch[2];
+                            let args: string[] = [];
+                            let curr = '';
+                            let depth = 0;
+                            for (let char of rawArgs) {
+                                if (char === '(' || char === '[' || char === '{') depth++;
+                                else if (char === ')' || char === ']' || char === '}') depth--;
+                                if (char === ',' && depth === 0) {
+                                    args.push(curr.trim());
+                                    curr = '';
+                                } else {
+                                    curr += char;
+                                }
+                            }
+                            if (curr.trim()) args.push(curr.trim());
                             condition = formatRangeToGost(varName, args);
                         } else if (enumMatch) {
                             condition = `Для каждого ${enumMatch[1].trim()} из списка ${mathify(enumMatch[2].trim())}`;
@@ -2138,18 +2152,18 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 
                 let desiredCut = currentY + TARGET_PAGE_H;
                 
-                // Forbidden Y zones: inside any node or too close to horizontal segments
+                // Forbidden Y zones: only the actual physical box of each node and horizontal segments
                 let forbiddenRanges: { minY: number, maxY: number }[] = [];
                 allNodes.forEach(n => {
                     let h = n.height || 64;
-                    forbiddenRanges.push({ minY: n.y - h/2 - 35, maxY: n.y + h/2 + 25 });
+                    forbiddenRanges.push({ minY: n.y - h/2 - 8, maxY: n.y + h/2 + 8 });
                 });
                 
                 allEdgesFinal.forEach(e => {
                     if (e.segments) {
                         e.segments.forEach(seg => {
                             if (Math.abs(seg.startY - seg.endY) < 2) {
-                                forbiddenRanges.push({ minY: seg.startY - 20, maxY: seg.startY + 20 });
+                                forbiddenRanges.push({ minY: seg.startY - 8, maxY: seg.startY + 8 });
                             }
                         });
                     }
@@ -2175,7 +2189,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                         });
                         
                         let distScore = -Math.abs(candidate - desiredCut) * 1.5;
-                        let edgeScore = -crossingCount * 5;
+                        let edgeScore = -crossingCount * 4;
                         let totalScore = distScore + edgeScore;
                         
                         if (totalScore > bestScore) {
@@ -2191,17 +2205,18 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                         .sort((a, b) => a.y - b.y);
                     
                     if (sortedNodesInArea.length >= 2) {
-                        let maxGap = 0;
+                        let bestGapScore = -Infinity;
                         let gapY = desiredCut;
                         for (let k = 0; k < sortedNodesInArea.length - 1; k++) {
                             let n1 = sortedNodesInArea[k];
                             let n2 = sortedNodesInArea[k+1];
                             let bot1 = n1.y + (n1.height || 64) / 2;
                             let top2 = n2.y - (n2.height || 64) / 2;
-                            let gap = top2 - bot1;
-                            if (gap > maxGap) {
-                                maxGap = gap;
-                                gapY = (bot1 + top2) / 2;
+                            let mid = (bot1 + top2) / 2;
+                            let score = -(Math.abs(mid - desiredCut));
+                            if (score > bestGapScore) {
+                                bestGapScore = score;
+                                gapY = mid;
                             }
                         }
                         bestCut = gapY;
@@ -2668,42 +2683,44 @@ export function EdgePolyline({
 }
 
 function splitTextIntoLines(text: string, maxCharsPerLine: number = 28): string[] {
+  if (!text) return [];
   const lines: string[] = [];
   let currentLine = '';
   
-  // More intelligent tokenization for code: separates variables, numbers, operators, Strings including cyrillic/extended chars
-  const tokens = text.match(/[\wА-Яа-яёЁІіЇїЄєҐґ]+|["'].*?["']|[^\w\sА-Яа-яёЁІіЇїЄєҐґ"']+|\s+/g) || [text];
+  const words = text.split(/\s+/).filter(w => w.length > 0);
   
-  for (const token of tokens) {
-    if (token.match(/^\s+$/)) {
-      if (currentLine.length > 0 && !currentLine.endsWith(' ')) {
-          currentLine += ' ';
+  for (const word of words) {
+    if (currentLine.length === 0) {
+      if (word.length > maxCharsPerLine) {
+        let w = word;
+        while (w.length > maxCharsPerLine) {
+          lines.push(w.slice(0, maxCharsPerLine));
+          w = w.slice(maxCharsPerLine);
+        }
+        currentLine = w;
+      } else {
+        currentLine = word;
       }
-      continue;
-    }
-    
-    // Check if we need to wrap
-    if (currentLine.length + token.length > maxCharsPerLine) {
-        if (currentLine.trim().length > 0) {
-            lines.push(currentLine.trim());
-            currentLine = '';
-        }
-        if (token.length > maxCharsPerLine) {
-            let wStr = token;
-            while (wStr.length > maxCharsPerLine) {
-                lines.push(wStr.slice(0, maxCharsPerLine));
-                wStr = wStr.slice(maxCharsPerLine);
-            }
-            currentLine = wStr;
-        } else {
-            currentLine = token;
-        }
     } else {
-        currentLine += token;
+      if (currentLine.length + 1 + word.length <= maxCharsPerLine) {
+        currentLine += ' ' + word;
+      } else {
+        lines.push(currentLine.trim());
+        if (word.length > maxCharsPerLine) {
+          let w = word;
+          while (w.length > maxCharsPerLine) {
+            lines.push(w.slice(0, maxCharsPerLine));
+            w = w.slice(maxCharsPerLine);
+          }
+          currentLine = w;
+        } else {
+          currentLine = word;
+        }
+      }
     }
   }
   if (currentLine.trim()) {
-      lines.push(currentLine.trim());
+    lines.push(currentLine.trim());
   }
   return lines;
 }
