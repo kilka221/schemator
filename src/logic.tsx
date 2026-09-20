@@ -2189,21 +2189,99 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 pageIntervals.push({ yMin, yMax, s });
             }
         } else {
-            let maxNodeY = Math.max(...allNodes.map(n => n.y + (n.height || 50)/2), ...allEdgesFinal.flatMap(e => e.segments ? e.segments.map(s => Math.max(s.startY, s.endY)) : []));
-            let maxS = Math.floor(maxNodeY / PAGE_H);
+            let maxNodeY = Math.max(
+                ...allNodes.map(n => n.y + (n.height || 64)/2),
+                ...allEdgesFinal.flatMap(e => e.segments ? e.segments.map(s => Math.max(s.startY, s.endY)) : [])
+            );
             
-            if (maxS > 0) {
-                let lastPageNodes = allNodes.filter(n => n.y >= maxS * PAGE_H);
-                if (lastPageNodes.length === 0 || (lastPageNodes.length === 1 && lastPageNodes[0].type === 'end' && (maxNodeY - maxS * PAGE_H) < 80)) {
-                     maxS--;
+            let currentY = 0;
+            let s = 0;
+            const TARGET_PAGE_H = 1100;
+            
+            while (currentY < maxNodeY) {
+                let remaining = maxNodeY - currentY;
+                if (remaining <= TARGET_PAGE_H + 120) {
+                    pageIntervals.push({ yMin: currentY, yMax: Infinity, s });
+                    break;
                 }
-            }
-            for (let s = 0; s <= maxS; s++) {
-                pageIntervals.push({
-                    yMin: s * PAGE_H,
-                    yMax: (s === maxS) ? Infinity : (s+1) * PAGE_H,
-                    s
+                
+                let desiredCut = currentY + TARGET_PAGE_H;
+                
+                // Forbidden Y zones: inside any node or too close to horizontal segments
+                let forbiddenRanges: { minY: number, maxY: number }[] = [];
+                allNodes.forEach(n => {
+                    let h = n.height || 64;
+                    forbiddenRanges.push({ minY: n.y - h/2 - 15, maxY: n.y + h/2 + 15 });
                 });
+                
+                allEdgesFinal.forEach(e => {
+                    if (e.segments) {
+                        e.segments.forEach(seg => {
+                            if (Math.abs(seg.startY - seg.endY) < 2) {
+                                forbiddenRanges.push({ minY: seg.startY - 10, maxY: seg.startY + 10 });
+                            }
+                        });
+                    }
+                });
+                
+                let bestCut = -1;
+                let bestScore = -Infinity;
+                
+                for (let candidate = desiredCut + 40; candidate >= currentY + 300; candidate -= 10) {
+                    let inForbidden = forbiddenRanges.some(r => candidate >= r.minY && candidate <= r.maxY);
+                    if (!inForbidden) {
+                        let crossingCount = 0;
+                        allEdgesFinal.forEach(e => {
+                            if (e.segments) {
+                                e.segments.forEach(seg => {
+                                    let sy = Math.min(seg.startY, seg.endY);
+                                    let ey = Math.max(seg.startY, seg.endY);
+                                    if (sy < candidate && ey > candidate) {
+                                        crossingCount++;
+                                    }
+                                });
+                            }
+                        });
+                        
+                        let distScore = -Math.abs(candidate - desiredCut) * 0.5;
+                        let edgeScore = -crossingCount * 30;
+                        let totalScore = distScore + edgeScore;
+                        
+                        if (totalScore > bestScore) {
+                            bestScore = totalScore;
+                            bestCut = candidate;
+                        }
+                    }
+                }
+                
+                if (bestCut === -1) {
+                    let sortedNodesInArea = allNodes
+                        .filter(n => n.y >= currentY + 300 && n.y <= desiredCut + 200)
+                        .sort((a, b) => a.y - b.y);
+                    
+                    if (sortedNodesInArea.length >= 2) {
+                        let maxGap = 0;
+                        let gapY = desiredCut;
+                        for (let k = 0; k < sortedNodesInArea.length - 1; k++) {
+                            let n1 = sortedNodesInArea[k];
+                            let n2 = sortedNodesInArea[k+1];
+                            let bot1 = n1.y + (n1.height || 64) / 2;
+                            let top2 = n2.y - (n2.height || 64) / 2;
+                            let gap = top2 - bot1;
+                            if (gap > maxGap) {
+                                maxGap = gap;
+                                gapY = (bot1 + top2) / 2;
+                            }
+                        }
+                        bestCut = gapY;
+                    } else {
+                        bestCut = desiredCut;
+                    }
+                }
+                
+                pageIntervals.push({ yMin: currentY, yMax: bestCut, s });
+                currentY = bestCut;
+                s++;
             }
         }
 
@@ -2292,7 +2370,16 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
             });
         }
 
-        let jumpCounter = 1;
+        const GOST_LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'И', 'К', 'Л', 'М', 'Н', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Э', 'Ю', 'Я'];
+        let jumpCounter = 0;
+        function getJumpLetter(idx: number): string {
+            if (idx < GOST_LETTERS.length) {
+                return GOST_LETTERS[idx];
+            }
+            let base = GOST_LETTERS[idx % GOST_LETTERS.length];
+            let num = Math.floor(idx / GOST_LETTERS.length) + 1;
+            return `${base}${num}`;
+        }
         let jumpMap = new Map<string, string>();
 
         for (let interval of pageIntervals) {
@@ -2300,52 +2387,42 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
             let pageNodesList = allNodes.filter(n => n.y >= yMin && n.y < yMax);
 
             let minGapLocalY = PAGE_H;
-            let maxBottomLocalY = 50;
-
             pageNodesList.forEach(n => {
                 let localY = n.y - yMin;
                 let top = localY - (n.height || 64) / 2;
-                let bottom = localY + (n.height || 64) / 2;
                 if (top < minGapLocalY) minGapLocalY = top;
+            });
+
+            if (minGapLocalY === PAGE_H || minGapLocalY === Infinity) minGapLocalY = 0;
+            
+            let SHIFT = (s > 0) ? Math.max(0, 100 - minGapLocalY) : 0;
+            
+            let sNodes = pageNodesList.map(n => ({...n, y: n.y - yMin + SHIFT}));
+            
+            let maxBottomLocalY = 100;
+            sNodes.forEach(n => {
+                let bottom = n.y + (n.height || 64) / 2;
                 if (bottom > maxBottomLocalY) maxBottomLocalY = bottom;
             });
 
+            // Consider internal edges for bottom extent
             allEdgesFinal.forEach(e => {
-                if (e.segments) {
+                if (!e.segments) return;
+                let sy = e.segments[0].startY;
+                let ey = e.segments[e.segments.length - 1].endY;
+                if (sy >= yMin && sy < yMax && ey >= yMin && ey < yMax) {
                     e.segments.forEach(seg => {
-                        let sy = seg.startY;
-                        let ey = seg.endY;
-
-                        let segMaxY = Math.max(sy, ey);
-                        let segMinY = Math.min(sy, ey);
-                        if (segMaxY >= yMin && segMinY < yMax) {
-                            if (segMinY >= yMin) {
-                                let topY = Math.max(segMinY, yMin);
-                                let localTopY = topY - yMin;
-                                if (localTopY < minGapLocalY) minGapLocalY = localTopY;
-                            }
-                        }
-
-                        if (sy >= yMin && sy < yMax) {
-                            let localSy = sy - yMin;
-                            if (localSy > maxBottomLocalY) maxBottomLocalY = localSy;
-                        }
-                        if (ey >= yMin && ey < yMax) {
-                            let localEy = ey - yMin;
-                            if (localEy > maxBottomLocalY) maxBottomLocalY = localEy;
-                        }
+                        let lsy = seg.startY - yMin + SHIFT;
+                        let ley = seg.endY - yMin + SHIFT;
+                        if (lsy > maxBottomLocalY) maxBottomLocalY = lsy;
+                        if (ley > maxBottomLocalY) maxBottomLocalY = ley;
                     });
                 }
             });
 
-            if (minGapLocalY === PAGE_H) minGapLocalY = 0;
-            
-            let SHIFT = (s > 0) ? -minGapLocalY + 100 : 0;
-            
-            let sNodes = pageNodesList.map(n => ({...n, y: n.y - yMin + SHIFT}));
-            
-            let localContentMaxY = maxBottomLocalY + SHIFT;
-            let jumpOutY = Math.min(PAGE_H - 40, Math.max(localContentMaxY + 40, 200));
+            // Single unified line for all jump out circles at bottom of page
+            let jumpOutY = Math.max(maxBottomLocalY + 45, 200);
+            const JUMP_IN_Y = 45;
 
             let sEdges: FlowEdge[] = [];
 
@@ -2396,7 +2473,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 if (seg.endY >= yMax) {
                                     clipEy = jumpOutY - 20;
                                     let k = `${e.id}_${s}_${s+1}`;
-                                    if (!jumpMap.has(k)) { jumpMap.set(k, String(jumpCounter++)); }
+                                    if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
                                     sNodes.push({ id: `jump_out_${k}`, type: 'circle', text: jumpMap.get(k)!, x: seg.endX, y: jumpOutY, height: 40 });
                                     hasJumpOut = true;
                                     hasClipped = true;
@@ -2417,10 +2494,10 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 let clipSy = seg.startY - yMin + SHIFT;
                                 let clipEy = seg.endY - yMin + SHIFT;
                                 if (seg.startY <= yMin) {
-                                    clipSy = 60;
+                                    clipSy = JUMP_IN_Y + 20;
                                     let k = `${e.id}_${s-1}_${s}`;
-                                    if (!jumpMap.has(k)) { jumpMap.set(k, String(jumpCounter++)); }
-                                    sNodes.push({ id: `jump_in_${k}`, type: 'circle', text: jumpMap.get(k)!, x: seg.startX, y: 40, height: 40 });
+                                    if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
+                                    sNodes.push({ id: `jump_in_${k}`, type: 'circle', text: jumpMap.get(k)!, x: seg.startX, y: JUMP_IN_Y, height: 40 });
                                 }
                                 if (Math.abs(clipSy - clipEy) > 0.1 || Math.abs(seg.startX - seg.endX) > 0.1) {
                                     newSegments.push({
@@ -2433,15 +2510,15 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 eInS = true;
                             }
                         } else if (fromPage < s && s < toPage) {
-                            let clipSy = 60;
+                            let clipSy = JUMP_IN_Y + 20;
                             let clipEy = jumpOutY - 20;
                             
                             let kIn = `${e.id}_${s-1}_${s}`;
-                            if (!jumpMap.has(kIn)) { jumpMap.set(kIn, String(jumpCounter++)); }
-                            sNodes.push({ id: `jump_in_${kIn}`, type: 'circle', text: jumpMap.get(kIn)!, x: firstSeg.startX, y: 40, height: 40 });
+                            if (!jumpMap.has(kIn)) { jumpMap.set(kIn, getJumpLetter(jumpCounter++)); }
+                            sNodes.push({ id: `jump_in_${kIn}`, type: 'circle', text: jumpMap.get(kIn)!, x: firstSeg.startX, y: JUMP_IN_Y, height: 40 });
                             
                             let kOut = `${e.id}_${s}_${s+1}`;
-                            if (!jumpMap.has(kOut)) { jumpMap.set(kOut, String(jumpCounter++)); }
+                            if (!jumpMap.has(kOut)) { jumpMap.set(kOut, getJumpLetter(jumpCounter++)); }
                             sNodes.push({ id: `jump_out_${kOut}`, type: 'circle', text: jumpMap.get(kOut)!, x: firstSeg.startX, y: jumpOutY, height: 40 });
                             hasJumpOut = true;
 
@@ -2461,10 +2538,10 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 let clipSy = seg.startY - yMin + SHIFT;
                                 let clipEy = seg.endY - yMin + SHIFT;
                                 if (seg.endY <= yMin) {
-                                    clipEy = 60;
+                                    clipEy = JUMP_IN_Y + 20;
                                     let k = `up_${e.id}_${s}_${s-1}`;
-                                    if (!jumpMap.has(k)) { jumpMap.set(k, String(jumpCounter++)); }
-                                    sNodes.push({ id: `jump_out_up_${k}`, type: 'circle', text: jumpMap.get(k)!, x: seg.endX, y: 40, height: 40 });
+                                    if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
+                                    sNodes.push({ id: `jump_out_up_${k}`, type: 'circle', text: jumpMap.get(k)!, x: seg.endX, y: JUMP_IN_Y, height: 40 });
                                     hasJumpOut = true;
                                     hasClipped = true;
                                 }
@@ -2486,7 +2563,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 if (seg.startY >= yMax) {
                                     clipSy = jumpOutY - 20;
                                     let k = `up_${e.id}_${s+1}_${s}`;
-                                    if (!jumpMap.has(k)) { jumpMap.set(k, String(jumpCounter++)); }
+                                    if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
                                     sNodes.push({ id: `jump_in_up_${k}`, type: 'circle', text: jumpMap.get(k)!, x: seg.startX, y: jumpOutY, height: 40 });
                                 }
                                 if (Math.abs(clipSy - clipEy) > 0.1 || Math.abs(seg.startX - seg.endX) > 0.1) {
@@ -2501,15 +2578,15 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                             }
                         } else if (toPage < s && s < fromPage) {
                             let clipSy = jumpOutY - 20;
-                            let clipEy = 60;
+                            let clipEy = JUMP_IN_Y + 20;
 
                             let kIn = `up_${e.id}_${s+1}_${s}`;
-                            if (!jumpMap.has(kIn)) { jumpMap.set(kIn, String(jumpCounter++)); }
+                            if (!jumpMap.has(kIn)) { jumpMap.set(kIn, getJumpLetter(jumpCounter++)); }
                             sNodes.push({ id: `jump_in_up_${kIn}`, type: 'circle', text: jumpMap.get(kIn)!, x: firstSeg.startX, y: jumpOutY, height: 40 });
 
                             let kOut = `up_${e.id}_${s}_${s-1}`;
-                            if (!jumpMap.has(kOut)) { jumpMap.set(kOut, String(jumpCounter++)); }
-                            sNodes.push({ id: `jump_out_up_${kOut}`, type: 'circle', text: jumpMap.get(kOut)!, x: firstSeg.startX, y: 40, height: 40 });
+                            if (!jumpMap.has(kOut)) { jumpMap.set(kOut, getJumpLetter(jumpCounter++)); }
+                            sNodes.push({ id: `jump_out_up_${kOut}`, type: 'circle', text: jumpMap.get(kOut)!, x: firstSeg.startX, y: JUMP_IN_Y, height: 40 });
                             hasJumpOut = true;
 
                             newSegments.push({
