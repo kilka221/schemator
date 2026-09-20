@@ -1359,13 +1359,8 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
 
             maxReachedY = Math.max(maxReachedY, currentY);
 
-            let nodeCx = cx;
-            if (inPts.length === 1 && (inPts[0] as any).limitX) {
-                nodeCx = (inPts[0] as any).limitX;
-            }
-
             if (inPts.length > 0) {
-                const targetPoint = { x: nodeCx, y: currentY - h/2 };
+                const targetPoint = { x: cx, y: currentY - h/2 };
                 const mergeY = targetPoint.y - 20;
 
                 let incomingLabel: string | undefined = undefined;
@@ -1383,24 +1378,24 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                     if (p.from) {
                         const px = (p as any).limitX || p.x;
                         allEdges.push({ 
-                            points: [p.from, {x: px, y: p.from.y}, {x: px, y: mergeY}, {x: nodeCx, y: mergeY}], 
+                            points: [p.from, {x: px, y: p.from.y}, {x: px, y: mergeY}, {x: cx, y: mergeY}], 
                             label: p.label, 
                             labelPos: p.labelPos ? { ...p.labelPos } : undefined,
                             noArrow: true 
                         });
                     } else {
-                        if (Math.abs(p.x - nodeCx) < 1) {
-                            allEdges.push({ points: [p, {x: nodeCx, y: mergeY}], noArrow: true });
+                        if (Math.abs(p.x - cx) < 1) {
+                            allEdges.push({ points: [p, {x: cx, y: mergeY}], noArrow: true });
                         } else {
-                            allEdges.push({ points: [p, {x: p.x, y: mergeY}, {x: nodeCx, y: mergeY}], noArrow: true });
+                            allEdges.push({ points: [p, {x: p.x, y: mergeY}, {x: cx, y: mergeY}], noArrow: true });
                         }
                     }
                 }
                 
                 allEdges.push({ 
-                    points: [{x: nodeCx, y: mergeY}, targetPoint],
+                    points: [{x: cx, y: mergeY}, targetPoint],
                     label: hasZeroLengthForLabel ? incomingLabel : undefined,
-                    labelPos: hasZeroLengthForLabel ? (incomingLabelPos ? { ...incomingLabelPos } : { x: nodeCx + 12, y: mergeY + 12 }) : undefined
+                    labelPos: hasZeroLengthForLabel ? (incomingLabelPos ? { ...incomingLabelPos } : { x: cx + 12, y: mergeY + 12 }) : undefined
                 });
                 inPts = [];
             }
@@ -1414,11 +1409,11 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                         adjustedText = `Выход из п/п\n${cleanTitle}` + (returnType ? ` (${returnType})` : ``);
                     }
                 }
-                allNodes.push({ id: node.id, type: node.kind, text: adjustedText, x: nodeCx, y: currentY, height: h, lineIndex: node.lineIndex });
+                allNodes.push({ id: node.id, type: node.kind, text: adjustedText, x: cx, y: currentY, height: h, lineIndex: node.lineIndex });
                 if (node.kind === 'end') {
                     inPts = [];
                 } else {
-                    inPts = [{ x: nodeCx, y: currentY + h/2 }];
+                    inPts = [{ x: cx, y: currentY + h/2 }];
                 }
                 currentY += h/2 + Y_MARGIN + nextH/2;
                 maxReachedY = Math.max(maxReachedY, currentY);
@@ -1722,10 +1717,21 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 
                 let rightCorridor = cx + Math.max(node.rightW || NODE_WIDTH, NODE_WIDTH * 2) - X_SEP/2 + 20;
 
+                let allXs: number[] = [];
+                for (let p of bodyEnds) {
+                    if (p.isContinue) {
+                        allXs.push(rightCorridor);
+                    } else {
+                        const px = (p as any).limitX || p.x || (p.from ? p.from.x : cx);
+                        allXs.push(px);
+                    }
+                }
+                let loopMergeX = allXs.length > 0 ? Math.max(...allXs) : cx;
+
                 for (let p of bodyEnds) {
                     if (p.isContinue) {
                          allEdges.push({ 
-                             points: [p.from, {x: p.from.x, y: p.from.y + 15}, {x: rightCorridor, y: p.from.y + 15}, {x: rightCorridor, y: mergeY}, {x: actEndCx, y: mergeY}], 
+                             points: [p.from, {x: p.from.x, y: p.from.y + 15}, {x: rightCorridor, y: p.from.y + 15}, {x: rightCorridor, y: mergeY}, {x: loopMergeX, y: mergeY}], 
                              noArrow: true 
                          });
                     } else if (p.from) {
@@ -1739,15 +1745,15 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                              }
                          }
                          allEdges.push({ 
-                             points: [p.from, {x: px, y: p.from.y}, {x: px, y: mergeY}, {x: actEndCx, y: mergeY}], 
+                             points: [p.from, {x: px, y: p.from.y}, {x: px, y: mergeY}, {x: loopMergeX, y: mergeY}], 
                              ...lblObj, 
                              noArrow: true 
                          });
                     } else {
-                         if (Math.abs(p.x - actEndCx) < 1) {
-                             allEdges.push({ points: [p, {x: actEndCx, y: mergeY}], noArrow: true });
+                         if (Math.abs(p.x - loopMergeX) < 1) {
+                             allEdges.push({ points: [p, {x: loopMergeX, y: mergeY}], noArrow: true });
                          } else {
-                             allEdges.push({ points: [p, {x: p.x, y: mergeY}, {x: actEndCx, y: mergeY}], noArrow: true });
+                             allEdges.push({ points: [p, {x: p.x, y: mergeY}, {x: loopMergeX, y: mergeY}], noArrow: true });
                          }
                     }
                 }
@@ -1760,7 +1766,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 
                 allEdges.push({ 
                     points: [
-                        {x: actEndCx, y: mergeY},
+                        {x: loopMergeX, y: mergeY},
                         {x: returnX, y: mergeY}, 
                         {x: returnX, y: currentY - h/2 - Y_MARGIN/2}, 
                         {x: cx, y: currentY - h/2 - Y_MARGIN/2}
