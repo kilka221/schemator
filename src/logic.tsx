@@ -2370,14 +2370,14 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
             });
         }
 
-        const GOST_LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'И', 'К', 'Л', 'М', 'Н', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Э', 'Ю', 'Я'];
+        const LATIN_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
         let jumpCounter = 0;
         function getJumpLetter(idx: number): string {
-            if (idx < GOST_LETTERS.length) {
-                return GOST_LETTERS[idx];
+            if (idx < LATIN_LETTERS.length) {
+                return LATIN_LETTERS[idx];
             }
-            let base = GOST_LETTERS[idx % GOST_LETTERS.length];
-            let num = Math.floor(idx / GOST_LETTERS.length) + 1;
+            let base = LATIN_LETTERS[idx % LATIN_LETTERS.length];
+            let num = Math.floor(idx / LATIN_LETTERS.length) + 1;
             return `${base}${num}`;
         }
         let jumpMap = new Map<string, string>();
