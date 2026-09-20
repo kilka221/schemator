@@ -64,7 +64,7 @@ export async function decrementYdbUserToken(uid: string, email?: string | null):
   if (typeof data?.tokens === 'number') {
     return data.tokens;
   }
-  return 5;
+  return 0;
 }
 
 export async function saveYdbDiagramItem(uid: string, diagram: YdbDiagramItem) {

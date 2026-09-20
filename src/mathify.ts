@@ -200,14 +200,15 @@ export function consolidateBlocks(nodes: any[]): any[] {
             if (node.kind === 'io') {
                 if (node.text.startsWith('Ввод') || node.text.startsWith('Вывод')) {
                     let ioType = node.text.startsWith('Ввод') ? 'Ввод' : 'Вывод';
-                    let vars = [node.text.replace(/^.*?:\s*/, '').replace(/^(Ввод данных|Вывод данных)$/, '').trim()];
+                    let cleanInitial = node.text.replace(/^(Ввод|Вывод)\s*:\s*/, '').replace(/^(Ввод|Вывод)\s+/, '').replace(/^(Ввод данных|Вывод данных)$/, '').trim();
+                    let vars = [cleanInitial];
                     
                     while (i + 1 < nodes.length) {
                         let next = nodes[i+1];
                         if (next.type === 'stmt' && next.kind === 'io' && (next.text.startsWith('Ввод') || next.text.startsWith('Вывод'))) {
                             let nextIoType = next.text.startsWith('Ввод') ? 'Ввод' : 'Вывод';
                             if (nextIoType === ioType) {
-                                let nextVars = next.text.replace(/^.*?:\s*/, '').replace(/^(Ввод данных|Вывод данных)$/, '').trim();
+                                let nextVars = next.text.replace(/^(Ввод|Вывод)\s*:\s*/, '').replace(/^(Ввод|Вывод)\s+/, '').replace(/^(Ввод данных|Вывод данных)$/, '').trim();
                                 if (nextVars) vars.push(nextVars);
                                 i++; // consume
                             } else {

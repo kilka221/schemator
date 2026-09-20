@@ -172,10 +172,10 @@ apiRouter.get('/users/:uid', async (req, res) => {
   const email = req.query.email as string;
   try {
     const user = await getYdbUser(uid, email);
-    res.json({ success: true, user: user || { uid, email, tokens: 5, displayName: 'Пользователь' } });
+    res.json({ success: true, user: user || { uid, email, tokens: 1, displayName: 'Пользователь' } });
   } catch (e: any) {
     console.warn('getUser notice:', e?.message);
-    res.json({ success: true, user: { uid, email, tokens: 5, displayName: 'Пользователь' } });
+    res.json({ success: true, user: { uid, email, tokens: 1, displayName: 'Пользователь' } });
   }
 });
 
@@ -190,7 +190,7 @@ apiRouter.post('/users/sync', async (req, res) => {
     res.json({ success: true, result });
   } catch (e: any) {
     console.warn('syncUser notice:', e?.message);
-    res.json({ success: true, result: { tokens: typeof tokens === 'number' ? tokens : 5 } });
+    res.json({ success: true, result: { tokens: typeof tokens === 'number' ? tokens : 1 } });
   }
 });
 
@@ -204,11 +204,11 @@ apiRouter.post('/users/decrement-token', async (req, res) => {
       return res.json({ success: true, tokens: newBalance });
     } catch (ydbErr: any) {
       console.warn('decrementToken fallback:', ydbErr?.message);
-      return res.json({ success: true, tokens: 4, fallback: true });
+      return res.json({ success: true, tokens: 0, fallback: true });
     }
   } catch (e: any) {
     console.warn('decrementToken notice:', e?.message);
-    res.json({ success: true, tokens: 4, fallback: true });
+    res.json({ success: true, tokens: 0, fallback: true });
   }
 });
 
@@ -221,11 +221,11 @@ apiRouter.post('/tokens/spend', async (req, res) => {
       return res.json({ success: true, tokens: newBalance });
     } catch (ydbErr: any) {
       console.warn('spendToken fallback:', ydbErr?.message);
-      return res.json({ success: true, tokens: 4, fallback: true });
+      return res.json({ success: true, tokens: 0, fallback: true });
     }
   } catch (e: any) {
     console.warn('spendToken notice:', e?.message);
-    res.json({ success: true, tokens: 4, fallback: true });
+    res.json({ success: true, tokens: 0, fallback: true });
   }
 });
 

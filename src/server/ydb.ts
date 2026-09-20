@@ -434,7 +434,7 @@ function localUpsertUser(userId: string, email: string, displayName: string, hin
 
   let tokensToKeep = typeof hintTokens === 'number' && !isNaN(hintTokens) && hintTokens > 0 
     ? hintTokens 
-    : (existing ? existing.tokens : 5);
+    : (existing ? existing.tokens : 1);
 
   if (existing && existing.tokens > tokensToKeep) {
     tokensToKeep = existing.tokens;
@@ -461,9 +461,9 @@ function localDecrementToken(userId: string, email?: string): number {
   loadLocalStore();
   const user = localGetUser(userId, email);
   if (!user) {
-    return 4;
+    return 0;
   }
-  const current = typeof user.tokens === 'number' ? user.tokens : 5;
+  const current = typeof user.tokens === 'number' ? user.tokens : 1;
   const updated = Math.max(0, current - 1);
   user.tokens = updated;
   memoryStore.users[user.userId] = user;
@@ -773,9 +773,9 @@ export async function decrementYdbToken(userId: string, email?: string): Promise
       return await driverInstance.tableClient.withSession(async (session: any) => {
         const user = await getYdbUser(userId, email);
         if (!user) {
-          return 5;
+          return 0;
         }
-        const currentTokens = toJsNumber(user.tokens, 5);
+        const currentTokens = toJsNumber(user.tokens, 1);
         const newTokens = Math.max(0, currentTokens - 1);
 
         const updateQuery = `

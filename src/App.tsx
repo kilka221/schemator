@@ -276,17 +276,8 @@ export default function App() {
         console.warn('Error reading saved user session:', e);
       }
     } else {
-      // Default guest session with 5 Coins so schema generation works instantly
-      const guestUser: AppUserProfile = {
-        uid: `guest_${Date.now()}`,
-        email: 'guest@blockcraft.local',
-        displayName: 'Гость',
-        tokens: 5,
-        emailVerified: true,
-      };
-      setUser(guestUser);
-      setUserTokens(5);
-      localStorage.setItem('blockcraft_yandex_user', JSON.stringify(guestUser));
+      setUser(null);
+      setUserTokens(0);
     }
   }, []);
   
@@ -696,24 +687,19 @@ export default function App() {
           return;
       }
 
-      let currentUser = user;
-      if (!currentUser) {
-          currentUser = {
-            uid: `guest_${Date.now()}`,
-            email: 'guest@blockcraft.local',
-            displayName: 'Гость',
-            tokens: 5,
-            emailVerified: true,
-          };
-          setUser(currentUser);
-          setUserTokens(5);
-          localStorage.setItem('blockcraft_yandex_user', JSON.stringify(currentUser));
+      if (!user) {
+          showToast('Войдите или зарегистрируйтесь, чтобы получить 1 бесплатную схему!');
+          handleLogin('yandex');
+          return;
       }
 
-      if (userTokens === null || userTokens <= 0) {
-          setUserTokens(5);
+      if (userTokens !== null && userTokens <= 0) {
+          showToast('У вас закончились схемы. Пополните баланс для продолжения');
+          setIsTariffModalOpen(true);
+          return;
       }
 
+      const currentUser = user;
       setIsGenerating(true);
       try {
           // Immediately register generated code so graphs render without blocking
@@ -726,6 +712,7 @@ export default function App() {
           decrementYdbUserToken(currentUser.uid, currentUser.email).then(nextCount => {
             if (typeof nextCount === 'number') {
               setUserTokens(nextCount);
+              localStorage.setItem('blockcraft_yandex_user', JSON.stringify({ ...currentUser, tokens: nextCount }));
             }
           }).catch(err => {
             console.warn('Background token decrement warning:', err);
