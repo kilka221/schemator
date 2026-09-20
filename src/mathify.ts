@@ -44,6 +44,16 @@ export function mathify(text: string): string {
         return 'Подтвердить действие?';
     }
 
+    // Multi-dimensional array indexing: e.g. L[i][k] -> L[i, k], M[i][j][k] -> M[i, j, k]
+    res = res.replace(/([a-zA-Z0-9_]+)\[([^\[\]]+)\]\[([^\[\]]+)\]\[([^\[\]]+)\]/g, '$1[$2, $3, $4]');
+    res = res.replace(/([a-zA-Z0-9_]+)\[([^\[\]]+)\]\[([^\[\]]+)\]/g, '$1[$2, $3]');
+
+    // Fix spaced compound assignment operators if present
+    res = res.replace(/-\s*=/g, '-=');
+    res = res.replace(/\+\s*=/g, '+=');
+    res = res.replace(/\*\s*=/g, '*=');
+    res = res.replace(/\/\s*=/g, '/=');
+
     // Power
     res = res.replace(/\*\*/g, '^');
 

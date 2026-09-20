@@ -951,21 +951,27 @@ export function parsePythonSourceWhole(code: string) {
                         // First see if it's a comprehension / generator we can translate
                         let translatedRightObj = translatePythonLine(text);
                         let isTranslated = translatedRightObj !== text;
-                        let textContainsEq = text.includes('=');
+                        let textContainsEq = false;
+                        let assignmentOp = '=';
                         let leftSide = '';
                         let rightSide = text;
-                        if (textContainsEq) {
-                            let parts = text.split('=');
-                            leftSide = parts[0].trim();
-                            let colonIdx = leftSide.indexOf(':');
+
+                        let assignMatch = text.match(/^([^=<>!]+?)\s*(\+=|-=|\*=|\/=|%=|\/\/=|\*\*=|=)\s*(.*)$/);
+                        if (assignMatch) {
+                            let rawLeft = assignMatch[1].trim();
+                            assignmentOp = assignMatch[2].trim();
+                            let rawRight = assignMatch[3].trim();
+                            let colonIdx = rawLeft.indexOf(':');
                             if (colonIdx !== -1) {
-                                leftSide = leftSide.substring(0, colonIdx).trim();
+                                rawLeft = rawLeft.substring(0, colonIdx).trim();
                             }
-                            rightSide = parts.slice(1).join('=').trim();
+                            leftSide = rawLeft;
+                            rightSide = rawRight;
+                            textContainsEq = true;
                         }
                         
                         let wholeLineTranslated = isTranslated;
-                        if (!isTranslated) {
+                        if (!isTranslated && textContainsEq) {
                             translatedRightObj = translatePythonLine(rightSide);
                             isTranslated = translatedRightObj !== rightSide;
                         }
@@ -974,7 +980,7 @@ export function parsePythonSourceWhole(code: string) {
                             if (wholeLineTranslated) {
                                 displayText = mathify(translatedRightObj);
                             } else if (textContainsEq) {
-                                displayText = `${leftSide} = ${mathify(translatedRightObj)}`;
+                                displayText = `${mathify(leftSide)} ${assignmentOp} ${mathify(translatedRightObj)}`;
                             } else {
                                 displayText = mathify(translatedRightObj);
                             }
@@ -1013,19 +1019,19 @@ export function parsePythonSourceWhole(code: string) {
                             let right = rightSide;
                             if (left && right) {
                                 if (right === '[]' || right === 'list()') {
-                                    displayText = `Создание пустого списка ${left}`;
+                                    displayText = `Создание пустого списка ${mathify(left)}`;
                                 } else if (right === '{}' || right === 'dict()') {
-                                    displayText = `Создание пустого словаря ${left}`;
+                                    displayText = `Создание пустого словаря ${mathify(left)}`;
                                 } else if (right === 'set()') {
-                                    displayText = `Создание пустого множества ${left}`;
+                                    displayText = `Создание пустого множества ${mathify(left)}`;
                                 } else if (right === '""' || right === "''" || right === 'str()') {
-                                    displayText = `Создание пустой строки ${left}`;
+                                    displayText = `Создание пустой строки ${mathify(left)}`;
                                 } else if ((right.startsWith('{') && right.endsWith('}')) && right.length > 20) {
-                                    displayText = `Заполнение словаря ${left}`;
+                                    displayText = `Заполнение словаря ${mathify(left)}`;
                                 } else if (right.startsWith('[') && right.endsWith(']') && right.length > 20) {
-                                    displayText = `Заполнение списка ${left}`;
+                                    displayText = `Заполнение списка ${mathify(left)}`;
                                 } else if (right.startsWith('[') && right.endsWith(']')) {
-                                    displayText = `Объявление массива ${left} = ${mathify(right)}`;
+                                    displayText = `Объявление массива ${mathify(left)} = ${mathify(right)}`;
                                 } else {
                                     right = right.replace(/\[(.*?)\]/g, (match, inner) => {
                                         let items = inner.split(',').map((s: string) => s.trim());
@@ -1034,7 +1040,7 @@ export function parsePythonSourceWhole(code: string) {
                                         }
                                         return match;
                                     });
-                                    displayText = `${left} = ${mathify(right)}`;
+                                    displayText = `${mathify(left)} ${assignmentOp} ${mathify(right)}`;
                                 }
                             } else {
                                 displayText = mathify(text);
@@ -2152,7 +2158,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 let bestCut = -1;
                 let bestScore = -Infinity;
                 
-                for (let candidate = desiredCut + 40; candidate >= currentY + 300; candidate -= 10) {
+                for (let candidate = desiredCut + 60; candidate >= currentY + Math.max(300, TARGET_PAGE_H * 0.65); candidate -= 10) {
                     let inForbidden = forbiddenRanges.some(r => candidate >= r.minY && candidate <= r.maxY);
                     if (!inForbidden) {
                         let crossingCount = 0;
@@ -2168,8 +2174,8 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                             }
                         });
                         
-                        let distScore = -Math.abs(candidate - desiredCut) * 0.5;
-                        let edgeScore = -crossingCount * 30;
+                        let distScore = -Math.abs(candidate - desiredCut) * 1.5;
+                        let edgeScore = -crossingCount * 5;
                         let totalScore = distScore + edgeScore;
                         
                         if (totalScore > bestScore) {

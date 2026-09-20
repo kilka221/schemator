@@ -490,6 +490,30 @@ export function translatePythonLine(line: string): string {
         // 5. list/set/dict comprehensions
         const mList = right.match(/^\[(.*?)\]$/);
         if (mList) {
+            // 2D matrix zeros: e.g. [[0.0] * cols for _ in range(rows)] or [[0] * cols for _ in range(rows)]
+            const matrixZeroMatch = mList[1].match(/^\[\s*([0-9.]+|None)\s*\]\s*\*\s*([a-zA-Z0-9_]+)\s+for\s+[a-zA-Z0-9_]+\s+in\s+range\(\s*([a-zA-Z0-9_]+)\s*\)$/);
+            if (matrixZeroMatch) {
+                const val = matrixZeroMatch[1];
+                const cols = matrixZeroMatch[2];
+                const rows = matrixZeroMatch[3];
+                const targetVar = mAssign ? mAssign[1].trim() : '';
+                if (targetVar) {
+                    return `Инициализация матрицы ${targetVar}[${rows}, ${cols}] = ${val}`;
+                }
+                return `Инициализация матрицы [${rows}, ${cols}] = ${val}`;
+            }
+
+            // Matrix copy: e.g. [row[:] for row in A]
+            const matrixCopyMatch = mList[1].match(/^([a-zA-Z0-9_]+)\[:\]\s+for\s+\1\s+in\s+([a-zA-Z0-9_]+)$/);
+            if (matrixCopyMatch) {
+                const sourceMatrix = matrixCopyMatch[2];
+                const targetVar = mAssign ? mAssign[1].trim() : '';
+                if (targetVar) {
+                    return `Копирование матрицы ${sourceMatrix} в ${targetVar}`;
+                }
+                return `Копия матрицы ${sourceMatrix}`;
+            }
+
             const dMatch = mList[1].match(/^(.*?)\s+for\s+(.*?)\s+in\s+(.*?)\s+for\s+(.*?)\s+in\s+(.*?)$/);
             if (dMatch) {
                 return `Создать список ${dMatch[1].trim()} из ${dMatch[3].trim()} с двойным циклом`; 
