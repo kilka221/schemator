@@ -2125,18 +2125,24 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
             
             let currentY = 0;
             let s = 0;
-            const TARGET_PAGE_H = 880;
+            const pageBlockStep = (style.baseHeight || 48) + (style.yMargin || 18);
+            const TARGET_PAGE_H = Math.max(880, Math.min(1150, pageBlockStep * 14));
+            
+            const totalDiagramHeight = maxNodeY;
+            const targetTotalPages = totalDiagramHeight <= TARGET_PAGE_H + 100 ? 1 : Math.max(2, Math.ceil(totalDiagramHeight / TARGET_PAGE_H));
             
             while (currentY < maxNodeY) {
-                let remaining = maxNodeY - currentY;
-                if (remaining <= TARGET_PAGE_H + 120) {
+                let remainingPages = targetTotalPages - s;
+                let remainingHeight = maxNodeY - currentY;
+                
+                if (remainingPages <= 1 || remainingHeight <= TARGET_PAGE_H + 100) {
                     pageIntervals.push({ yMin: currentY, yMax: Infinity, s });
                     break;
                 }
                 
-                let desiredCut = currentY + TARGET_PAGE_H;
+                let desiredCut = currentY + (remainingHeight / remainingPages);
                 
-                // Forbidden Y zones: only the actual physical box of each node and horizontal segments
+                // Forbidden Y zones: physical box of each node and horizontal segments
                 let forbiddenRanges: { minY: number, maxY: number }[] = [];
                 allNodes.forEach(n => {
                     let h = n.height || 64;
@@ -2156,7 +2162,10 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 let bestCut = -1;
                 let bestScore = -Infinity;
                 
-                for (let candidate = desiredCut + 60; candidate >= currentY + Math.max(300, TARGET_PAGE_H * 0.65); candidate -= 10) {
+                let searchMin = Math.max(currentY + 250, desiredCut - 220);
+                let searchMax = Math.min(maxNodeY - 200, desiredCut + 220);
+
+                for (let candidate = searchMax; candidate >= searchMin; candidate -= 5) {
                     let inForbidden = forbiddenRanges.some(r => candidate >= r.minY && candidate <= r.maxY);
                     if (!inForbidden) {
                         let crossingCount = 0;
@@ -2173,7 +2182,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                         });
                         
                         let distScore = -Math.abs(candidate - desiredCut) * 1.5;
-                        let edgeScore = -crossingCount * 4;
+                        let edgeScore = -crossingCount * 3;
                         let totalScore = distScore + edgeScore;
                         
                         if (totalScore > bestScore) {
@@ -2185,7 +2194,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 
                 if (bestCut === -1) {
                     let sortedNodesInArea = allNodes
-                        .filter(n => n.y >= currentY + 300 && n.y <= desiredCut + 200)
+                        .filter(n => n.y >= currentY + 200 && n.y <= desiredCut + 250)
                         .sort((a, b) => a.y - b.y);
                     
                     if (sortedNodesInArea.length >= 2) {
@@ -2215,91 +2224,6 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
             }
         }
 
-        if (pageIntervals.length > 1) {
-            let boundaries = pageIntervals.map(pi => pi.yMax).filter(y => y !== Infinity);
-            boundaries.forEach(yB => {
-                let interval = pageIntervals.find(pi => pi.yMax === yB);
-                let yMin = interval ? interval.yMin : 0;
-                let lastPageNodes = allNodes.filter(n => n.y >= yMin && n.y < yB);
-
-                let mergePointsToMove = new Map<string, {cx: number, cy: number, edgesIn: any[], edgesOut: any[]}>();
-
-                allEdgesFinal.forEach(e => {
-                    if (!e.segments || e.segments.length === 0) return;
-                    let lastSeg = e.segments[e.segments.length - 1];
-                    let mergeY = lastSeg.endY;
-                    let cx = lastSeg.endX;
-                    let k = `${cx}_${mergeY}`;
-
-                    if (!mergePointsToMove.has(k)) {
-                        mergePointsToMove.set(k, { cx, cy: mergeY, edgesIn: [], edgesOut: [] });
-                    }
-                    mergePointsToMove.get(k)!.edgesIn.push(e);
-                });
-
-                allEdgesFinal.forEach(e => {
-                    if (!e.segments || e.segments.length === 0) return;
-                    let firstSeg = e.segments[0];
-                    let k = `${firstSeg.startX}_${firstSeg.startY}`;
-                    if (mergePointsToMove.has(k)) {
-                        mergePointsToMove.get(k)!.edgesOut.push(e);
-                    }
-                });
-
-                mergePointsToMove.forEach(info => {
-                    let { cx, cy, edgesIn, edgesOut } = info;
-                    if (cy >= yB && cy < yB + 80) {
-                        let allFromPrevPage = true;
-                        let maxStartY = 0;
-                        let isRelevant = false;
-                        
-                        edgesIn.forEach(e => {
-                            let sy = e.segments![0].startY;
-                            if (sy >= yB) allFromPrevPage = false;
-                            maxStartY = Math.max(maxStartY, sy);
-                            if (e.segments!.length >= 2) {
-                                let prevSeg = e.segments![e.segments!.length - 2];
-                                if (prevSeg.startY < yB) isRelevant = true;
-                            }
-                        });
-
-                        if (edgesIn.length > 0 && allFromPrevPage && isRelevant) {
-                            let otherEdgesMaxY = 0;
-                            allEdgesFinal.forEach(e => {
-                                if (edgesIn.includes(e) || edgesOut.includes(e)) return;
-                                if (e.segments) {
-                                    e.segments.forEach(seg => {
-                                        if (seg.startY < yB && seg.endY < yB && (seg.startY >= yMin || seg.endY >= yMin)) {
-                                            otherEdgesMaxY = Math.max(otherEdgesMaxY, seg.startY, seg.endY);
-                                        }
-                                    });
-                                }
-                            });
-
-                            let maxNodeBottom = lastPageNodes.length > 0 ? Math.max(...lastPageNodes.map(n => n.y + (n.height || 64)/2)) : maxStartY;
-                            let baseBottom = Math.max(maxNodeBottom, otherEdgesMaxY);
-                            let newY = Math.max(maxStartY + 20, baseBottom + 20);
-                            
-                            if (newY < yB - 5) {
-                                edgesIn.forEach(e => {
-                                    e.segments!.forEach(seg => {
-                                        if (Math.abs(seg.startY - cy) < 2) seg.startY = newY;
-                                        if (Math.abs(seg.endY - cy) < 2) seg.endY = newY;
-                                    });
-                                });
-                                edgesOut.forEach(e => {
-                                    e.segments!.forEach(seg => {
-                                        if (Math.abs(seg.startY - cy) < 2) seg.startY = newY;
-                                        if (Math.abs(seg.endY - cy) < 2) seg.endY = newY;
-                                    });
-                                });
-                            }
-                        }
-                    }
-                });
-            });
-        }
-
         const LATIN_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
         let jumpCounter = 0;
         function getJumpLetter(idx: number): string {
@@ -2311,27 +2235,6 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
             return `${base}${num}`;
         }
         let jumpMap = new Map<string, string>();
-
-        let globalMinX = 999999;
-        let globalMaxX = -999999;
-        allNodes.forEach(n => {
-            globalMinX = Math.min(globalMinX, n.x - NODE_WIDTH/2);
-            globalMaxX = Math.max(globalMaxX, n.x + NODE_WIDTH/2);
-        });
-        allEdgesFinal.forEach(e => {
-            if (e.segments) {
-                e.segments.forEach(seg => {
-                    globalMinX = Math.min(globalMinX, seg.startX, seg.endX);
-                    globalMaxX = Math.max(globalMaxX, seg.startX, seg.endX);
-                });
-            }
-        });
-
-        let globalDiagramWidth = (globalMinX !== 999999 && globalMaxX !== -999999) ? (globalMaxX - globalMinX) : 600;
-        let globalPageCanvasWidth = Math.max(globalDiagramWidth + 200, 800);
-        let globalDiagramCenter = (globalMinX + globalMaxX) / 2;
-        let globalPageCenter = globalPageCanvasWidth / 2;
-        let globalDx = globalPageCenter - globalDiagramCenter;
 
         for (let interval of pageIntervals) {
             let { yMin, yMax, s } = interval;
@@ -2588,16 +2491,42 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
             });
             sNodes = Array.from(uniqueNodes.values());
 
-            sNodes.forEach(n => n.x += globalDx);
+            let pgMinX = 999999;
+            let pgMaxX = -999999;
+            sNodes.forEach(n => {
+                let halfW = (n.type === 'circle' ? 20 : NODE_WIDTH / 2);
+                pgMinX = Math.min(pgMinX, n.x - halfW);
+                pgMaxX = Math.max(pgMaxX, n.x + halfW);
+            });
             sEdges.forEach(e => {
                 if (e.segments) {
                     e.segments.forEach(seg => {
-                        seg.startX += globalDx;
-                        seg.endX += globalDx;
+                        pgMinX = Math.min(pgMinX, seg.startX, seg.endX);
+                        pgMaxX = Math.max(pgMaxX, seg.startX, seg.endX);
+                    });
+                }
+            });
+            if (pgMinX === 999999 || pgMaxX === -999999) {
+                pgMinX = 0;
+                pgMaxX = 600;
+            }
+
+            let pgDiagramWidth = pgMaxX - pgMinX;
+            let pgCanvasWidth = Math.max(pgDiagramWidth + 160, 800);
+            let pgDiagramCenter = (pgMinX + pgMaxX) / 2;
+            let pgCanvasCenter = pgCanvasWidth / 2;
+            let pgDx = pgCanvasCenter - pgDiagramCenter;
+
+            sNodes.forEach(n => n.x += pgDx);
+            sEdges.forEach(e => {
+                if (e.segments) {
+                    e.segments.forEach(seg => {
+                        seg.startX += pgDx;
+                        seg.endX += pgDx;
                     });
                 }
                 if (e.labelPos) {
-                    e.labelPos.x += globalDx;
+                    e.labelPos.x += pgDx;
                 }
             });
 
@@ -2611,7 +2540,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 }
             });
 
-            pages.push({ nodes: sNodes, edges: sEdges, width: globalPageCanvasWidth, height: pgMaxY });
+            pages.push({ nodes: sNodes, edges: sEdges, width: pgCanvasWidth, height: pgMaxY });
         }
     }
     return { pages, title };}
