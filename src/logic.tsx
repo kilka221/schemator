@@ -2332,7 +2332,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
 
             // Consider internal edges for bottom extent
             allEdgesFinal.forEach(e => {
-                if (!e.segments) return;
+                if (!e.segments || e.segments.length === 0) return;
                 let sy = e.segments[0].startY;
                 let ey = e.segments[e.segments.length - 1].endY;
                 if (sy >= yMin && sy < yMax && ey >= yMin && ey < yMax) {
@@ -2534,31 +2534,6 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 }
             });
             
-            // Safety Net: Ensure every downward arrowhead pointing towards the page boundary has a jump circle under it
-            if (s < pageIntervals.length - 1) {
-                sEdges.forEach(edge => {
-                    if (!edge.segments || edge.segments.length === 0 || edge.noArrow) return;
-                    let lastSeg = edge.segments[edge.segments.length - 1];
-                    let landsOnNode = sNodes.some(n => {
-                        if (n.type === 'circle') {
-                            return Math.abs(n.x - lastSeg.endX) < 15 && Math.abs((n.y - 20) - lastSeg.endY) < 10;
-                        }
-                        let topY = n.y - (n.height || 64) / 2;
-                        return Math.abs(n.x - lastSeg.endX) < NODE_WIDTH / 2 + 10 && Math.abs(topY - lastSeg.endY) < 25;
-                    });
-
-                    if (!landsOnNode) {
-                        lastSeg.endY = jumpOutY - 20;
-                        let k = `${edge.id}_${s}_${s+1}`;
-                        if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
-                        let circleId = `jump_out_${k}`;
-                        if (!sNodes.some(n => n.id === circleId)) {
-                            sNodes.push({ id: circleId, type: 'circle', text: jumpMap.get(k)!, x: lastSeg.endX, y: jumpOutY, height: 40 });
-                        }
-                    }
-                });
-            }
-
             let uniqueNodes = new Map();
             sNodes.forEach(n => {
                 uniqueNodes.set(n.id + n.type + n.x + n.y, n);
