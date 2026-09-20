@@ -1,7 +1,7 @@
 export interface FontItem {
   id: string;             // CSS font-family string
   name: string;           // Display name
-  category: 'gost' | 'serif' | 'sans' | 'mono' | 'handwriting';
+  category: 'gost' | 'serif' | 'sans' | 'mono';
   categoryLabel: string;
   desc: string;
   googleFont?: string;    // Family parameter for Google Fonts API (Cyrillic support)
@@ -460,81 +460,6 @@ export const FONTS_CATALOG: FontItem[] = [
     categoryLabel: 'Моноширинные (Код)',
     desc: 'Создан специально для программирования и ясного кода',
     googleFont: 'Anonymous+Pro:wght@400;700',
-  },
-
-  // ----------------------------------------------------
-  // 5. Рукописные, неформальные и «Троечник ночью»
-  // ----------------------------------------------------
-  {
-    id: '"Caveat", cursive',
-    name: 'Caveat (Рукописный)',
-    category: 'handwriting',
-    categoryLabel: 'Рукописные / Скетч',
-    desc: 'Живой почерк студента гелевой ручкой в тетради',
-    googleFont: 'Caveat:wght@400;600;700',
-  },
-  {
-    id: '"Marck Script", cursive',
-    name: 'Marck Script',
-    category: 'handwriting',
-    categoryLabel: 'Рукописные / Скетч',
-    desc: 'Плавный рукописный курсив перьевой ручкой',
-    googleFont: 'Marck+Script',
-  },
-  {
-    id: '"Bad Script", cursive',
-    name: 'Bad Script',
-    category: 'handwriting',
-    categoryLabel: 'Рукописные / Скетч',
-    desc: 'Небрежный живой почерк человека, спешащего сдать работу',
-    googleFont: 'Bad+Script',
-  },
-  {
-    id: '"Neucha", cursive',
-    name: 'Neucha',
-    category: 'handwriting',
-    categoryLabel: 'Рукописные / Скетч',
-    desc: 'Дружелюбный рукописный шрифт с прямыми штрихами',
-    googleFont: 'Neucha',
-  },
-  {
-    id: '"Pangolin", cursive',
-    name: 'Pangolin',
-    category: 'handwriting',
-    categoryLabel: 'Рукописные / Скетч',
-    desc: 'Школьный рукописный шрифт на доске или в блокноте',
-    googleFont: 'Pangolin',
-  },
-  {
-    id: '"Balsamiq Sans", cursive',
-    name: 'Balsamiq Sans (Скетч)',
-    category: 'handwriting',
-    categoryLabel: 'Рукописные / Скетч',
-    desc: 'Фирменный скетчевый шрифт вайрфреймов и прототипов',
-    googleFont: 'Balsamiq+Sans:wght@400;700',
-  },
-  {
-    id: '"Bellota Text", cursive',
-    name: 'Bellota Text',
-    category: 'handwriting',
-    categoryLabel: 'Рукописные / Скетч',
-    desc: 'Милый стилизованный гротеск с декоративными засечками',
-    googleFont: 'Bellota+Text:wght@400;700',
-  },
-  {
-    id: '"Marmelad", sans-serif',
-    name: 'Marmelad',
-    category: 'handwriting',
-    categoryLabel: 'Рукописные / Скетч',
-    desc: 'Мягкий душевный шрифт со скругленными краями',
-    googleFont: 'Marmelad',
-  },
-  {
-    id: '"Comic Sans MS", cursive, sans-serif',
-    name: 'Comic Sans MS',
-    category: 'handwriting',
-    categoryLabel: 'Рукописные / Скетч',
-    desc: 'Легендарный неформальный шрифт студенческих лабораторных',
   },
 ];
 

@@ -192,13 +192,14 @@ export default function App() {
       const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
       const accessToken = hashParams.get('access_token');
       if (accessToken) {
-        // If opened as popup, notify opener
-        if (window.opener) {
-          try {
-            window.opener.postMessage({ type: 'YANDEX_OAUTH_TOKEN', token: accessToken }, '*');
-          } catch (e) {
-            console.warn('OAuth postMessage error:', e);
+        // If opened as popup, notify opener safely
+        try {
+          const op = window.opener;
+          if (op && typeof op.postMessage === 'function') {
+            op.postMessage({ type: 'YANDEX_OAUTH_TOKEN', token: accessToken }, '*');
           }
+        } catch {
+          // Ignore cross-origin opener errors
         }
 
         // ALWAYS authenticate and sync user in current window/tab as well!
@@ -225,11 +226,14 @@ export default function App() {
           window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
 
           // If opener exists and is desktop popup, try closing after short delay
-          if (window.opener && !/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-            setTimeout(() => {
-              try { window.close(); } catch {}
-            }, 600);
-          }
+          try {
+            const op = window.opener;
+            if (op && !/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+              setTimeout(() => {
+                try { window.close(); } catch {}
+              }, 600);
+            }
+          } catch {}
         }).catch((err) => {
           console.warn('OAuth token parse error:', err);
         });
@@ -1335,7 +1339,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => setIsTariffModalOpen(true)}
-                    className={`hidden sm:inline-flex h-7 px-2.5 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
+                    className={`hidden sm:inline-flex items-center justify-center h-7 px-2.5 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
                       isDark
                         ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800'
                         : 'bg-zinc-50 border-zinc-200 text-zinc-700 hover:text-zinc-900 hover:bg-zinc-100'
@@ -1782,37 +1786,38 @@ const downloadDrawio = (title: string, fontFamily: string) => {
             }`}>
               {/* Function Tabs if multiple graphs */}
               {!viewMode && graphs.length > 1 && (
-                <div className={`flex px-2 pt-1 gap-1 overflow-x-auto border-b ${
-                  isDark ? 'border-zinc-800' : 'border-zinc-200'
+                <div className={`flex px-3 pt-2 pb-1.5 gap-1.5 overflow-x-auto border-b ${
+                  isDark ? 'border-zinc-800/80 bg-zinc-900/60' : 'border-zinc-200 bg-zinc-50/60'
                 }`}>
                   {graphs.map((graph, idx) => (
                     <button
                       key={idx}
                       onClick={() => setActiveTab(idx)}
-                      className={`px-2.5 py-1 text-xs font-medium rounded-t-md transition-colors whitespace-nowrap cursor-pointer ${
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                         activeTab === idx
                           ? isDark
-                            ? 'bg-zinc-950 text-zinc-100 border-t border-x border-zinc-800'
-                            : 'bg-zinc-100 text-zinc-900 border-t border-x border-zinc-200'
+                            ? 'bg-zinc-800 text-emerald-400 font-semibold border border-zinc-700 shadow-2xs'
+                            : 'bg-white text-emerald-700 font-semibold border border-zinc-200 shadow-2xs'
                           : isDark
-                          ? 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-                          : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50'
+                          ? 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                          : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
                       }`}
                     >
-                      {graph.title}
+                      <span className={`w-1.5 h-1.5 rounded-full ${activeTab === idx ? 'bg-emerald-500' : 'bg-transparent'}`} />
+                      <span>{graph.title}</span>
                     </button>
                   ))}
                 </div>
               )}
 
-              {/* Main Canvas Controls Bar - Low-profile 36px cohesive horizontal bar */}
-              <div className={`h-9 px-3 flex items-center justify-between gap-2 text-xs transition-colors ${
-                isDark ? 'bg-zinc-900' : 'bg-white'
+              {/* Main Canvas Controls Bar - High craft bar aligned with tariffs & menu design */}
+              <div className={`h-10 px-3 flex items-center justify-between gap-2.5 text-xs transition-colors ${
+                isDark ? 'bg-zinc-900 text-zinc-100' : 'bg-white text-zinc-900'
               }`}>
-                {/* Left: Mode toggle (Авто / Ножницы) */}
-                <div className="flex items-center gap-1.5">
-                  <div className={`inline-flex p-0.5 rounded-md border gap-0.5 ${
-                    isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-100/80 border-zinc-200'
+                {/* Left: Mode toggle (Авто / Ножницы) & Fixed Green Style Controls */}
+                <div className="flex items-center gap-2">
+                  <div className={`inline-flex p-0.5 rounded-lg border gap-0.5 ${
+                    isDark ? 'bg-zinc-950/80 border-zinc-800' : 'bg-zinc-100 border-zinc-200'
                   }`}>
                     <button
                       onClick={() => {
@@ -1820,9 +1825,9 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         setIsScissorsMode(false);
                         localStorage.setItem('blockcraft_split_mode', 'auto');
                       }}
-                      className={`h-6 px-2.5 text-xs font-medium rounded transition-colors cursor-pointer ${
+                      className={`h-7 px-3 text-xs font-medium rounded-md transition-all cursor-pointer ${
                         splitMode === 'auto'
-                          ? isDark ? 'bg-zinc-800 text-zinc-100 shadow-2xs' : 'bg-white text-zinc-900 shadow-2xs'
+                          ? isDark ? 'bg-zinc-800 text-zinc-100 shadow-2xs font-semibold' : 'bg-white text-zinc-900 shadow-2xs font-semibold'
                           : isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
                       }`}
                     >
@@ -1839,17 +1844,21 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         }
                       }}
                       title={splitMode === 'manual' && isScissorsMode ? "Ножницы активны (кликните на схему для разреза)" : "Ручной режим (ножницы)"}
-                      className={`h-6 px-2.5 flex items-center gap-1.5 text-xs font-medium rounded transition-colors cursor-pointer ${
+                      className={`h-7 px-2.5 flex items-center gap-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
                         splitMode === 'manual'
                           ? isScissorsMode
                             ? isDark
-                              ? 'bg-zinc-800 text-zinc-100 shadow-2xs ring-1 ring-zinc-700'
-                              : 'bg-white text-zinc-900 shadow-2xs ring-1 ring-zinc-300'
-                            : isDark ? 'bg-zinc-800/60 text-zinc-300' : 'bg-white/80 text-zinc-700'
+                              ? 'bg-emerald-950/50 text-emerald-300 ring-1 ring-emerald-500/40 font-semibold shadow-2xs'
+                              : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500/40 font-semibold shadow-2xs'
+                            : isDark ? 'bg-zinc-800/80 text-zinc-300' : 'bg-white text-zinc-700'
                           : isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
                       }`}
                     >
-                      <Scissors className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400 stroke-zinc-600 dark:stroke-zinc-400 shrink-0" />
+                      <Scissors className={`w-3.5 h-3.5 shrink-0 ${
+                        splitMode === 'manual' && isScissorsMode
+                          ? 'text-emerald-500 stroke-emerald-500'
+                          : 'text-zinc-500 dark:text-zinc-400'
+                      }`} />
                       <span>Ножницы</span>
                     </button>
                   </div>
@@ -1861,7 +1870,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         setCustomCuts(updated);
                         localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(updated));
                       }}
-                      className={`h-6 px-2 text-xs font-medium rounded border transition-colors cursor-pointer ${
+                      className={`h-7 px-2.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
                         isDark
                           ? 'text-zinc-400 hover:text-zinc-200 bg-zinc-800/60 hover:bg-zinc-800 border-zinc-700'
                           : 'text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200 border-zinc-200'
@@ -1872,21 +1881,23 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     </button>
                   )}
 
-                  {/* Quick Style & Font Switcher */}
-                  <div className="flex items-center gap-1 ml-1">
+                  {/* Fixed-Width Quick Style & Font Switcher + Fixed-Position Randomizer in Green */}
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => setIsSettingsModalOpen(true)}
-                      title="Выбрать стиль блок-схемы (20 вариантов) и шрифт (64 шрифта)"
-                      className={`h-6 px-2 flex items-center gap-1.5 text-xs font-medium rounded border transition-colors cursor-pointer ${
+                      title="Выбрать стиль блок-схемы (20 вариантов) и шрифт"
+                      className={`h-7 w-[210px] sm:w-[230px] px-2.5 shrink-0 flex items-center gap-1.5 text-xs font-medium rounded-lg border transition-all cursor-pointer overflow-hidden ${
                         isDark
-                          ? 'bg-zinc-800/80 hover:bg-zinc-800 text-zinc-200 border-zinc-700'
-                          : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-300'
+                          ? 'bg-zinc-900 hover:bg-zinc-800/90 text-zinc-200 border-zinc-800 hover:border-emerald-500/40 shadow-2xs'
+                          : 'bg-white hover:bg-emerald-50/40 text-zinc-800 border-zinc-200 hover:border-emerald-500/40 shadow-2xs'
                       }`}
                     >
-                      <Sliders className="w-3 h-3 text-blue-500 shrink-0" />
-                      <span className="truncate max-w-[110px] text-[11px] font-semibold">{getDiagramStyle(diagramStyle).name}</span>
-                      <span className="text-zinc-400">·</span>
-                      <span className="truncate max-w-[90px] text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <Sliders className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span className="truncate flex-1 text-left text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+                        {getDiagramStyle(diagramStyle).name}
+                      </span>
+                      <span className="text-zinc-300 dark:text-zinc-700 text-[10px] shrink-0 select-none">|</span>
+                      <span className="truncate max-w-[75px] text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0 text-right">
                         {FONTS_CATALOG.find(f => f.id === fontFamily)?.name || 'Шрифт'}
                       </span>
                     </button>
@@ -1901,13 +1912,13 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         showToast(`Случайный стиль: ${randomStyle.name} + ${randomFont.name}`);
                       }}
                       title="Рандомизировать стиль и шрифт (уникальный вид схемы)"
-                      className={`h-6 px-1.5 flex items-center justify-center rounded border transition-colors cursor-pointer ${
+                      className={`h-7 w-7 shrink-0 flex items-center justify-center rounded-lg border transition-all cursor-pointer shadow-2xs ${
                         isDark
-                          ? 'bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border-zinc-700'
-                          : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 border-zinc-300'
+                          ? 'bg-emerald-950/40 hover:bg-emerald-950/70 text-emerald-400 border-emerald-500/30 hover:border-emerald-500/50'
+                          : 'bg-emerald-50/80 hover:bg-emerald-100 text-emerald-700 border-emerald-500/30 hover:border-emerald-500/50'
                       }`}
                     >
-                      <Shuffle className="w-3 h-3 text-amber-500 shrink-0" />
+                      <Shuffle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     </button>
                   </div>
                 </div>
@@ -1916,23 +1927,23 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 <div className="flex items-center gap-2">
                   {/* Pagination if multiple pages */}
                   {activeGraph && activeGraph.pages.length > 1 && (
-                    <div className={`inline-flex rounded border overflow-hidden shadow-2xs ${
+                    <div className={`inline-flex h-7 rounded-lg border overflow-hidden shadow-2xs ${
                       isDark ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-200 bg-white'
                     }`}>
                       <button
                         onClick={() => setActivePage(p => Math.max(0, p - 1))}
                         disabled={activePage === 0}
-                        className="h-6 px-2 text-xs font-mono transition-colors cursor-pointer disabled:opacity-30 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-r border-zinc-200 dark:border-zinc-800"
+                        className="h-full px-2 text-xs font-mono transition-colors cursor-pointer disabled:opacity-30 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-r border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300"
                       >
                         ←
                       </button>
-                      <span className="h-6 px-2 flex items-center text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300">
+                      <span className="h-full px-2.5 flex items-center text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300">
                         {activePage + 1} / {activeGraph.pages.length}
                       </span>
                       <button
                         onClick={() => setActivePage(p => Math.min(activeGraph.pages.length - 1, p + 1))}
                         disabled={activePage === activeGraph.pages.length - 1}
-                        className="h-6 px-2 text-xs font-mono transition-colors cursor-pointer disabled:opacity-30 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-l border-zinc-200 dark:border-zinc-800"
+                        className="h-full px-2 text-xs font-mono transition-colors cursor-pointer disabled:opacity-30 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-l border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300"
                       >
                         →
                       </button>
@@ -1940,7 +1951,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   )}
 
                   {/* Zoom Slider Control */}
-                  <div className={`h-6 flex items-center px-2 rounded border gap-1.5 shadow-2xs ${
+                  <div className={`h-7 flex items-center px-2.5 rounded-lg border gap-1.5 shadow-2xs ${
                     isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
                   }`}>
                     <span className="text-[10px] font-mono text-zinc-400 select-none uppercase">Zoom</span>
@@ -1951,7 +1962,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       step="0.05"
                       value={scale}
                       onChange={(e) => setScale(parseFloat(e.target.value))}
-                      className="w-16 sm:w-20 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-sm appearance-none cursor-pointer accent-zinc-700 dark:accent-zinc-300"
+                      className="w-16 sm:w-20 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-sm appearance-none cursor-pointer accent-emerald-600 dark:accent-emerald-400"
                       title={`Масштаб: ${Math.round(scale * 100)}%`}
                     />
                     <button
@@ -1959,7 +1970,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         setScale(1);
                         setPan({ x: 0, y: 0 });
                       }}
-                      className={`text-xs font-mono font-medium rounded transition-colors cursor-pointer px-1 text-center w-10 ${
+                      className={`text-xs font-mono font-medium rounded transition-colors cursor-pointer px-1 text-center w-11 ${
                         isDark ? 'text-zinc-300 hover:text-white' : 'text-zinc-700 hover:text-zinc-900'
                       }`}
                       title="Сбросить масштаб (100%)"
@@ -1971,16 +1982,16 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         setScale(1);
                         setPan({ x: 0, y: 0 });
                       }}
-                      className="w-3.5 h-3.5 flex items-center justify-center transition-colors cursor-pointer text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                      className="w-4 h-4 flex items-center justify-center transition-colors cursor-pointer text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400"
                       title="Центрировать (100%)"
                     >
-                      <RotateCcw className="w-3 h-3" />
+                      <RotateCcw className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
                 {/* Right: Segmented Export Buttons Group (Desktop & Tablet) */}
-                <div className={`hidden sm:inline-flex h-6 rounded border overflow-hidden divide-x shadow-2xs ${
+                <div className={`hidden sm:inline-flex h-7 rounded-lg border overflow-hidden divide-x shadow-2xs ${
                   isDark
                     ? 'border-zinc-800 divide-zinc-800 bg-zinc-900'
                     : 'border-zinc-200 divide-zinc-200 bg-white'
@@ -1993,7 +2004,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       }
                       downloadSvg(`graph-svg-${activeTab}`, name);
                     }}
-                    className="h-6 px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                    className="h-full px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300 transition-colors cursor-pointer"
                     title="Скачать векторный SVG"
                   >
                     SVG
@@ -2007,7 +2018,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       }
                       downloadPng(`graph-svg-${activeTab}`, name);
                     }}
-                    className="h-6 px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                    className="h-full px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300 transition-colors cursor-pointer"
                     title="Скачать растровый PNG"
                   >
                     PNG
@@ -2021,7 +2032,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       }
                       downloadDrawio(name, fontFamily);
                     }}
-                    className="h-6 px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                    className="h-full px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300 transition-colors cursor-pointer"
                     title="Экспорт в draw.io (.drawio)"
                   >
                     DRAW.IO
@@ -2568,6 +2579,15 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         onInsertCode={(sampleCode) => {
           setCode(sampleCode);
           showToast('Пример кода успешно вставлен в редактор');
+        }}
+        theme={theme}
+        onOpenSettings={() => {
+          setIsTipsModalOpen(false);
+          setIsSettingsModalOpen(true);
+        }}
+        onOpenTariffs={() => {
+          setIsTipsModalOpen(false);
+          setIsTariffModalOpen(true);
         }}
       />
 

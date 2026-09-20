@@ -130,59 +130,51 @@ export function openYandexOAuthPopup(clientIdOverride?: string): Promise<YandexU
 
     // Message listener if popup redirects and sends message
     const messageHandler = async (event: MessageEvent) => {
-      if (event.data && event.data.type === 'YANDEX_OAUTH_TOKEN' && event.data.token) {
-        if (isDone) return;
-        cleanup();
-        try {
-          if (popup && !popup.closed) {
-            try { popup.close(); } catch {}
-          }
+      try {
+        if (!event || (event.origin && event.origin !== window.location.origin)) {
+          return;
+        }
+        if (event.data && typeof event.data === 'object' && event.data.type === 'YANDEX_OAUTH_TOKEN' && event.data.token) {
+          if (isDone) return;
+          cleanup();
+          try {
+            if (popup) {
+              try { if (!popup.closed) popup.close(); } catch {}
+            }
+          } catch {}
           const profile = await fetchYandexProfileByToken(event.data.token);
           resolve(profile);
-        } catch (e: any) {
-          reject(e);
         }
+      } catch (e: any) {
+        reject(e);
       }
     };
     window.addEventListener('message', messageHandler);
 
-    // Polling popup URL
-    const checkInterval = setInterval(async () => {
+    // Polling popup state (only check if closed, postMessage handles token delivery)
+    const checkInterval = setInterval(() => {
       if (isDone) {
         clearInterval(checkInterval);
         return;
       }
 
       try {
-        if (!popup || popup.closed) {
+        let isClosed = false;
+        try {
+          isClosed = !popup || popup.closed;
+        } catch {
+          isClosed = false;
+        }
+
+        if (isClosed) {
           if (isDone) return;
           cleanup();
           reject(new Error('Окно входа Яндекс было закрыто'));
-          return;
-        }
-
-        const popupUrl = popup.location.href;
-        if (popupUrl && popupUrl.startsWith(redirectUri) && popupUrl.includes('access_token')) {
-          if (isDone) return;
-          cleanup();
-          try { popup.close(); } catch {}
-
-          const hash = popupUrl.split('#')[1] || '';
-          const params = new URLSearchParams(hash);
-          const accessToken = params.get('access_token');
-
-          if (!accessToken) {
-            reject(new Error('Не удалось получить токен доступа Яндекс.'));
-            return;
-          }
-
-          const profile = await fetchYandexProfileByToken(accessToken);
-          resolve(profile);
         }
       } catch {
-        // Ignore cross-origin errors while on yandex.ru domain
+        // Ignore
       }
-    }, 400);
+    }, 500);
   });
 }
 

@@ -1517,9 +1517,33 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 if (trueTerminates && falseTerminates) {
                     inPts = [];
                 } else if (trueTerminates && !falseTerminates) {
-                    inPts = falseEnds.map(pt => ({ ...pt, y: Math.max(pt.y || 0, commonY) }));
+                    for (let pt of falseEnds) {
+                        let extra = pt.label ? {label: pt.label, labelPos: pt.labelPos ? { ...pt.labelPos } : undefined} : {};
+                        let px = (pt as any).limitX || pt.x;
+                        if (pt.from) {
+                            allEdges.push({ 
+                                points: [pt.from, {x: px, y: pt.from.y}, {x: px, y: commonY}], 
+                                ...extra, noArrow: true
+                            });
+                        } else {
+                            allEdges.push({ points: [pt, {x: px, y: commonY}], ...extra, noArrow: true });
+                        }
+                    }
+                    inPts = falseEnds.map(pt => ({ ...pt, x: (pt as any).limitX || pt.x, y: commonY, from: { x: (pt as any).limitX || pt.x, y: commonY } }));
                 } else if (!trueTerminates && falseTerminates) {
-                    inPts = trueEnds.map(pt => ({ ...pt, y: Math.max(pt.y || 0, commonY) }));
+                    for (let pt of trueEnds) {
+                        let extra = pt.label ? {label: pt.label, labelPos: pt.labelPos ? { ...pt.labelPos } : undefined} : {};
+                        let px = (pt as any).limitX || pt.x;
+                        if (pt.from) {
+                            allEdges.push({ 
+                                points: [pt.from, {x: px, y: pt.from.y}, {x: px, y: commonY}], 
+                                ...extra, noArrow: true
+                            });
+                        } else {
+                            allEdges.push({ points: [pt, {x: px, y: commonY}], ...extra, noArrow: true });
+                        }
+                    }
+                    inPts = trueEnds.map(pt => ({ ...pt, x: (pt as any).limitX || pt.x, y: commonY, from: { x: (pt as any).limitX || pt.x, y: commonY } }));
                 } else {
                     for (let pt of trueEnds) {
                          let extra = pt.label ? {label: pt.label, labelPos: pt.labelPos ? { ...pt.labelPos } : undefined} : {};
@@ -2170,8 +2194,8 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 let bestCut = -1;
                 let bestScore = -Infinity;
                 
-                let searchMin = Math.max(currentY + 250, desiredCut - 220);
-                let searchMax = Math.min(maxNodeY - 200, desiredCut + 220);
+                let searchMin = Math.max(currentY + 200, desiredCut - 360);
+                let searchMax = Math.min(maxNodeY - 150, desiredCut + 360);
 
                 for (let candidate = searchMax; candidate >= searchMin; candidate -= 5) {
                     let inForbidden = forbiddenRanges.some(r => candidate >= r.minY && candidate <= r.maxY);
@@ -2189,8 +2213,15 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                             }
                         });
                         
-                        let distScore = -Math.abs(candidate - desiredCut) * 1.5;
-                        let edgeScore = -crossingCount * 3;
+                        let distScore = -Math.abs(candidate - desiredCut);
+                        let edgeScore = 0;
+                        if (crossingCount <= 1) {
+                            edgeScore = 600;
+                        } else if (crossingCount === 2) {
+                            edgeScore = 350;
+                        } else {
+                            edgeScore = -crossingCount * 120;
+                        }
                         let totalScore = distScore + edgeScore;
                         
                         if (totalScore > bestScore) {

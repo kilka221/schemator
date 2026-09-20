@@ -275,7 +275,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </span>
               </div>
               <p className={`text-[11px] ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                20 уникальных стилей геометрии + 64 шрифта, чтобы схемы не выглядели одинаково
+                20 уникальных стилей геометрии + {FONTS_CATALOG.length} шрифтов (ГОСТ, Академические, Гротески, Моно)
               </p>
             </div>
           </div>
@@ -284,9 +284,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <button
               onClick={handleRandomize}
               title="Сгенерировать случайный уникальный стиль и шрифт"
-              className="px-2.5 py-1.5 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700"
+              className="px-2.5 py-1.5 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
             >
-              <Shuffle className="w-3.5 h-3.5 text-amber-500" />
+              <Shuffle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span className="hidden sm:inline">Случайный стиль</span>
             </button>
             <button 
@@ -469,7 +469,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     { id: 'serif', label: 'Академические (Serif)' },
                     { id: 'sans', label: 'Гротески (Sans)' },
                     { id: 'mono', label: 'Моноширинные' },
-                    { id: 'handwriting', label: 'Рукописные / Скетч' },
                   ].map((cat) => (
                     <button
                       key={cat.id}

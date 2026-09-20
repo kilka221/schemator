@@ -1,72 +1,148 @@
 import React, { useState } from 'react';
 import { 
   X, 
-  Lightbulb, 
+  BookOpen, 
+  Palette, 
   Scissors, 
   FileCode2, 
+  Download, 
+  Keyboard, 
   Check, 
-  Copy
+  Copy,
+  ArrowRight,
+  Sparkles
 } from 'lucide-react';
 
 export interface TipCategory {
   id: string;
   title: string;
   icon: React.ReactNode;
-  badge?: string;
-  color: string;
   items: {
     title: string;
-    description: string;
-    detail: string;
+    description?: string;
+    content: string;
     codeExample?: string;
-    tag?: string;
   }[];
 }
 
 export const TIPS_DATA: TipCategory[] = [
   {
-    id: 'scissors',
-    title: 'Режим ножниц и деление',
-    icon: <Scissors className="w-4 h-4 text-rose-500" />,
-    color: 'border-rose-500/20 bg-rose-500/5 text-rose-600 dark:text-rose-400',
-    badge: 'Новинка',
+    id: 'styles',
+    title: 'Стили и шрифты',
+    icon: <Palette className="w-4 h-4 shrink-0" />,
     items: [
       {
-        title: 'Ручной разрез длинных схем (ножницы ✂️)',
-        description: 'Позволяет разделить длинный алгоритм на несколько страниц именно в том месте, где вам нужно.',
-        detail: '1. Переключите режим деления на «✂️» на верхней панели схемы.\n2. Наведите курсор на холст схемы — появится прицел и линия разреза.\n3. Кликните мышкой в нужную точку — схема мгновенно разделится на страницы с соединителями.\n4. Чтобы вернуть всё назад, нажмите кнопку «Очистить всё» рядом с ножницами.',
+        title: '20 стилей оформления блок-схем',
+        description: 'Настройка геометрии, линий и скруглений под требования ГОСТ или кафедры.',
+        content: `Схематор включает 20 готовых визуальных стилей:\n
+• Классический ГОСТ 19.701-90 — стандартные прямоугольники, ромбы решений, овалы начала/конца с черными линиями.
+• Минималистичный (Modern Minimal) — тонкие линии 1.2px, чистый вид для отчетов и статей.
+• Брутализм (Neo-Brutalism) — плотные контуры 2.5px, жесткие контрастные тени.
+• Мягкий Soft / Rounded — плавные скругленные углы блоков.
+• Пастельный Инженер — цветные полупрозрачные подложки блоков.
+• Технический Blueprint — стиль схемотехники и САПР с чертежными синими акцентами.
+• Инверсный Dark — темный контрастный режим для презентаций.
+• Изумрудный Emerald — фирменный стиль Схематора.
+• А также: Скандинавский, Монохром, Винтаж, Изометрия и другие.`,
       },
       {
-        title: 'Автоматическое деление (Авто)',
-        description: 'Schemator сам рассчитывает высоту блоков и аккуратно разбивает схему под стандартную страницу А4.',
-        detail: 'В режиме «Авто» алгоритм автоматически переносит ветвления и циклы так, чтобы блоки не обрезались пополам.',
+        title: 'Шрифты по ГОСТу и категориям',
+        description: 'Чертежные, академические, гротески и моноширинные шрифты.',
+        content: `• Чертежные шрифты ГОСТ (ГОСТ 2.304-81): ГОСТ тип А, ГОСТ тип Б, ISOCPEUR, Технический ЕСКД.
+• Академические с засечками: Times New Roman, PT Serif, Merriweather, Lora, Cormorant (для отчетов в Word и дипломов).
+• Инженерные гротески: Inter, Fira Sans, Roboto, Montserrat, Open Sans.
+• Моноширинные: JetBrains Mono, Fira Code, Source Code Pro, Consolas (для кода и формул).`,
+      },
+      {
+        title: 'Случайный стиль (Рандомизатор 🔀)',
+        description: 'Быстрый подбор уникального внешнего вида схемы.',
+        content: 'Кнопка со стрелками (🔀) на верхней панели схемы или в настройках случайным образом комбинирует стиль геометрии и гармоничный шрифт. Удобно, чтобы работы одногруппников не выглядели одинаково.',
+      }
+    ]
+  },
+  {
+    id: 'scissors',
+    title: 'Ножницы и деление',
+    icon: <Scissors className="w-4 h-4 shrink-0" />,
+    items: [
+      {
+        title: 'Ручной разрез длинных схем (Ножницы ✂️)',
+        description: 'Разделение алгоритма на страницы с ГОСТ-соединителями.',
+        content: `1. Переключите режим деления на «Ножницы» на верхней панели.
+2. Кликните мышкой по нужной стрелке или блоку на холсте схемы.
+3. Схема разделится на страницы с круглыми ГОСТ-соединителями (1, 2, 3...).
+4. Для возврата нажмите кнопку «Сбросить» рядом с ножницами.`,
+      },
+      {
+        title: 'Автоматическое деление (Режим «Авто»)',
+        description: 'Умная компоновка схемы под стандартный лист А4.',
+        content: 'В режиме «Авто» алгоритм сам рассчитывает высоту блоков, предотвращая разрыв условий и циклов пополам.',
       }
     ]
   },
   {
     id: 'syntax',
-    title: 'Синтаксис, собачка @ и код',
-    icon: <FileCode2 className="w-4 h-4 text-blue-500" />,
-    color: 'border-blue-500/20 bg-blue-500/5 text-blue-600 dark:text-blue-400',
-    badge: 'Секрет @',
+    title: 'Синтаксис и @print',
+    icon: <FileCode2 className="w-4 h-4 shrink-0" />,
     items: [
       {
-        title: 'Принудительный вывод текста через собачку: @print(...)',
-        description: 'Позволяет принудительно отобразить текстовый print("...") на блок-схеме.',
-        detail: 'По умолчанию Schemator скрывает чисто текстовые принты (меню, разделители "===", подсказки в консоли), чтобы схема оставалась компактной по ГОСТу.\n\nЕсли вы хотите, чтобы конкретная текстовая фраза ОБЯЗАТЕЛЬНО появилась на блок-схеме как параллелограмм «Вывод» — просто добавьте символ @ перед print:\n\n@print("Привет, мир!")  ->  [ Вывод: "Привет, мир!" ]\n@print("Расчет завершен успешно")',
-        codeExample: `# Обычный print с чистым текстом скроется как интерфейсный:\nprint("=== ГЛАВНОЕ МЕНЮ ===")\n\n# Но с собачкой @ он ОБЯЗАТЕЛЬНО появится в блок-схеме:\n@print("Привет, пользователь!")\n@print("Операция выполнена успешно")`,
-        tag: 'Фишка @print',
+        title: 'Принудительный вывод текста: @print(...)',
+        description: 'Как отобразить текстовые сообщения на блок-схеме.',
+        content: `По умолчанию Схематор скрывает чисто текстовые принты (меню, разделители "===", подсказки консоли), чтобы схема была компактной по ГОСТу.\n
+Чтобы конкретная фраза гарантированно появилась как параллелограмм «Вывод», поставьте @ перед print:`,
+        codeExample: `# Текстовый print скроется как интерфейсный:
+print("=== МЕНЮ ===")
+
+# С собачкой @ он обязательно появится на блок-схеме:
+@print("Привет, пользователь!")
+@print("Расчет завершен успешно")`,
       },
       {
-        title: 'Ввод и вывод переменных (input, print)',
-        description: 'Автоматическое распознавание параллелограммов ввода/вывода с переменными.',
-        detail: 'Команды с переменными (input(), print(x), print(f"Итог: {res}")) автоматически создают ГОСТ-параллелограммы «Ввод» и «Вывод».',
-        codeExample: `x = input("Введите число: ")   # -> [ Ввод x ]\nres = x * 2\nprint(f"Результат: {res}")     # -> [ Вывод res ]`,
+        title: 'Ввод и вывод переменных (input, print, cin, cout)',
+        description: 'Автоматическое создание параллелограммов ввода и вывода.',
+        content: 'Команды с переменными (input, print(x), print(f"..."), cin >> x, cout << res) автоматически распознаются как ГОСТ-блоки «Ввод» и «Вывод».',
+        codeExample: `x = int(input("Введите x: "))
+res = x ** 2 + 10
+print(f"Результат: {res}")`,
       },
       {
-        title: 'Каждая функция — отдельная вкладка',
-        description: 'Если в коде объявлено несколько функций (def), для каждой создается своя вкладка схемы.',
-        detail: 'Основной скрипт вне функций выносится во вкладку «Основная программа (Main)». Переключайтесь между ними по вкладкам сверху схемы.',
+        title: 'Вкладки для функций (def / void)',
+        description: 'Отдельная схема для каждой функции в коде.',
+        content: 'Для каждой функции создается отдельная вкладка над холстом. Основной код выносится во вкладку «Основная программа (Main)».',
+      }
+    ]
+  },
+  {
+    id: 'export',
+    title: 'Экспорт схем',
+    icon: <Download className="w-4 h-4 shrink-0" />,
+    items: [
+      {
+        title: 'Векторный SVG (Для Word и дипломов)',
+        content: 'Вставляется в Microsoft Word, LibreOffice и LaTeX как четкая векторная графика без потери качества при любой печати.',
+      },
+      {
+        title: 'Растровый PNG (High-DPI)',
+        content: 'Экспорт с высоким разрешением и прозрачным фоном для быстрой вставки в любые программы и мессенджеры.',
+      },
+      {
+        title: 'Файл DRAW.IO (.drawio)',
+        content: 'Открывается на сайте draw.io (diagrams.net). Все блоки, стрелки и тексты остаются полностью редактируемыми.',
+      }
+    ]
+  },
+  {
+    id: 'hotkeys',
+    title: 'Горячие клавиши',
+    icon: <Keyboard className="w-4 h-4 shrink-0" />,
+    items: [
+      {
+        title: 'Комбинации клавиш и управление холстом',
+        content: `• Ctrl + Enter (⌘ + Enter) — Сгенерировать схему из кода
+• Ctrl + S (⌘ + S) — Сохранить схему в историю
+• Колесико мыши — Масштабирование схемы (Zoom)
+• Перетаскивание мышью — Панорамирование схемы
+• Двойной клик — Сброс масштаба к 100%`,
       }
     ]
   }
@@ -76,15 +152,22 @@ interface TipsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onInsertCode?: (code: string) => void;
+  onOpenSettings?: () => void;
+  onOpenTariffs?: () => void;
+  theme?: 'light' | 'dark';
 }
 
 export const TipsModal: React.FC<TipsModalProps> = ({
   isOpen,
   onClose,
   onInsertCode,
+  onOpenSettings,
+  theme = 'dark',
 }) => {
-  const [activeCategory, setActiveCategory] = useState<string>('scissors');
+  const [activeCategory, setActiveCategory] = useState<string>('styles');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  const isDark = theme === 'dark';
 
   if (!isOpen) return null;
 
@@ -98,120 +181,158 @@ export const TipsModal: React.FC<TipsModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div 
-        className="relative w-full max-w-3xl bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-md shadow-xl border border-zinc-200 dark:border-zinc-800 flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-150"
+        className={`w-full max-w-3xl h-[560px] max-h-[85vh] rounded-md border shadow-xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150 transition-colors ${
+          isDark 
+            ? 'bg-zinc-900 text-zinc-100 border-zinc-800' 
+            : 'bg-white text-zinc-900 border-zinc-200'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 flex items-center justify-between gap-4">
+        {/* Header matching other modals */}
+        <div className={`flex items-center justify-between px-4 py-3 border-b shrink-0 ${
+          isDark ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-200 bg-zinc-50'
+        }`}>
           <div className="flex items-center gap-2">
-            <Lightbulb className="w-4 h-4 text-zinc-500" />
-            <div>
-              <h2 className="text-xs font-bold tracking-tight uppercase text-zinc-900 dark:text-zinc-100">
-                Справка и возможности
-              </h2>
-            </div>
+            <BookOpen className="w-4 h-4 text-zinc-500" />
+            <h2 className={`text-xs font-bold tracking-tight uppercase ${
+              isDark ? 'text-zinc-100' : 'text-zinc-900'
+            }`}>
+              Справка
+            </h2>
           </div>
 
-          <button
+          <button 
             type="button"
             onClick={onClose}
-            className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors cursor-pointer"
-            title="Закрыть"
+            className={`p-1 rounded transition-colors cursor-pointer ${
+              isDark 
+                ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' 
+                : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200'
+            }`}
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Content Area with Tabs */}
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden text-xs">
+        {/* Content with Sidebar tabs */}
+        <div className="flex-1 flex flex-col sm:flex-row overflow-hidden min-h-0 text-xs">
           {/* Left Navigation Sidebar */}
-          <div className="w-full md:w-56 border-b md:border-b-0 md:border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 p-2.5 space-y-1 shrink-0 overflow-y-auto flex flex-col justify-between">
-            <div className="space-y-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-2 py-1 block">
-                Разделы
-              </span>
-              {TIPS_DATA.map((cat) => {
-                const isActive = cat.id === activeCategory;
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => setActiveCategory(cat.id)}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center justify-between gap-2 transition-colors cursor-pointer ${
-                      isActive
-                        ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold'
-                        : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-200'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="shrink-0">{cat.icon}</span>
-                      <span className="truncate">{cat.title}</span>
-                    </div>
-                    {cat.badge && (
-                      <span className="text-[10px] font-mono px-1 py-0.2 rounded border bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700">
-                        {cat.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+          <div className={`w-full sm:w-48 border-b sm:border-b-0 sm:border-r p-2.5 space-y-1 shrink-0 overflow-y-auto ${
+            isDark ? 'border-zinc-800 bg-zinc-950/40' : 'border-zinc-200 bg-zinc-50/60'
+          }`}>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-2.5 py-1 block">
+              Разделы
+            </span>
+
+            {TIPS_DATA.map((cat) => {
+              const isActive = cat.id === activeCategory;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`w-full text-left px-2.5 py-2 rounded-md text-xs font-medium flex items-center gap-2.5 transition-colors cursor-pointer ${
+                    isActive
+                      ? isDark
+                        ? 'bg-zinc-800 text-zinc-100 font-semibold'
+                        : 'bg-zinc-200/80 text-zinc-900 font-semibold'
+                      : isDark
+                        ? 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+                        : 'text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900'
+                  }`}
+                >
+                  <span className={isActive ? (isDark ? 'text-zinc-100' : 'text-zinc-900') : 'text-zinc-400'}>
+                    {cat.icon}
+                  </span>
+                  <span className="truncate">{cat.title}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Right Main Content */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-white dark:bg-zinc-900">
-            <div className="flex items-center gap-2 pb-2 border-b border-zinc-200 dark:border-zinc-800">
-              <span className="text-zinc-500">
-                {currentCat.icon}
-              </span>
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                {currentCat.title}
-              </h3>
+          {/* Right Content Area */}
+          <div className={`flex-1 p-4 sm:p-5 overflow-y-auto space-y-4 ${
+            isDark ? 'bg-zinc-900' : 'bg-white'
+          }`}>
+            <div className={`pb-2 border-b flex items-center justify-between ${
+              isDark ? 'border-zinc-800' : 'border-zinc-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-500">{currentCat.icon}</span>
+                <h3 className={`text-xs font-bold uppercase tracking-tight ${
+                  isDark ? 'text-zinc-100' : 'text-zinc-900'
+                }`}>
+                  {currentCat.title}
+                </h3>
+              </div>
+
+              {currentCat.id === 'styles' && onOpenSettings && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onOpenSettings();
+                  }}
+                  className={`text-[11px] font-medium inline-flex items-center gap-1 transition-colors cursor-pointer ${
+                    isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
+                >
+                  <span>Настройки стилей</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              )}
             </div>
 
             <div className="space-y-3">
               {currentCat.items.map((item, idx) => (
                 <div 
                   key={idx}
-                  className="p-3 rounded-md bg-zinc-50/70 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800 space-y-2"
+                  className={`p-3 rounded-md border ${
+                    isDark 
+                      ? 'bg-zinc-950/40 border-zinc-800/80' 
+                      : 'bg-zinc-50/70 border-zinc-200'
+                  }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 flex-wrap">
-                        <span>{item.title}</span>
-                        {item.tag && (
-                          <span className="text-[10px] font-mono font-normal px-1.5 py-0.2 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700">
-                            {item.tag}
-                          </span>
-                        )}
-                      </h4>
-                      <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 leading-relaxed">
-                        {item.description}
-                      </p>
-                    </div>
-                  </div>
+                  <h4 className={`text-xs font-semibold mb-1 ${
+                    isDark ? 'text-zinc-100' : 'text-zinc-900'
+                  }`}>
+                    {item.title}
+                  </h4>
 
-                  <div className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 p-2.5 rounded border border-zinc-200 dark:border-zinc-800 whitespace-pre-line font-normal">
-                    {item.detail}
+                  {item.description && (
+                    <p className={`text-[11px] mb-2 leading-relaxed ${
+                      isDark ? 'text-zinc-400' : 'text-zinc-500'
+                    }`}>
+                      {item.description}
+                    </p>
+                  )}
+
+                  <div className={`text-xs leading-relaxed whitespace-pre-line font-normal ${
+                    isDark ? 'text-zinc-300' : 'text-zinc-700'
+                  }`}>
+                    {item.content}
                   </div>
 
                   {item.codeExample && (
-                    <div className="space-y-1.5 pt-1">
-                      <div className="flex items-center justify-between text-[11px] font-medium text-zinc-500">
-                        <span>Пример кода:</span>
+                    <div className="mt-2.5 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-zinc-500">
+                        <span>Пример:</span>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => handleCopy(item.codeExample!)}
-                            className="flex items-center gap-1 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 cursor-pointer"
+                            className={`flex items-center gap-1 cursor-pointer transition-colors ${
+                              copiedCode === item.codeExample
+                                ? 'text-emerald-500 font-medium'
+                                : isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
+                            }`}
                           >
                             {copiedCode === item.codeExample ? (
                               <>
                                 <Check className="w-3 h-3 text-emerald-500" />
-                                <span className="text-emerald-500 font-mono">Скопировано</span>
+                                <span>Скопировано</span>
                               </>
                             ) : (
                               <>
@@ -220,6 +341,7 @@ export const TipsModal: React.FC<TipsModalProps> = ({
                               </>
                             )}
                           </button>
+
                           {onInsertCode && (
                             <button
                               type="button"
@@ -227,14 +349,19 @@ export const TipsModal: React.FC<TipsModalProps> = ({
                                 onInsertCode(item.codeExample!);
                                 onClose();
                               }}
-                              className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-medium transition-colors cursor-pointer"
+                              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                                isDark
+                                  ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700'
+                                  : 'bg-zinc-200 hover:bg-zinc-300 text-zinc-800 border border-zinc-300'
+                              }`}
                             >
                               Вставить
                             </button>
                           )}
                         </div>
                       </div>
-                      <pre className="p-2.5 rounded bg-zinc-950 text-zinc-100 font-mono text-[11px] leading-relaxed overflow-x-auto border border-zinc-800 select-all">
+
+                      <pre className="p-2.5 rounded bg-zinc-950 text-zinc-200 font-mono text-[11px] leading-relaxed overflow-x-auto border border-zinc-800 select-all">
                         {item.codeExample}
                       </pre>
                     </div>
@@ -246,11 +373,19 @@ export const TipsModal: React.FC<TipsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-2.5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 flex items-center justify-end text-xs">
-          <button
+        <div className={`px-4 py-2.5 border-t flex items-center justify-end text-xs shrink-0 ${
+          isDark 
+            ? 'border-zinc-800 bg-zinc-900' 
+            : 'border-zinc-200 bg-zinc-50'
+        }`}>
+          <button 
             type="button"
             onClick={onClose}
-            className="px-3.5 py-1.5 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 font-medium text-sm transition-colors cursor-pointer"
+            className={`px-3.5 py-1.5 rounded-md border font-medium text-xs transition-colors cursor-pointer ${
+              isDark 
+                ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-700' 
+                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
+            }`}
           >
             Закрыть
           </button>
