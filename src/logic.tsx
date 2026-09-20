@@ -530,14 +530,17 @@ export function parsePythonSourceWhole(code: string) {
     let processedLines = processedCode.split('\n');
     for (let idx = 0; idx < processedLines.length; idx++) {
         let r = processedLines[idx];
-        // Find if line has a block keyword followed by colon and then more stuff
-        let match = r.match(/^(\s*)(if\s+.*|elif\s+.*|else|while\s+.*|for\s+.*|case\s+.*|match\s+.*|def\s+.*)$/);
+        let isKeywordLine = !!r.trim().match(/^(if|elif|else|while|for|case|match|def)\b/);
+        if (isKeywordLine && currentLogicalLine !== '') {
+            rawLogicalLines.push({ text: currentLogicalLine, origIndex: currentLogicalLineIndex !== undefined ? currentLogicalLineIndex : idx });
+            currentLogicalLine = '';
+            pCount = bCount = cCount = 0;
+        }
+
         // We will just do a simple char-by-char split on colons outside strings
         let inlineStatements: string[] = [];
         let inStr = false;
         let strChar = '';
-        let lastSplit = 0;
-        let isKeywordLine = !!r.trim().match(/^(if|elif|else|while|for|case|match|def)\b/);
         
         let pCountLocal = 0, bCountLocal = 0, cCountLocal = 0;
         for (let j = 0; j < r.length; j++) {
@@ -577,6 +580,11 @@ export function parsePythonSourceWhole(code: string) {
         }
         
         if (inlineStatements.length > 0) {
+            if (currentLogicalLine !== '') {
+                rawLogicalLines.push({ text: currentLogicalLine, origIndex: currentLogicalLineIndex !== undefined ? currentLogicalLineIndex : idx });
+                currentLogicalLine = '';
+                pCount = bCount = cCount = 0;
+            }
             for (let stmt of inlineStatements) {
                 if (stmt.trim() !== '') {
                     rawLogicalLines.push({ text: stmt, origIndex: idx });
