@@ -1339,46 +1339,11 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
         let inPts = incomingPoints;
         let maxReachedY = cy;
         
-        const PAGE_LAYOUT_H = 1200;
-        
         for (let i = 0; i < nodes.length; i++) {
             const node = nodes[i];
             const h = getASTNodeHeight(node);
             const nextNode = i + 1 < nodes.length ? nodes[i+1] : undefined;
             const nextH = nextNode ? getASTNodeHeight(nextNode) : 0;
-
-            let pageIndex = Math.floor(currentY / PAGE_LAYOUT_H);
-            let pageRemaining = (pageIndex + 1) * PAGE_LAYOUT_H - currentY;
-            
-            // If we are at the root level and the rest of the nodes are small enough to just extend the page (< 120px), skip page breaking.
-            let estRemaining = isRoot ? estimateHeight(nodes.slice(i)) : Infinity;
-            const allowPagination = !disablePagination && (splitMode === 'auto') && parentAllowsPagination && !(isRoot && estRemaining < 120 && pageRemaining > 40);
-            
-            if (allowPagination && isRoot) {
-                // if even the node shape itself doesn't fit, push it to next page
-                if (h > pageRemaining - 60) {
-                    currentY = (pageIndex + 1) * PAGE_LAYOUT_H + 60 + h/2;
-                    pageIndex = Math.floor(currentY / PAGE_LAYOUT_H);
-                    pageRemaining = (pageIndex + 1) * PAGE_LAYOUT_H - currentY;
-                } else {
-                    let pageIndex_top = Math.floor((currentY - h/2) / PAGE_LAYOUT_H);
-                    if (pageIndex !== pageIndex_top) {
-                        currentY = pageIndex * PAGE_LAYOUT_H + 60 + h/2;
-                        pageIndex = Math.floor(currentY / PAGE_LAYOUT_H);
-                        pageRemaining = (pageIndex + 1) * PAGE_LAYOUT_H - currentY;
-                    }
-                }
-                
-                // if the block as a whole doesn't fit and it's large, consider pushing it completely to the next page
-                const isComplex = ['if', 'while', 'for', 'match'].includes(node.type);
-                if (isComplex) {
-                    let estH = estimateHeight([node]);
-                    // Push to the next page if the block doesn't fit, or if there is less than 200px remaining (to prevent cut bends)
-                    if ((estH > pageRemaining && pageRemaining < 450) || pageRemaining < 200) {
-                        currentY = (pageIndex + 1) * PAGE_LAYOUT_H + 60 + h/2;
-                    }
-                }
-            }
 
             maxReachedY = Math.max(maxReachedY, currentY);
 
@@ -1994,46 +1959,6 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
     let endH = getNodeHeight(endText, 'end', style);
     let finalY = Math.max(maxYOfEnds, localColBottom) + Y_MARGIN + endH/2;
 
-    // Estimate if we actually need to split the pages.
-    const PAGE_H_VAL = 1200;
-    let testMaxY = finalY;
-    if (allNodes.length > 0) {
-        testMaxY = Math.max(testMaxY, ...allNodes.map(n => n.y), res.finalY);
-    }
-    let shouldSplitFirst = false;
-    if (splitMode === 'manual') {
-        shouldSplitFirst = (customCuts && customCuts.length > 0) && !isScissorsMode;
-    } else {
-        shouldSplitFirst = testMaxY > PAGE_H_VAL + 80;
-    }
-
-    if (shouldSplitFirst) {
-        // Run second pass with pagination active!
-        disablePagination = false;
-        allNodes = [];
-        allEdges = [];
-        jumpCounter = 1;
-        usedReturnX = [];
-        
-        allNodes.push({ id: 'start', type: 'start', text: startText, x: rootCx, y: startY, height: startH });
-        rootInPts = [{ x: rootCx, y: startY + startH/2 }];
-        
-        res = layout(ast, rootCx, startY + startH/2 + Y_MARGIN + getASTNodeHeight(ast[0])/2, rootInPts, true);
-        endCx = res.endCx;
-        overlappingNodes = allNodes.filter(n => Math.abs(n.x - endCx) < NODE_WIDTH);
-        endPtsY = res.endPoints.filter(p => Math.abs(p.x - endCx) < NODE_WIDTH * 2).map(p => p.y);
-        maxYOfEnds = endPtsY.length > 0 ? Math.max(...endPtsY) : res.finalY;
-        
-        localColMaxY = startY;
-        localColNode = null;
-        if (overlappingNodes.length > 0) {
-            localColMaxY = Math.max(...overlappingNodes.map(n => n.y));
-            localColNode = overlappingNodes.find(n => n.y === localColMaxY);
-        }
-        localColBottom = localColNode ? localColMaxY + getASTNodeHeight(localColNode)/2 : startY;
-        finalY = Math.max(maxYOfEnds, localColBottom) + Y_MARGIN + endH/2;
-    }
-
     if (res.endPoints.length > 0) {
         allNodes.push({ id: 'end', type: 'end', text: endText, x: endCx, y: finalY, height: endH });
         
@@ -2196,7 +2121,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
             
             let currentY = 0;
             let s = 0;
-            const TARGET_PAGE_H = 1100;
+            const TARGET_PAGE_H = 880;
             
             while (currentY < maxNodeY) {
                 let remaining = maxNodeY - currentY;
@@ -2211,14 +2136,14 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 let forbiddenRanges: { minY: number, maxY: number }[] = [];
                 allNodes.forEach(n => {
                     let h = n.height || 64;
-                    forbiddenRanges.push({ minY: n.y - h/2 - 15, maxY: n.y + h/2 + 15 });
+                    forbiddenRanges.push({ minY: n.y - h/2 - 35, maxY: n.y + h/2 + 25 });
                 });
                 
                 allEdgesFinal.forEach(e => {
                     if (e.segments) {
                         e.segments.forEach(seg => {
                             if (Math.abs(seg.startY - seg.endY) < 2) {
-                                forbiddenRanges.push({ minY: seg.startY - 10, maxY: seg.startY + 10 });
+                                forbiddenRanges.push({ minY: seg.startY - 20, maxY: seg.startY + 20 });
                             }
                         });
                     }
@@ -2609,6 +2534,31 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 }
             });
             
+            // Safety Net: Ensure every downward arrowhead pointing towards the page boundary has a jump circle under it
+            if (s < pageIntervals.length - 1) {
+                sEdges.forEach(edge => {
+                    if (!edge.segments || edge.segments.length === 0 || edge.noArrow) return;
+                    let lastSeg = edge.segments[edge.segments.length - 1];
+                    let landsOnNode = sNodes.some(n => {
+                        if (n.type === 'circle') {
+                            return Math.abs(n.x - lastSeg.endX) < 15 && Math.abs((n.y - 20) - lastSeg.endY) < 10;
+                        }
+                        let topY = n.y - (n.height || 64) / 2;
+                        return Math.abs(n.x - lastSeg.endX) < NODE_WIDTH / 2 + 10 && Math.abs(topY - lastSeg.endY) < 25;
+                    });
+
+                    if (!landsOnNode) {
+                        lastSeg.endY = jumpOutY - 20;
+                        let k = `${edge.id}_${s}_${s+1}`;
+                        if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
+                        let circleId = `jump_out_${k}`;
+                        if (!sNodes.some(n => n.id === circleId)) {
+                            sNodes.push({ id: circleId, type: 'circle', text: jumpMap.get(k)!, x: lastSeg.endX, y: jumpOutY, height: 40 });
+                        }
+                    }
+                });
+            }
+
             let uniqueNodes = new Map();
             sNodes.forEach(n => {
                 uniqueNodes.set(n.id + n.type + n.x + n.y, n);
@@ -2801,11 +2751,11 @@ export function getNodeHeight(text: string, type?: string, style?: DiagramStyleC
     // Narrow vertical height for start/end in student styles (30-40px, or standard 54-56px)
     let baseH = styleObj.baseHeight;
     if (isStartEnd) {
-        baseH = styleObj.startBaseHeight || 38;
+        baseH = styleObj.startBaseHeight || 34;
     } else if (isDecision) {
-        baseH = styleObj.rhombusBaseHeight || Math.round(styleObj.baseHeight * 0.85);
+        baseH = styleObj.rhombusBaseHeight || Math.round(styleObj.baseHeight * 0.82);
     } else if (isLoop) {
-        baseH = Math.round(styleObj.baseHeight * 0.95);
+        baseH = Math.round(styleObj.baseHeight * 0.92);
     }
 
     if (!text) return baseH;
@@ -2814,10 +2764,17 @@ export function getNodeHeight(text: string, type?: string, style?: DiagramStyleC
         return baseH;
     }
 
-    const lineStep = styleObj.fontSize ? styleObj.fontSize * 1.3 : 19;
-    // Vertical padding: tighter for narrow start/end pills, balanced for decision and process
-    const pad = isStartEnd ? 12 : (isDecision ? 20 : 16);
-    return Math.max(baseH, lines.length * lineStep + pad);
+    if (isStartEnd) {
+        const lineStep = styleObj.fontSize ? styleObj.fontSize * 1.05 : 15;
+        const pad = Math.max(4, Math.round(baseH * 0.15));
+        return Math.max(baseH, Math.round(lines.length * lineStep + pad));
+    }
+
+    const lineStep = styleObj.fontSize ? styleObj.fontSize * 1.2 : 17;
+    const pad = isDecision 
+        ? Math.max(12, Math.round(baseH * 0.35)) 
+        : Math.max(8, Math.round(baseH * 0.22));
+    return Math.max(baseH, Math.round(lines.length * lineStep + pad));
 }
 
 export function GostShape({ 
@@ -2931,7 +2888,7 @@ export function GostShape({
           <tspan 
             key={i} 
             x={cx} 
-            dy={i === 0 ? `-${(arr.length - 1) * 0.65}em` : "1.3em"}
+            dy={i === 0 ? `-${(arr.length - 1) * ((node.type === 'start' || node.type === 'end') ? 0.55 : 0.65)}em` : ((node.type === 'start' || node.type === 'end') ? "1.15em" : "1.3em")}
           >
             {line}
           </tspan>

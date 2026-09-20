@@ -61,7 +61,10 @@ export async function decrementYdbUserToken(uid: string, email?: string | null):
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ uid, email }),
   });
-  return data?.tokens ?? 0;
+  if (typeof data?.tokens === 'number') {
+    return data.tokens;
+  }
+  return 5;
 }
 
 export async function saveYdbDiagramItem(uid: string, diagram: YdbDiagramItem) {

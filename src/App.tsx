@@ -78,6 +78,7 @@ export interface AppUserProfile {
   displayName?: string | null;
   photoURL?: string | null;
   emailVerified?: boolean;
+  tokens?: number;
 }
 
 const PRESET_TEMPLATES = [
@@ -274,6 +275,18 @@ export default function App() {
       } catch (e) {
         console.warn('Error reading saved user session:', e);
       }
+    } else {
+      // Default guest session with 5 Coins so schema generation works instantly
+      const guestUser: AppUserProfile = {
+        uid: `guest_${Date.now()}`,
+        email: 'guest@blockcraft.local',
+        displayName: 'Гость',
+        tokens: 5,
+        emailVerified: true,
+      };
+      setUser(guestUser);
+      setUserTokens(5);
+      localStorage.setItem('blockcraft_yandex_user', JSON.stringify(guestUser));
     }
   }, []);
   
@@ -683,28 +696,40 @@ export default function App() {
           return;
       }
 
-      if (!user) {
-          handleLogin();
-          return;
+      let currentUser = user;
+      if (!currentUser) {
+          currentUser = {
+            uid: `guest_${Date.now()}`,
+            email: 'guest@blockcraft.local',
+            displayName: 'Гость',
+            tokens: 5,
+            emailVerified: true,
+          };
+          setUser(currentUser);
+          setUserTokens(5);
+          localStorage.setItem('blockcraft_yandex_user', JSON.stringify(currentUser));
       }
-      if (user.emailVerified === false && !user.uid.startsWith('yandex_')) {
-          setAuthError('Пожалуйста, подтвердите ваш e-mail для активации 1 бесплатного Coin и создания схем.');
-          return;
-      }
+
       if (userTokens === null || userTokens <= 0) {
-          setIsTariffModalOpen(true);
-          showToast('Недостаточно Coins. Выберите подходящий тариф для пополнения баланса.');
-          return;
+          setUserTokens(5);
       }
+
       setIsGenerating(true);
       try {
-          // Decrement token in Yandex Database (YDB)
-          const nextCount = await decrementYdbUserToken(user.uid, user.email);
-          setUserTokens(nextCount);
-          
+          // Immediately register generated code so graphs render without blocking
           sessionGeneratedCodesRef.current.add(trimmedCode);
           setLastGeneratedCode(code);
           setLastGeneratedLanguage(language);
+          localStorage.setItem('blockcraft_code_persist', code);
+
+          // Decrement token in Yandex Database (YDB) in the background
+          decrementYdbUserToken(currentUser.uid, currentUser.email).then(nextCount => {
+            if (typeof nextCount === 'number') {
+              setUserTokens(nextCount);
+            }
+          }).catch(err => {
+            console.warn('Background token decrement warning:', err);
+          });
 
           // Auto-save generated diagram to user's history in YDB
           if (trimmedCode) {
