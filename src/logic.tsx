@@ -1233,25 +1233,9 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                     node.rightW = Math.max(NODE_WIDTH/2 + 20, falseRightW + 45);
                     (node as any).isTrueEmpty = true;
                 } else {
-                    let margin = 15;
-                    let trueShift = trueLeftW + margin;
-                    let falseShift = falseRightW + margin;
-                    
-                    let trueTerm = blockTerminates(node.trueBlock);
-                    let falseTerm = blockTerminates(node.falseBlock);
-    
-                    if (!trueTerm && !falseTerm) {
-                        let shift = Math.max(trueLeftW + margin, falseRightW + margin);
-                        trueShift = shift;
-                        falseShift = shift;
-                    } else {
-                        if (trueTerm) {
-                            trueShift = trueLeftW + 45;
-                        }
-                        if (falseTerm) {
-                            falseShift = falseRightW + 45;
-                        }
-                    }
+                    let margin = 20;
+                    let trueShift = Math.max(NODE_WIDTH/2 + margin, trueLeftW + margin);
+                    let falseShift = Math.max(NODE_WIDTH/2 + margin, falseRightW + margin);
                     
                     (node as any).trueShift = trueShift;
                     (node as any).falseShift = falseShift;
@@ -2410,6 +2394,10 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                             });
                         }
                     } else if (fromPage < toPage) { // Downward transition
+                        let k = `${e.id}_${fromPage}_${toPage}`;
+                        if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
+                        let letter = jumpMap.get(k)!;
+
                         if (s === fromPage) {
                             let hasClipped = false;
                             for (let seg of e.segments) {
@@ -2418,9 +2406,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 let clipEy = seg.endY - yMin + SHIFT;
                                 if (seg.endY >= yMax) {
                                     clipEy = jumpOutY - 20;
-                                    let k = `${e.id}_${s}_${s+1}`;
-                                    if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
-                                    sNodes.push({ id: `jump_out_${k}`, type: 'circle', text: jumpMap.get(k)!, x: seg.endX, y: jumpOutY, height: 40 });
+                                    sNodes.push({ id: `jump_out_${k}`, type: 'circle', text: letter, x: seg.endX, y: jumpOutY, height: 40 });
                                     hasJumpOut = true;
                                     hasClipped = true;
                                 }
@@ -2441,9 +2427,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 let clipEy = seg.endY - yMin + SHIFT;
                                 if (seg.startY <= yMin) {
                                     clipSy = JUMP_IN_Y + 20;
-                                    let k = `${e.id}_${s-1}_${s}`;
-                                    if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
-                                    sNodes.push({ id: `jump_in_${k}`, type: 'circle', text: jumpMap.get(k)!, x: seg.startX, y: JUMP_IN_Y, height: 40 });
+                                    sNodes.push({ id: `jump_in_${k}`, type: 'circle', text: letter, x: seg.startX, y: JUMP_IN_Y, height: 40 });
                                 }
                                 if (Math.abs(clipSy - clipEy) > 0.1 || Math.abs(seg.startX - seg.endX) > 0.1) {
                                     newSegments.push({
@@ -2455,28 +2439,12 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 }
                                 eInS = true;
                             }
-                        } else if (fromPage < s && s < toPage) {
-                            let clipSy = JUMP_IN_Y + 20;
-                            let clipEy = jumpOutY - 20;
-                            
-                            let kIn = `${e.id}_${s-1}_${s}`;
-                            if (!jumpMap.has(kIn)) { jumpMap.set(kIn, getJumpLetter(jumpCounter++)); }
-                            sNodes.push({ id: `jump_in_${kIn}`, type: 'circle', text: jumpMap.get(kIn)!, x: firstSeg.startX, y: JUMP_IN_Y, height: 40 });
-                            
-                            let kOut = `${e.id}_${s}_${s+1}`;
-                            if (!jumpMap.has(kOut)) { jumpMap.set(kOut, getJumpLetter(jumpCounter++)); }
-                            sNodes.push({ id: `jump_out_${kOut}`, type: 'circle', text: jumpMap.get(kOut)!, x: firstSeg.startX, y: jumpOutY, height: 40 });
-                            hasJumpOut = true;
-
-                            newSegments.push({
-                                startX: firstSeg.startX,
-                                startY: clipSy,
-                                endX: firstSeg.startX,
-                                endY: clipEy
-                            });
-                            eInS = true;
                         }
-                    } else { // Upward transition
+                    } else { // Upward transition (fromPage > toPage)
+                        let k = `up_${e.id}_${fromPage}_${toPage}`;
+                        if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
+                        let letter = jumpMap.get(k)!;
+
                         if (s === fromPage) {
                             let hasClipped = false;
                             for (let seg of e.segments) {
@@ -2485,9 +2453,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 let clipEy = seg.endY - yMin + SHIFT;
                                 if (seg.endY <= yMin) {
                                     clipEy = JUMP_IN_Y + 20;
-                                    let k = `up_${e.id}_${s}_${s-1}`;
-                                    if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
-                                    sNodes.push({ id: `jump_out_up_${k}`, type: 'circle', text: jumpMap.get(k)!, x: seg.endX, y: JUMP_IN_Y, height: 40 });
+                                    sNodes.push({ id: `jump_out_up_${k}`, type: 'circle', text: letter, x: seg.endX, y: JUMP_IN_Y, height: 40 });
                                     hasJumpOut = true;
                                     hasClipped = true;
                                 }
@@ -2508,9 +2474,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 let clipEy = seg.endY - yMin + SHIFT;
                                 if (seg.startY >= yMax) {
                                     clipSy = jumpOutY - 20;
-                                    let k = `up_${e.id}_${s+1}_${s}`;
-                                    if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
-                                    sNodes.push({ id: `jump_in_up_${k}`, type: 'circle', text: jumpMap.get(k)!, x: seg.startX, y: jumpOutY, height: 40 });
+                                    sNodes.push({ id: `jump_in_up_${k}`, type: 'circle', text: letter, x: seg.startX, y: jumpOutY, height: 40 });
                                 }
                                 if (Math.abs(clipSy - clipEy) > 0.1 || Math.abs(seg.startX - seg.endX) > 0.1) {
                                     newSegments.push({
@@ -2522,26 +2486,6 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 }
                                 eInS = true;
                             }
-                        } else if (toPage < s && s < fromPage) {
-                            let clipSy = jumpOutY - 20;
-                            let clipEy = JUMP_IN_Y + 20;
-
-                            let kIn = `up_${e.id}_${s+1}_${s}`;
-                            if (!jumpMap.has(kIn)) { jumpMap.set(kIn, getJumpLetter(jumpCounter++)); }
-                            sNodes.push({ id: `jump_in_up_${kIn}`, type: 'circle', text: jumpMap.get(kIn)!, x: firstSeg.startX, y: jumpOutY, height: 40 });
-
-                            let kOut = `up_${e.id}_${s}_${s-1}`;
-                            if (!jumpMap.has(kOut)) { jumpMap.set(kOut, getJumpLetter(jumpCounter++)); }
-                            sNodes.push({ id: `jump_out_up_${kOut}`, type: 'circle', text: jumpMap.get(kOut)!, x: firstSeg.startX, y: JUMP_IN_Y, height: 40 });
-                            hasJumpOut = true;
-
-                            newSegments.push({
-                                startX: firstSeg.startX,
-                                startY: clipSy,
-                                endX: firstSeg.startX,
-                                endY: clipEy
-                            });
-                            eInS = true;
                         }
                     }
                 }
