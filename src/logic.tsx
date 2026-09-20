@@ -2312,6 +2312,27 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
         }
         let jumpMap = new Map<string, string>();
 
+        let globalMinX = 999999;
+        let globalMaxX = -999999;
+        allNodes.forEach(n => {
+            globalMinX = Math.min(globalMinX, n.x - NODE_WIDTH/2);
+            globalMaxX = Math.max(globalMaxX, n.x + NODE_WIDTH/2);
+        });
+        allEdgesFinal.forEach(e => {
+            if (e.segments) {
+                e.segments.forEach(seg => {
+                    globalMinX = Math.min(globalMinX, seg.startX, seg.endX);
+                    globalMaxX = Math.max(globalMaxX, seg.startX, seg.endX);
+                });
+            }
+        });
+
+        let globalDiagramWidth = (globalMinX !== 999999 && globalMaxX !== -999999) ? (globalMaxX - globalMinX) : 600;
+        let globalPageCanvasWidth = Math.max(globalDiagramWidth + 200, 800);
+        let globalDiagramCenter = (globalMinX + globalMaxX) / 2;
+        let globalPageCenter = globalPageCanvasWidth / 2;
+        let globalDx = globalPageCenter - globalDiagramCenter;
+
         for (let interval of pageIntervals) {
             let { yMin, yMax, s } = interval;
             let pageNodesList = allNodes.filter(n => n.y >= yMin && n.y < yMax);
@@ -2394,11 +2415,14 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                             });
                         }
                     } else if (fromPage < toPage) { // Downward transition
-                        let k = `${e.id}_${fromPage}_${toPage}`;
-                        if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
-                        let letter = jumpMap.get(k)!;
+                        for (let p = fromPage; p < toPage; p++) {
+                            let k = `${e.id}_down_${p}_to_${p+1}`;
+                            if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
+                        }
 
                         if (s === fromPage) {
+                            let k = `${e.id}_down_${s}_to_${s+1}`;
+                            let letter = jumpMap.get(k)!;
                             let hasClipped = false;
                             for (let seg of e.segments) {
                                 if (hasClipped) break;
@@ -2420,7 +2444,35 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 }
                                 eInS = true;
                             }
+                        } else if (fromPage < s && s < toPage) {
+                            // Transit page passing downwards
+                            let kIn = `${e.id}_down_${s-1}_to_${s}`;
+                            let kOut = `${e.id}_down_${s}_to_${s+1}`;
+                            let letterIn = jumpMap.get(kIn)!;
+                            let letterOut = jumpMap.get(kOut)!;
+
+                            let busX = firstSeg.endX;
+                            for (let seg of e.segments) {
+                                if (Math.abs(seg.startX - seg.endX) < 1 && Math.min(seg.startY, seg.endY) <= yMin && Math.max(seg.startY, seg.endY) >= yMax) {
+                                    busX = seg.startX;
+                                    break;
+                                }
+                            }
+
+                            sNodes.push({ id: `jump_in_${kIn}`, type: 'circle', text: letterIn, x: busX, y: JUMP_IN_Y, height: 40 });
+                            sNodes.push({ id: `jump_out_${kOut}`, type: 'circle', text: letterOut, x: busX, y: jumpOutY, height: 40 });
+                            hasJumpOut = true;
+
+                            newSegments.push({
+                                startX: busX,
+                                startY: JUMP_IN_Y + 20,
+                                endX: busX,
+                                endY: jumpOutY - 20
+                            });
+                            eInS = true;
                         } else if (s === toPage) {
+                            let k = `${e.id}_down_${s-1}_to_${s}`;
+                            let letter = jumpMap.get(k)!;
                             for (let seg of e.segments) {
                                 if (seg.endY <= yMin) continue;
                                 let clipSy = seg.startY - yMin + SHIFT;
@@ -2441,11 +2493,14 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                             }
                         }
                     } else { // Upward transition (fromPage > toPage)
-                        let k = `up_${e.id}_${fromPage}_${toPage}`;
-                        if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
-                        let letter = jumpMap.get(k)!;
+                        for (let p = fromPage; p > toPage; p--) {
+                            let k = `up_${e.id}_${p}_to_${p-1}`;
+                            if (!jumpMap.has(k)) { jumpMap.set(k, getJumpLetter(jumpCounter++)); }
+                        }
 
                         if (s === fromPage) {
+                            let k = `up_${e.id}_${s}_to_${s-1}`;
+                            let letter = jumpMap.get(k)!;
                             let hasClipped = false;
                             for (let seg of e.segments) {
                                 if (hasClipped) break;
@@ -2467,7 +2522,35 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 }
                                 eInS = true;
                             }
+                        } else if (toPage < s && s < fromPage) {
+                            // Transit page passing upwards
+                            let kIn = `up_${e.id}_${s+1}_to_${s}`;
+                            let kOut = `up_${e.id}_${s}_to_${s-1}`;
+                            let letterIn = jumpMap.get(kIn)!;
+                            let letterOut = jumpMap.get(kOut)!;
+
+                            let busX = firstSeg.endX;
+                            for (let seg of e.segments) {
+                                if (Math.abs(seg.startX - seg.endX) < 1 && Math.min(seg.startY, seg.endY) <= yMin && Math.max(seg.startY, seg.endY) >= yMax) {
+                                    busX = seg.startX;
+                                    break;
+                                }
+                            }
+
+                            sNodes.push({ id: `jump_in_up_${kIn}`, type: 'circle', text: letterIn, x: busX, y: jumpOutY, height: 40 });
+                            sNodes.push({ id: `jump_out_up_${kOut}`, type: 'circle', text: letterOut, x: busX, y: JUMP_IN_Y, height: 40 });
+                            hasJumpOut = true;
+
+                            newSegments.push({
+                                startX: busX,
+                                startY: jumpOutY - 20,
+                                endX: busX,
+                                endY: JUMP_IN_Y + 20
+                            });
+                            eInS = true;
                         } else if (s === toPage) {
+                            let k = `up_${e.id}_${s+1}_to_${s}`;
+                            let letter = jumpMap.get(k)!;
                             for (let seg of e.segments) {
                                 if (seg.endY >= yMax) continue;
                                 let clipSy = seg.startY - yMin + SHIFT;
@@ -2505,55 +2588,30 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
             });
             sNodes = Array.from(uniqueNodes.values());
 
-            let minX = 999999;
-            let maxX = -999999;
-            if (sNodes.length > 0) {
-                minX = Math.min(...sNodes.map(n => n.x - NODE_WIDTH/2));
-                maxX = Math.max(...sNodes.map(n => n.x + NODE_WIDTH/2));
-            }
+            sNodes.forEach(n => n.x += globalDx);
             sEdges.forEach(e => {
                 if (e.segments) {
                     e.segments.forEach(seg => {
-                        minX = Math.min(minX, seg.startX, seg.endX);
-                        maxX = Math.max(maxX, seg.startX, seg.endX);
+                        seg.startX += globalDx;
+                        seg.endX += globalDx;
+                    });
+                }
+                if (e.labelPos) {
+                    e.labelPos.x += globalDx;
+                }
+            });
+
+            let pgMaxY = 100;
+            sNodes.forEach(n => pgMaxY = Math.max(pgMaxY, n.y + (n.height||64)/2 + 40));
+            sEdges.forEach(e => {
+                if (e.segments) {
+                    e.segments.forEach(seg => {
+                        pgMaxY = Math.max(pgMaxY, seg.startY + 40, seg.endY + 40);
                     });
                 }
             });
-            
-            if (minX !== 999999 && maxX !== -999999) {
-                let diagramWidth = maxX - minX;
-                let pageCanvasWidth = Math.max(diagramWidth + 200, 800);
-                let diagramCenter = (minX + maxX) / 2;
-                let pageCenter = pageCanvasWidth / 2;
-                let dx = pageCenter - diagramCenter;
-                
-                sNodes.forEach(n => n.x += dx);
-                sEdges.forEach(e => {
-                    if (e.segments) {
-                        e.segments.forEach(seg => {
-                            seg.startX += dx;
-                            seg.endX += dx;
-                        });
-                    }
-                    if (e.labelPos) {
-                        e.labelPos.x += dx;
-                    }
-                });
 
-                let pgMaxY = 100;
-                sNodes.forEach(n => pgMaxY = Math.max(pgMaxY, n.y + (n.height||64)/2 + 40));
-                sEdges.forEach(e => {
-                    if (e.segments) {
-                        e.segments.forEach(seg => {
-                            pgMaxY = Math.max(pgMaxY, seg.startY + 40, seg.endY + 40);
-                        });
-                    }
-                });
-
-                pages.push({ nodes: sNodes, edges: sEdges, width: pageCanvasWidth, height: pgMaxY });
-            } else {
-                pages.push({ nodes: sNodes, edges: sEdges, width: 800, height: 100 });
-            }
+            pages.push({ nodes: sNodes, edges: sEdges, width: globalPageCanvasWidth, height: pgMaxY });
         }
     }
     return { pages, title };}
