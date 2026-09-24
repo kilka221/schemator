@@ -46,7 +46,10 @@ import {
   Mail,
   Gift,
   Sliders,
-  Shuffle
+  Shuffle,
+  Bookmark,
+  Loader2,
+  Save
 } from 'lucide-react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
@@ -170,6 +173,14 @@ export default function App() {
   const [isMobileExportOpen, setIsMobileExportOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [pendingSaveBanner, setPendingSaveBanner] = useState<{
+    code: string;
+    language: 'python' | 'cpp';
+    defaultTitle: string;
+  } | null>(null);
+  const [pendingSaveTitle, setPendingSaveTitle] = useState('');
+  const [isSavingPending, setIsSavingPending] = useState(false);
   const touchDistRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
@@ -722,12 +733,9 @@ export default function App() {
             console.warn('Background token decrement warning:', err);
           });
 
-          // Auto-save generated diagram to user's history in YDB
+          // Prompt user to save diagram to history instead of auto-saving immediately
           if (trimmedCode) {
             try {
-              const diagId = `diag_${Date.now()}`;
-              const now = new Date().toISOString();
-              
               // Smart title generation and language detection
               const isCpp = language === 'cpp' || trimmedCode.includes('#include') || trimmedCode.includes('using namespace') || /\b(int|void|double|float|char|bool)\s+main\s*\(/.test(trimmedCode);
               const saveLang = isCpp ? 'cpp' : 'python';
@@ -749,19 +757,15 @@ export default function App() {
                 }
               }
 
-              if (user) {
-                await saveYdbDiagramItem(user.uid, {
-                  id: diagId,
-                  title: autoTitle,
-                  code: code,
-                  language: saveLang,
-                  isPinned: false,
-                  createdAt: now,
-                  updatedAt: now
-                });
-              }
+              // Show save invitation banner at the bottom-left of the diagram container
+              setPendingSaveBanner({
+                code: code,
+                language: saveLang,
+                defaultTitle: autoTitle,
+              });
+              setPendingSaveTitle(autoTitle);
             } catch (histErr) {
-              console.warn('Auto-save history error:', histErr);
+              console.warn('Save prompt preparation error:', histErr);
             }
           }
       } catch (e: any) {
@@ -770,6 +774,41 @@ export default function App() {
       } finally {
           setIsGenerating(false);
       }
+  };
+
+  const handleConfirmSaveDiagram = async (customTitle?: string) => {
+    if (!pendingSaveBanner) return;
+    if (!user) {
+      showToast('Войдите в аккаунт, чтобы сохранять схемы в историю');
+      handleLogin();
+      return;
+    }
+
+    const titleToSave = (customTitle !== undefined ? customTitle : pendingSaveTitle).trim() || pendingSaveBanner.defaultTitle;
+    const diagId = `diag_${Date.now()}`;
+    const now = new Date().toISOString();
+
+    setIsSavingPending(true);
+    try {
+      await saveYdbDiagramItem(user.uid, {
+        id: diagId,
+        title: titleToSave,
+        code: pendingSaveBanner.code,
+        language: pendingSaveBanner.language,
+        isPinned: false,
+        createdAt: now,
+        updatedAt: now
+      });
+      setHistoryRefreshKey(prev => prev + 1);
+      setPendingSaveBanner(null);
+      setPendingSaveTitle('');
+      showToast(`Схема «${titleToSave}» сохранена в историю`);
+    } catch (err) {
+      console.error('Error saving diagram from prompt banner:', err);
+      showToast('Ошибка сохранения схемы в историю');
+    } finally {
+      setIsSavingPending(false);
+    }
   };
 
   const handleSelectDiagramFromHistory = (loadedCode: string, loadedLang: 'python' | 'cpp', diagramTitle?: string) => {
@@ -1528,6 +1567,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       onOpenLogin={handleLogin}
                       onNotify={showToast}
                       theme={theme}
+                      refreshKey={historyRefreshKey}
                     />
                   </div>
                 )}
@@ -2362,6 +2402,79 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   )}
                 </div>
               )}
+
+              {/* Offer to save diagram notification banner at bottom-left of diagram viewport */}
+              {pendingSaveBanner && (
+                <div className="absolute bottom-16 md:bottom-4 left-3 md:left-4 z-30 max-w-[calc(100vw-24px)] sm:max-w-sm w-full animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-auto">
+                  <div className={`p-3 rounded-lg border shadow-xl flex flex-col gap-2 backdrop-blur-md ${
+                    isDark 
+                      ? 'bg-zinc-900/95 border-zinc-800 text-zinc-100' 
+                      : 'bg-white/95 border-zinc-200 text-zinc-800'
+                  }`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-5 h-5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                          <Bookmark className="w-3.5 h-3.5" />
+                        </span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-semibold leading-tight text-zinc-900 dark:text-zinc-100">
+                            Сохранить схему в историю?
+                          </span>
+                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
+                            Введите название для быстрого поиска
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setPendingSaveBanner(null);
+                          setPendingSaveTitle('');
+                        }}
+                        className="p-1 rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
+                        title="Не сохранять"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 pt-0.5">
+                      <input
+                        type="text"
+                        value={pendingSaveTitle}
+                        onChange={(e) => setPendingSaveTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleConfirmSaveDiagram();
+                          if (e.key === 'Escape') setPendingSaveBanner(null);
+                        }}
+                        placeholder="Название схемы..."
+                        className={`flex-1 min-w-0 h-7 px-2.5 text-xs rounded-md border focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors ${
+                          isDark 
+                            ? 'bg-zinc-950 border-zinc-800 text-zinc-100 placeholder-zinc-500' 
+                            : 'bg-zinc-50 border-zinc-200 text-zinc-900 placeholder-zinc-400'
+                        }`}
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => handleConfirmSaveDiagram()}
+                        disabled={isSavingPending}
+                        className="h-7 px-3 rounded-md bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 text-white text-xs font-medium transition-colors shadow-2xs cursor-pointer shrink-0 flex items-center gap-1.5"
+                      >
+                        {isSavingPending ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span>Сохранение...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-3 h-3" />
+                            <span>Сохранить</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -2733,6 +2846,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               onOpenLogin={handleLogin}
               onNotify={showToast}
               theme={theme}
+              refreshKey={historyRefreshKey}
             />
           </div>
         </div>

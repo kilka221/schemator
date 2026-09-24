@@ -9,7 +9,8 @@ import {
   LogIn,
   Pencil,
   Check,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 import { saveYdbDiagramItem, fetchYdbDiagrams, deleteYdbDiagramItem } from './ydbClient';
 import { AppUserProfile } from './App';
@@ -52,6 +53,7 @@ interface DiagramHistoryProps {
   onOpenLogin?: () => void;
   onNotify: (msg: string) => void;
   theme?: 'light' | 'dark';
+  refreshKey?: number;
 }
 
 export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
@@ -61,6 +63,7 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
   onSelectDiagram,
   onOpenLogin,
   onNotify,
+  refreshKey,
 }) => {
   const [diagrams, setDiagrams] = useState<SavedDiagram[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,6 +72,7 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -83,9 +87,11 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
     localStorage.removeItem('blockcraft_local_history');
     if (!user) {
       setDiagrams([]);
+      setIsLoading(false);
       return;
     }
 
+    setIsLoading(true);
     fetchYdbDiagrams(user.uid, user.email).then((ydbItems) => {
       const formatted: SavedDiagram[] = ydbItems.map((y) => {
         const detectedLang = detectLanguage(y.code || '', y.language);
@@ -116,8 +122,10 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
       setDiagrams(formatted);
     }).catch((err) => {
       console.warn('YDB fetch diagrams error:', err);
+    }).finally(() => {
+      setIsLoading(false);
     });
-  }, [user]);
+  }, [user, refreshKey]);
 
   // Save current code as a new diagram in history
   const handleSaveCurrent = async () => {
@@ -304,9 +312,14 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
     <div className="my-1 py-1.5 px-1 bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 rounded-md flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-150 text-xs select-none">
       {/* Top Header inside inline history */}
       <div className="flex items-center justify-between px-1">
-        <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold">
-          Схемы ({diagrams.length})
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold">
+            Схемы ({diagrams.length})
+          </span>
+          {isLoading && (
+            <Loader2 className="w-3 h-3 text-zinc-400 animate-spin" />
+          )}
+        </div>
 
         <button
           onClick={() => setShowSaveInput(!showSaveInput)}
@@ -366,7 +379,12 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
 
       {/* Scrollable Diagram List */}
       <div className="max-h-[calc(100vh-280px)] overflow-y-auto space-y-1 pr-0.5 scrollbar-thin">
-        {filteredDiagrams.length === 0 ? (
+        {isLoading && diagrams.length === 0 ? (
+          <div className="py-6 px-2 text-center text-[11px] text-zinc-400 flex flex-col items-center justify-center gap-2">
+            <Loader2 className="w-5 h-5 text-emerald-500 animate-spin" />
+            <span>Загрузка истории...</span>
+          </div>
+        ) : filteredDiagrams.length === 0 ? (
           <div className="py-3 px-2 text-center text-[11px] text-zinc-400 flex flex-col items-center gap-1">
             <FolderOpen className="w-4 h-4 opacity-40" />
             <span>{searchQuery ? 'Ничего не найдено' : 'История пуста'}</span>
