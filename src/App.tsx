@@ -1744,7 +1744,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                           }}
                           className={`editor-line-num cursor-pointer px-1 rounded-sm transition-colors flex items-center justify-end ${
                             isHighlighted
-                              ? 'bg-amber-500/20 text-amber-500 font-bold'
+                              ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold'
                               : isDark
                               ? 'hover:text-zinc-300'
                               : 'hover:text-zinc-700'
