@@ -13,6 +13,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { PythonIcon } from './PythonIcon';
+import { CppIcon } from './CppIcon';
 import { saveYdbDiagramItem, fetchYdbDiagrams, deleteYdbDiagramItem } from './ydbClient';
 import { AppUserProfile } from './App';
 
@@ -407,8 +408,8 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
                   onClick={(e) => e.stopPropagation()}
                 >
                   {diag.language === 'cpp' ? (
-                    <span className="text-[9px] font-mono font-bold px-1 py-0.2 rounded shrink-0 border bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800">
-                      C++
+                    <span className="shrink-0 flex items-center justify-center" title="C++">
+                      <CppIcon size={16} className="w-4 h-4 shadow-2xs" />
                     </span>
                   ) : (
                     <span className="shrink-0 flex items-center justify-center" title="Python">
@@ -453,8 +454,8 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
                 <>
                   <div className="flex items-center gap-1.5 min-w-0 pr-1 flex-1">
                     {diag.language === 'cpp' ? (
-                      <span className="text-[9px] font-mono font-bold px-1 py-0.2 rounded shrink-0 border bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800">
-                        C++
+                      <span className="shrink-0 flex items-center justify-center" title="C++">
+                        <CppIcon size={16} className="w-4 h-4 shadow-2xs" />
                       </span>
                     ) : (
                       <span className="shrink-0 flex items-center justify-center" title="Python">

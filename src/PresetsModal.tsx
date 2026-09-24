@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Layers, ArrowRight, Repeat, GitBranch, Terminal, Calculator, Trophy, Cpu } from 'lucide-react';
 import { PythonIcon } from './PythonIcon';
+import { CppIcon } from './CppIcon';
 
 export interface CodeTemplate {
   id: string;
@@ -217,7 +218,10 @@ export const PresetsModal: React.FC<PresetsModalProps> = ({
                           : 'bg-blue-50 text-blue-700 border-blue-200'
                     }`}>
                       {item.language === 'cpp' ? (
-                        'C++'
+                        <>
+                          <CppIcon size={12} className="w-3 h-3" />
+                          <span>C++</span>
+                        </>
                       ) : (
                         <>
                           <PythonIcon size={12} className="w-3 h-3" />
