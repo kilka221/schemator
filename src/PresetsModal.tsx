@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Layers, ArrowRight, Repeat, GitBranch, Terminal, Calculator, Trophy, Cpu } from 'lucide-react';
+import { PythonIcon } from './PythonIcon';
 
 export interface CodeTemplate {
   id: string;
@@ -206,7 +207,7 @@ export const PresetsModal: React.FC<PresetsModalProps> = ({
               >
                 <div className="flex items-center justify-between w-full mb-1.5">
                   <div className="flex items-center gap-1.5">
-                    <span className={`text-[10px] font-mono font-medium px-1.5 py-0.5 rounded border ${
+                    <span className={`text-[10px] font-mono font-medium px-1.5 py-0.5 rounded border inline-flex items-center gap-1 ${
                       item.language === 'cpp'
                         ? isDark 
                           ? 'bg-orange-950/40 text-orange-400 border-orange-900/60' 
@@ -215,7 +216,14 @@ export const PresetsModal: React.FC<PresetsModalProps> = ({
                           ? 'bg-blue-950/40 text-blue-400 border-blue-900/60' 
                           : 'bg-blue-50 text-blue-700 border-blue-200'
                     }`}>
-                      {item.language === 'cpp' ? 'C++' : 'Python'}
+                      {item.language === 'cpp' ? (
+                        'C++'
+                      ) : (
+                        <>
+                          <PythonIcon size={12} className="w-3 h-3" />
+                          <span>Python</span>
+                        </>
+                      )}
                     </span>
                     <span className="text-[11px] font-mono text-zinc-500">{item.category}</span>
                   </div>

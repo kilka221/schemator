@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { X, Play, Trash2, Layers, Sparkles } from 'lucide-react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
+import { PythonIcon } from './PythonIcon';
 
 interface MobileCodeSheetProps {
   isOpen: boolean;
@@ -87,6 +88,15 @@ export const MobileCodeSheet: React.FC<MobileCodeSheetProps> = ({
       {/* Top Header */}
       <div className="h-12 px-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-50 dark:bg-zinc-900">
         <div className="flex items-center gap-2">
+          {language === 'cpp' ? (
+            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
+              C++
+            </span>
+          ) : (
+            <span className="shrink-0 flex items-center" title="Python">
+              <PythonIcon size={18} className="w-4.5 h-4.5 shadow-2xs" />
+            </span>
+          )}
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value as 'python' | 'cpp')}

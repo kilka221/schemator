@@ -60,6 +60,7 @@ import 'prismjs/themes/prism.css';
 
 import { FONTS_CATALOG, ensureFontLoaded } from './fonts';
 import { DIAGRAM_STYLES, getDiagramStyle } from './diagramStyles';
+import { PythonIcon } from './PythonIcon';
 import { syncYdbUser, getYdbUserTokens, decrementYdbUserToken, saveYdbDiagramItem } from './ydbClient';
 import { fetchYandexProfileByToken } from './yandexAuth';
 import { AuthModal } from './AuthModal';
@@ -1623,6 +1624,15 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-400' : 'bg-zinc-50/80 border-zinc-200 text-zinc-600'
               }`}>
                 <div className="flex items-center gap-1.5">
+                  {language === 'cpp' ? (
+                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
+                      C++
+                    </span>
+                  ) : (
+                    <span className="shrink-0 flex items-center" title="Python">
+                      <PythonIcon size={16} className="w-4 h-4 shadow-2xs" />
+                    </span>
+                  )}
                   <select
                     value={language}
                     onChange={(e) => {

@@ -12,6 +12,7 @@ import {
   X,
   Loader2
 } from 'lucide-react';
+import { PythonIcon } from './PythonIcon';
 import { saveYdbDiagramItem, fetchYdbDiagrams, deleteYdbDiagramItem } from './ydbClient';
 import { AppUserProfile } from './App';
 
@@ -405,13 +406,15 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
                   className="flex items-center gap-1.5 w-full min-w-0"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <span className={`text-[9px] font-mono font-bold px-1 py-0.2 rounded shrink-0 border ${
-                    diag.language === 'cpp'
-                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800'
-                      : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border-blue-300 dark:border-blue-800'
-                  }`}>
-                    {diag.language === 'cpp' ? 'C++' : 'PY'}
-                  </span>
+                  {diag.language === 'cpp' ? (
+                    <span className="text-[9px] font-mono font-bold px-1 py-0.2 rounded shrink-0 border bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800">
+                      C++
+                    </span>
+                  ) : (
+                    <span className="shrink-0 flex items-center justify-center" title="Python">
+                      <PythonIcon size={16} className="w-4 h-4 shadow-2xs" />
+                    </span>
+                  )}
                   <input
                     ref={editInputRef}
                     type="text"
@@ -449,13 +452,15 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
               ) : (
                 <>
                   <div className="flex items-center gap-1.5 min-w-0 pr-1 flex-1">
-                    <span className={`text-[9px] font-mono font-bold px-1 py-0.2 rounded shrink-0 border ${
-                      diag.language === 'cpp'
-                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800'
-                        : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border-blue-300 dark:border-blue-800'
-                    }`}>
-                      {diag.language === 'cpp' ? 'C++' : 'PY'}
-                    </span>
+                    {diag.language === 'cpp' ? (
+                      <span className="text-[9px] font-mono font-bold px-1 py-0.2 rounded shrink-0 border bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800">
+                        C++
+                      </span>
+                    ) : (
+                      <span className="shrink-0 flex items-center justify-center" title="Python">
+                        <PythonIcon size={16} className="w-4 h-4 shadow-2xs" />
+                      </span>
+                    )}
                     <div className="flex flex-col min-w-0 flex-1">
                       <span 
                         onDoubleClick={(e) => handleStartRename(diag, e)}
