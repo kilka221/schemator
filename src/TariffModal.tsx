@@ -2,13 +2,12 @@ import React from 'react';
 import { 
   X, 
   Clock, 
-  Zap, 
   Check, 
-  Coins, 
   ShieldCheck, 
   ChevronRight 
 } from 'lucide-react';
 import { SchematorLogo } from './SchematorLogo';
+import { CoinsIcon } from './CoinsIcon';
 import { LegalDocType } from './LegalModal';
 
 export interface TariffItem {
@@ -36,10 +35,8 @@ export const TARIFFS: TariffItem[] = [
     timeSaved: 'Экономит ~8–10 ч черчения',
     description: 'Быстрый старт для закрытия текущих лабораторных работ.',
     features: [
-      '10 готовых схем из Python и C++',
-      'Схема за 2 секунды вместо 50 минут в Word',
-      'Экспорт в PNG, SVG и Draw.io для отчёта',
-      'Бессрочно: коины никогда не сгорают',
+      '~10 лабораторок',
+      'Экспорт в PNG и SVG',
     ],
   },
   {
@@ -55,10 +52,7 @@ export const TARIFFS: TariffItem[] = [
     timeSaved: 'Экономит ~25+ ч сна',
     description: 'Оптимальный запас на весь семестр по нескольким предметам.',
     features: [
-      '30 схем — хватит на все лабы и РГР',
-      'Экономия ~25 часов бессмысленной рутины',
-      'Правки кода обновляют схему в 1 клик',
-      'Скидка 16% по сравнению с базовым тарифом',
+      '~30 лабораторок (хватит почти на весь семестр)',
     ],
   },
   {
@@ -73,10 +67,7 @@ export const TARIFFS: TariffItem[] = [
     timeSaved: 'Экономит ~45+ ч рутины',
     description: 'Для объемных проектов с десятками функций или на двоих.',
     features: [
-      '50 схем по минимальной цене (~8 ₽)',
-      'Сложная многостраничная архитектура',
-      'Можно разделить с соседом по парте',
-      'Максимальная скидка 20%',
+      '~50 лабораторок по минимальной суммарной цене',
     ],
   },
 ];
@@ -142,7 +133,7 @@ export const TariffModal: React.FC<TariffModalProps> = ({
           <div className="flex items-center gap-2">
             {user ? (
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium">
-                <Coins className="w-3.5 h-3.5 text-amber-500" />
+                <CoinsIcon size={16} className="w-4 h-4 shrink-0" />
                 <span className="text-zinc-500 dark:text-zinc-400">Баланс:</span>
                 <span className="font-semibold text-zinc-900 dark:text-zinc-100 font-mono">
                   {userTokens ?? 0} схем
@@ -169,24 +160,6 @@ export const TariffModal: React.FC<TariffModalProps> = ({
             >
               <X className="w-4 h-4" />
             </button>
-          </div>
-        </div>
-
-        {/* Time Saved / Reality Check Banner */}
-        <div className={`mt-3.5 p-3 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs transition-colors ${
-          isDark 
-            ? 'bg-zinc-900/60 border-zinc-800/90 text-zinc-300' 
-            : 'bg-zinc-50 border-zinc-200 text-zinc-700'
-        }`}>
-          <div className="flex items-center gap-2.5">
-            <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <div className="leading-snug">
-              <strong className="text-zinc-900 dark:text-white">Вручную в Word/Visio:</strong> 40–60 минут на чертёж одной схемы и сбивающиеся стрелочки при любой правке.
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-semibold shrink-0 bg-emerald-500/10 dark:bg-emerald-500/20 px-2.5 py-1 rounded-full border border-emerald-500/25">
-            <Zap className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Схематор: 2 секунды из кода</span>
           </div>
         </div>
 

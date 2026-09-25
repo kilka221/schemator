@@ -22,7 +22,6 @@ import {
   Check,
   ChevronDown,
   Layers,
-  Coins,
   LogIn,
   LogOut,
   AlertCircle,
@@ -62,6 +61,7 @@ import { FONTS_CATALOG, ensureFontLoaded } from './fonts';
 import { DIAGRAM_STYLES, getDiagramStyle } from './diagramStyles';
 import { PythonIcon } from './PythonIcon';
 import { CppIcon } from './CppIcon';
+import { CoinsIcon } from './CoinsIcon';
 import { syncYdbUser, getYdbUserTokens, decrementYdbUserToken, saveYdbDiagramItem } from './ydbClient';
 import { fetchYandexProfileByToken } from './yandexAuth';
 import { AuthModal } from './AuthModal';
@@ -1347,7 +1347,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   <div className={`px-2 h-7 rounded-md border text-[11px] font-mono flex items-center gap-1.5 transition-colors ${
                     isDark ? 'bg-zinc-800/80 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
                   }`}>
-                    <Coins className="w-3 h-3 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                    <CoinsIcon size={14} className="w-3.5 h-3.5 shrink-0" />
                     <span className="font-medium">{userTokens !== null ? userTokens : '...'}</span>
                     <span className="hidden sm:inline text-zinc-300 dark:text-zinc-600 select-none">|</span>
                     <button

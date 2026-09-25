@@ -5,7 +5,6 @@ import {
   Settings as SettingsIcon, 
   BookOpen, 
   Layers, 
-  Coins, 
   Sun, 
   Moon, 
   ShieldCheck, 
@@ -16,6 +15,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { SchematorLogo } from './SchematorLogo';
+import { CoinsIcon } from './CoinsIcon';
 import { LegalDocType } from './LegalModal';
 
 interface MobileMenuDrawerProps {
@@ -102,8 +102,8 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
               </div>
 
               <div className="flex items-center justify-between pt-1 border-t border-zinc-200 dark:border-zinc-700 text-[11px]">
-                <div className="flex items-center gap-1 font-mono text-zinc-600 dark:text-zinc-300">
-                  <Coins className="w-3.5 h-3.5 text-amber-500" />
+                <div className="flex items-center gap-1.5 font-mono text-zinc-600 dark:text-zinc-300">
+                  <CoinsIcon size={14} className="w-3.5 h-3.5" />
                   <span>Баланс: <strong>{userTokens ?? 0}</strong></span>
                 </div>
                 <button
@@ -175,7 +175,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
             className="h-10 px-3 rounded-xl flex items-center justify-between text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
-              <Coins className="w-4 h-4 text-zinc-400" />
+              <CoinsIcon size={16} className="w-4 h-4" />
               <span>Тарифы и коины</span>
             </div>
             <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />
