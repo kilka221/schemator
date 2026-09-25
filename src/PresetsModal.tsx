@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Layers, ArrowRight, Repeat, GitBranch, Terminal, Calculator, Trophy, Cpu } from 'lucide-react';
+import { X, Layers, ArrowRight } from 'lucide-react';
 import { PythonIcon } from './PythonIcon';
 import { CppIcon } from './CppIcon';
 
@@ -96,7 +96,7 @@ print("Максимум:", max_val)`,
     title: 'Алгоритм на C++',
     desc: 'Пример кода на C++ с циклами и стандартным потоком ввода-вывода',
     language: 'cpp',
-    category: 'C++',
+    category: 'Базовые алгоритмы',
     code: `#include <iostream>
 using namespace std;
 
@@ -141,28 +141,10 @@ export const PresetsModal: React.FC<PresetsModalProps> = ({
     onClose();
   };
 
-  const renderIcon = (type: string) => {
-    switch (type) {
-      case 'loop':
-        return <Repeat className="w-4 h-4 text-blue-500" />;
-      case 'branch':
-        return <GitBranch className="w-4 h-4 text-emerald-500" />;
-      case 'func':
-        return <Calculator className="w-4 h-4 text-purple-500" />;
-      case 'for':
-        return <Repeat className="w-4 h-4 text-cyan-500" />;
-      case 'max':
-        return <Trophy className="w-4 h-4 text-amber-500" />;
-      case 'cpp':
-      default:
-        return <Cpu className="w-4 h-4 text-orange-500" />;
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div 
-        className={`w-full max-w-2xl rounded-md border shadow-xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-150 transition-colors ${
+        className={`w-full max-w-2xl rounded-lg border shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-150 transition-colors ${
           isDark 
             ? 'bg-zinc-900 text-zinc-100 border-zinc-800' 
             : 'bg-white text-zinc-900 border-zinc-200'
@@ -200,53 +182,48 @@ export const PresetsModal: React.FC<PresetsModalProps> = ({
               <button
                 key={item.id}
                 onClick={() => handleSelectTemplate(item)}
-                className={`group flex flex-col text-left p-3 rounded-md border transition-colors cursor-pointer relative ${
+                className={`group flex flex-col text-left p-3.5 rounded-lg border transition-all cursor-pointer relative ${
                   isDark
-                    ? 'bg-zinc-950/60 hover:bg-zinc-800/60 border-zinc-800 hover:border-zinc-700 text-zinc-200'
+                    ? 'bg-zinc-950/40 hover:bg-zinc-800/50 border-zinc-800/80 hover:border-zinc-700 text-zinc-200'
                     : 'bg-zinc-50/70 hover:bg-zinc-100 border-zinc-200 hover:border-zinc-300 text-zinc-800'
                 }`}
               >
-                <div className="flex items-center justify-between w-full mb-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-[10px] font-mono font-medium px-1.5 py-0.5 rounded border inline-flex items-center gap-1 ${
-                      item.language === 'cpp'
-                        ? isDark 
-                          ? 'bg-orange-950/40 text-orange-400 border-orange-900/60' 
-                          : 'bg-orange-50 text-orange-700 border-orange-200'
-                        : isDark
-                          ? 'bg-blue-950/40 text-blue-400 border-blue-900/60' 
-                          : 'bg-blue-50 text-blue-700 border-blue-200'
-                    }`}>
-                      {item.language === 'cpp' ? (
-                        <>
-                          <CppIcon size={12} className="w-3 h-3" />
-                          <span>C++</span>
-                        </>
-                      ) : (
-                        <>
-                          <PythonIcon size={12} className="w-3 h-3" />
-                          <span>Python</span>
-                        </>
-                      )}
+                {/* Clean unboxed language & category header */}
+                <div className="flex items-center justify-between w-full mb-2">
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium">
+                    {item.language === 'cpp' ? (
+                      <span className="inline-flex items-center gap-1.5 text-zinc-800 dark:text-zinc-200">
+                        <CppIcon size={14} className="w-3.5 h-3.5" />
+                        <span>C++</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-zinc-800 dark:text-zinc-200">
+                        <PythonIcon size={14} className="w-3.5 h-3.5" />
+                        <span>Python</span>
+                      </span>
+                    )}
+                    <span className="text-zinc-300 dark:text-zinc-700 select-none" aria-hidden="true">·</span>
+                    <span className="text-zinc-500 dark:text-zinc-400 font-normal">
+                      {item.category}
                     </span>
-                    <span className="text-[11px] font-mono text-zinc-500">{item.category}</span>
                   </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-100 transition-colors" />
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 group-hover:translate-x-0.5 transition-all" />
                 </div>
-                <h3 className={`font-semibold text-xs transition-colors mb-0.5 ${
+
+                <h3 className={`font-semibold text-xs transition-colors mb-1 ${
                   isDark ? 'text-zinc-100 group-hover:text-white' : 'text-zinc-900 group-hover:text-black'
                 }`}>
                   {item.title}
                 </h3>
-                <p className={`text-[11px] line-clamp-2 leading-relaxed mb-2 ${
+                <p className={`text-[11px] line-clamp-2 leading-relaxed mb-2.5 ${
                   isDark ? 'text-zinc-400' : 'text-zinc-500'
                 }`}>
                   {item.desc}
                 </p>
-                <div className={`mt-auto w-full rounded p-1.5 font-mono text-[10px] border overflow-hidden line-clamp-1 ${
+                <div className={`mt-auto w-full rounded p-2 font-mono text-[10.5px] border overflow-hidden line-clamp-1 transition-colors ${
                   isDark 
-                    ? 'bg-zinc-950 text-zinc-400 border-zinc-800' 
-                    : 'bg-white text-zinc-600 border-zinc-200'
+                    ? 'bg-zinc-950 text-zinc-400 border-zinc-800/80 group-hover:border-zinc-700/80 group-hover:text-zinc-300' 
+                    : 'bg-white text-zinc-600 border-zinc-200 group-hover:border-zinc-300 group-hover:text-zinc-800'
                 }`}>
                   {item.code.split('\n').slice(0, 2).join(' ')}
                 </div>
