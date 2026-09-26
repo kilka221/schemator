@@ -611,20 +611,45 @@ export default function App() {
     setIsPanning(false);
   };
 
-  const handleCanvasWheel = (e: React.WheelEvent) => {
-    if (editingNode) return;
-    if (e.ctrlKey || e.metaKey) {
+  const scaleRef = React.useRef(scale);
+  scaleRef.current = scale;
+
+  React.useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // In flowchart canvas frame, mouse wheel strictly zooms and prevents page scroll
       e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.1 : 0.9;
-      setScale(prev => Math.min(3.5, Math.max(0.15, Number((prev * factor).toFixed(2)))));
-    } else {
-      if (e.shiftKey) {
-        setPan(p => ({ ...p, x: p.x - e.deltaY }));
-      } else {
-        setPan(p => ({ ...p, y: p.y - e.deltaY }));
+      e.stopPropagation();
+
+      let delta = e.deltaY;
+      if (e.deltaMode === 1) {
+        delta *= 33; // DOM_DELTA_LINE
+      } else if (e.deltaMode === 2) {
+        delta *= 100; // DOM_DELTA_PAGE
       }
-    }
-  };
+
+      if (Math.abs(delta) < 0.5) return;
+
+      // Smooth scaling factor calculation
+      const clampedDelta = Math.max(-120, Math.min(120, delta));
+      const factor = Math.min(1.25, Math.max(0.8, Math.pow(0.9985, clampedDelta)));
+
+      const currentScale = scaleRef.current;
+      const newScale = Math.min(3.5, Math.max(0.15, Number((currentScale * factor).toFixed(3))));
+      if (newScale === currentScale) return;
+
+      // Strictly update scale only — pan is not modified by wheel
+      scaleRef.current = newScale;
+      setScale(newScale);
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
 
   const handleCanvasTouchStart = (e: React.TouchEvent) => {
     if (isScissorsMode || editingNode) return;
@@ -2237,19 +2262,6 @@ const downloadDrawio = (title: string, fontFamily: string) => {
             }}
             onMouseUp={() => setIsPanning(false)}
             onMouseLeave={() => setIsPanning(false)}
-            onWheel={(e) => {
-              if (e.ctrlKey || e.metaKey || e.altKey) {
-                e.preventDefault();
-                const factor = e.deltaY < 0 ? 1.08 : 0.92;
-                setScale(s => Math.min(3, Math.max(0.2, +(s * factor).toFixed(2))));
-              } else {
-                if (e.shiftKey) {
-                  setPan(p => ({ ...p, x: p.x - e.deltaY }));
-                } else {
-                  setPan(p => ({ ...p, y: p.y - e.deltaY }));
-                }
-              }
-            }}
           >
             {/* Stray corner toggle button removed. Panel toggling is now in header and on split divider */}
               {isScissorsMode && splitMode === 'manual' && (
