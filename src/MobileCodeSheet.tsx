@@ -4,14 +4,16 @@ import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import { PythonIcon } from './PythonIcon';
 import { CppIcon } from './CppIcon';
+import { CsharpIcon } from './CsharpIcon';
+import { JavaIcon } from './JavaIcon';
 
 interface MobileCodeSheetProps {
   isOpen: boolean;
   onClose: () => void;
   code: string;
   setCode: (code: string) => void;
-  language: 'python' | 'cpp';
-  setLanguage: (lang: 'python' | 'cpp') => void;
+  language: 'python' | 'cpp' | 'csharp' | 'java';
+  setLanguage: (lang: 'python' | 'cpp' | 'csharp' | 'java') => void;
   onGenerate: () => void;
   isGenerating: boolean;
   onOpenPresets: () => void;
@@ -50,6 +52,30 @@ const CPP_SNIPPETS = [
   { label: ';', insert: ';' },
   { label: '{ }', insert: '{\n    \n}' },
   { label: '==', insert: ' == ' },
+];
+
+const CSHARP_SNIPPETS = [
+  { label: 'WriteLine', insert: 'Console.WriteLine();' },
+  { label: 'ReadLine', insert: 'Console.ReadLine()' },
+  { label: 'if', insert: 'if () {\n    \n}' },
+  { label: 'else', insert: 'else {\n    \n}' },
+  { label: 'while', insert: 'while () {\n    \n}' },
+  { label: 'for', insert: 'for (int i = 0; i < n; i++) {\n    \n}' },
+  { label: 'foreach', insert: 'foreach (var item in list) {\n    \n}' },
+  { label: ';', insert: ';' },
+  { label: '{ }', insert: '{\n    \n}' },
+];
+
+const JAVA_SNIPPETS = [
+  { label: 'println', insert: 'System.out.println();' },
+  { label: 'nextInt()', insert: 'in.nextInt()' },
+  { label: 'if', insert: 'if () {\n    \n}' },
+  { label: 'else', insert: 'else {\n    \n}' },
+  { label: 'while', insert: 'while () {\n    \n}' },
+  { label: 'for', insert: 'for (int i = 0; i < n; i++) {\n    \n}' },
+  { label: 'Scanner', insert: 'Scanner in = new Scanner(System.in);' },
+  { label: ';', insert: ';' },
+  { label: '{ }', insert: '{\n    \n}' },
 ];
 
 export const MobileCodeSheet: React.FC<MobileCodeSheetProps> = ({
@@ -93,6 +119,14 @@ export const MobileCodeSheet: React.FC<MobileCodeSheetProps> = ({
             <span className="shrink-0 flex items-center" title="C++">
               <CppIcon size={18} className="w-4.5 h-4.5 shadow-2xs" />
             </span>
+          ) : language === 'csharp' ? (
+            <span className="shrink-0 flex items-center" title="C#">
+              <CsharpIcon size={18} className="w-4.5 h-4.5 shadow-2xs" />
+            </span>
+          ) : language === 'java' ? (
+            <span className="shrink-0 flex items-center" title="Java">
+              <JavaIcon size={18} className="w-4.5 h-4.5 shadow-2xs" />
+            </span>
           ) : (
             <span className="shrink-0 flex items-center" title="Python">
               <PythonIcon size={18} className="w-4.5 h-4.5 shadow-2xs" />
@@ -100,11 +134,13 @@ export const MobileCodeSheet: React.FC<MobileCodeSheetProps> = ({
           )}
           <select
             value={language}
-            onChange={(e) => setLanguage(e.target.value as 'python' | 'cpp')}
+            onChange={(e) => setLanguage(e.target.value as 'python' | 'cpp' | 'csharp' | 'java')}
             className="h-8 px-2 text-xs font-mono font-medium rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 focus:outline-none cursor-pointer"
           >
             <option value="python">Python</option>
             <option value="cpp">C++</option>
+            <option value="csharp">C#</option>
+            <option value="java">Java</option>
           </select>
 
           <button
@@ -163,8 +199,14 @@ export const MobileCodeSheet: React.FC<MobileCodeSheetProps> = ({
             value={code}
             onValueChange={setCode}
             highlight={(input) => {
-              const langGrammar = language === 'cpp' ? Prism.languages.cpp : Prism.languages.python;
-              const langName = language === 'cpp' ? 'cpp' : 'python';
+              const langGrammar = language === 'cpp' 
+                ? Prism.languages.cpp 
+                : language === 'csharp' 
+                ? Prism.languages.csharp 
+                : language === 'java' 
+                ? Prism.languages.java 
+                : Prism.languages.python;
+              const langName = language;
               return Prism.highlight(input, langGrammar, langName);
             }}
             padding={0}
@@ -174,14 +216,30 @@ export const MobileCodeSheet: React.FC<MobileCodeSheetProps> = ({
               fontFamily: '"Fira Code", monospace',
               minHeight: '100%',
             }}
-            placeholder={language === 'cpp' ? '// Вставьте код на C++...' : '# Вставьте код на Python...'}
+            placeholder={
+              language === 'cpp' 
+                ? '// Вставьте код на C++...' 
+                : language === 'csharp' 
+                ? '// Вставьте код на C#...' 
+                : language === 'java' 
+                ? '// Вставьте код на Java...' 
+                : '# Вставьте код на Python...'
+            }
           />
         </div>
       </div>
 
       {/* Snippet Toolbar for Mobile (Easy keyboard symbols) */}
       <div className="h-10 px-2 border-t border-zinc-200 dark:border-zinc-800 flex items-center gap-1.5 overflow-x-auto bg-zinc-50 dark:bg-zinc-900 shrink-0 select-none">
-        {(language === 'cpp' ? CPP_SNIPPETS : PYTHON_SNIPPETS).map((snip, idx) => (
+        {(
+          language === 'cpp' 
+            ? CPP_SNIPPETS 
+            : language === 'csharp' 
+            ? CSHARP_SNIPPETS 
+            : language === 'java' 
+            ? JAVA_SNIPPETS 
+            : PYTHON_SNIPPETS
+        ).map((snip, idx) => (
           <button
             key={idx}
             type="button"

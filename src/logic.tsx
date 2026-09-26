@@ -5,8 +5,12 @@ import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-c';
 import 'prismjs/components/prism-cpp';
+import 'prismjs/components/prism-csharp';
+import 'prismjs/components/prism-java';
 
 import { parseCppSourceWhole } from './parseCpp';
+import { parseCsharpSourceWhole } from './parseCsharp';
+import { parseJavaSourceWhole } from './parseJava';
 import { mathify, cleanIoArgs, consolidateBlocks, isSubprogramCall, formatRangeToGost } from './mathify';
 import { translatePythonLine } from './translate';
 import { DiagramStyleConfig, getDiagramStyle } from './diagramStyles';
@@ -1152,7 +1156,16 @@ function orthogonalRoute(p1: {x:number, y:number}, p2: {x:number, y:number}) {
 }
 
 export function buildGraphs(code: string, language: string, activeOverrides: any = {}, splitMode: 'auto' | 'manual' = 'auto', allCustomCuts: Record<number, number[]> = {}, isScissorsMode: boolean = false, diagramStyleId: string = 'classic_gost') {
-    const parsed = language === 'cpp' ? parseCppSourceWhole(code) : parsePythonSourceWhole(code);
+    let parsed;
+    if (language === 'cpp') {
+        parsed = parseCppSourceWhole(code);
+    } else if (language === 'csharp') {
+        parsed = parseCsharpSourceWhole(code);
+    } else if (language === 'java') {
+        parsed = parseJavaSourceWhole(code);
+    } else {
+        parsed = parsePythonSourceWhole(code);
+    }
     let graphs = [];
     let idx = 0;
     if (parsed.main.length > 0) {
@@ -1946,7 +1959,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                     });
                 }
                 
-                allNodes.push({ id: node.id + '_end', type: 'loop_end', text: endText, x: cx, y: endY, height: endH });
+                allNodes.push({ id: node.id + '_end', type: 'loop_end', text: endText, x: cx, y: endY, height: endH, lineIndex: node.lineIndex });
                 
                 inPts = [{ x: cx, y: endY + endH/2, from: {x: cx, y: endY + endH/2} } as any];
                 

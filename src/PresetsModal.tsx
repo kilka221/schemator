@@ -2,13 +2,15 @@ import React from 'react';
 import { X, Layers, ArrowRight } from 'lucide-react';
 import { PythonIcon } from './PythonIcon';
 import { CppIcon } from './CppIcon';
+import { CsharpIcon } from './CsharpIcon';
+import { JavaIcon } from './JavaIcon';
 
 export interface CodeTemplate {
   id: string;
-  type: 'loop' | 'branch' | 'func' | 'for' | 'max' | 'cpp';
+  type: 'loop' | 'branch' | 'func' | 'for' | 'max' | 'cpp' | 'csharp' | 'java';
   title: string;
   desc: string;
-  language: 'python' | 'cpp';
+  language: 'python' | 'cpp' | 'csharp' | 'java';
   category: string;
   code: string;
 }
@@ -45,70 +47,130 @@ else:
   {
     id: 'function_def',
     type: 'func',
-    title: 'Функция и факториал (def)',
-    desc: 'Объявление подпрограммы с отдельной блок-схемой ГОСТ',
+    title: 'Подпрограммы и функции (def)',
+    desc: 'Главная программа и несколько функций (факториал, проверка на четность) с отдельными вкладками схем',
     language: 'python',
     category: 'Функции и модули',
-    code: `def factorial(n):
+    code: `def is_even(n):
+    if n % 2 == 0:
+        return 1
+    return 0
+
+def factorial(n):
     res = 1
     for i in range(1, n + 1):
         res = res * i
     return res
 
-num = int(input("Число: "))
+num = int(input("Введите число N: "))
+check = is_even(num)
 ans = factorial(num)
 print(f"Факториал: {ans}")`,
   },
   {
-    id: 'for_range',
-    type: 'for',
-    title: 'Цикл со счетчиком (for range)',
-    desc: 'Итерация по диапазону чисел с вычислением произведения',
-    language: 'python',
-    category: 'Базовые алгоритмы',
-    code: `count = int(input("Количество: "))
-prod = 1
-for i in range(1, count + 1):
-    prod = prod * i
-print("Итог:", prod)`,
-  },
-  {
-    id: 'max_number',
-    type: 'max',
-    title: 'Поиск максимума из трех',
-    desc: 'Вложенные проверки условий для нахождения наибольшего числа',
-    language: 'python',
-    category: 'Ветвления',
-    code: `a = int(input("A: "))
-b = int(input("B: "))
-c = int(input("C: "))
-if a >= b and a >= c:
-    max_val = a
-elif b >= c:
-    max_val = b
-else:
-    max_val = c
-print("Максимум:", max_val)`,
-  },
-  {
     id: 'cpp_example',
     type: 'cpp',
-    title: 'Алгоритм на C++',
-    desc: 'Пример кода на C++ с циклами и стандартным потоком ввода-вывода',
+    title: 'Подпрограммы на C++',
+    desc: 'Главная функция main() и подпрограммы вычисления НОД и факториала с вкладками ГОСТ',
     language: 'cpp',
-    category: 'Базовые алгоритмы',
+    category: 'Функции и модули',
     code: `#include <iostream>
 using namespace std;
 
-int main() {
-    int n;
-    cin >> n;
-    int sum = 0;
-    for (int i = 1; i <= n; i++) {
-        sum += i;
+int gcd(int a, int b) {
+    while (b != 0) {
+        int t = b;
+        b = a % b;
+        a = t;
     }
-    cout << sum << endl;
+    return a;
+}
+
+int factorial(int n) {
+    int res = 1;
+    for (int i = 1; i <= n; i++) {
+        res *= i;
+    }
+    return res;
+}
+
+int main() {
+    int a, b;
+    cin >> a >> b;
+    int g = gcd(a, b);
+    int f = factorial(a);
+    cout << g << endl;
+    cout << f << endl;
     return 0;
+}`,
+  },
+  {
+    id: 'csharp_example',
+    type: 'csharp',
+    title: 'Подпрограммы на C#',
+    desc: 'Класс Program с точкой входа Main() и вспомогательными методами Max и SumRange',
+    language: 'csharp',
+    category: 'Функции и модули',
+    code: `using System;
+
+class Program {
+    static int Max(int a, int b) {
+        if (a > b) {
+            return a;
+        }
+        return b;
+    }
+
+    static int SumRange(int n) {
+        int sum = 0;
+        for (int i = 1; i <= n; i++) {
+            sum += i;
+        }
+        return sum;
+    }
+
+    static void Main() {
+        int x = int.Parse(Console.ReadLine());
+        int y = int.Parse(Console.ReadLine());
+        int m = Max(x, y);
+        int s = SumRange(m);
+        Console.WriteLine(s);
+    }
+}`,
+  },
+  {
+    id: 'java_example',
+    type: 'java',
+    title: 'Подпрограммы на Java',
+    desc: 'Класс Main с методом main() и статическими подпрограммами power и isPositive',
+    language: 'java',
+    category: 'Функции и модули',
+    code: `import java.util.Scanner;
+
+public class Main {
+    public static int power(int base, int exp) {
+        int result = 1;
+        for (int i = 0; i < exp; i++) {
+            result = result * base;
+        }
+        return result;
+    }
+
+    public static int isPositive(int n) {
+        if (n > 0) {
+            return 1;
+        }
+        return 0;
+    }
+
+    public static void main(String[] args) {
+        Scanner in = new Scanner(System.in);
+        int b = in.nextInt();
+        int e = in.nextInt();
+        int p = power(b, e);
+        int check = isPositive(p);
+        System.out.println(p);
+    }
 }`,
   },
 ];
@@ -195,6 +257,16 @@ export const PresetsModal: React.FC<PresetsModalProps> = ({
                       <span className="inline-flex items-center gap-1.5 text-zinc-800 dark:text-zinc-200">
                         <CppIcon size={14} className="w-3.5 h-3.5" />
                         <span>C++</span>
+                      </span>
+                    ) : item.language === 'csharp' ? (
+                      <span className="inline-flex items-center gap-1.5 text-zinc-800 dark:text-zinc-200">
+                        <CsharpIcon size={14} className="w-3.5 h-3.5" />
+                        <span>C#</span>
+                      </span>
+                    ) : item.language === 'java' ? (
+                      <span className="inline-flex items-center gap-1.5 text-zinc-800 dark:text-zinc-200">
+                        <JavaIcon size={14} className="w-3.5 h-3.5" />
+                        <span>Java</span>
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 text-zinc-800 dark:text-zinc-200">

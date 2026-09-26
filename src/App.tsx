@@ -48,19 +48,24 @@ import {
   Shuffle,
   Bookmark,
   Loader2,
-  Save
+  Save,
+  Copy
 } from 'lucide-react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-c';
 import 'prismjs/components/prism-cpp';
+import 'prismjs/components/prism-csharp';
+import 'prismjs/components/prism-java';
 import 'prismjs/themes/prism.css';
 
 import { FONTS_CATALOG, ensureFontLoaded } from './fonts';
 import { DIAGRAM_STYLES, getDiagramStyle } from './diagramStyles';
 import { PythonIcon } from './PythonIcon';
 import { CppIcon } from './CppIcon';
+import { CsharpIcon } from './CsharpIcon';
+import { JavaIcon } from './JavaIcon';
 import { CoinsIcon } from './CoinsIcon';
 import { syncYdbUser, getYdbUserTokens, decrementYdbUserToken, saveYdbDiagramItem } from './ydbClient';
 import { fetchYandexProfileByToken } from './yandexAuth';
@@ -168,7 +173,8 @@ export default function App() {
   });
   const [lastGeneratedLanguage, setLastGeneratedLanguage] = useState("python");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [previousBackup, setPreviousBackup] = useState<{ code: string; language: 'python' | 'cpp'; title?: string } | null>(null);
+  const [previousBackup, setPreviousBackup] = useState<{ code: string; language: 'python' | 'cpp' | 'csharp' | 'java'; title?: string } | null>(null);
+  const isBackdropMouseDownRef = React.useRef(false);
   const sessionGeneratedCodesRef = React.useRef<Set<string>>(new Set());
   const [legalModalDoc, setLegalModalDoc] = useState<LegalDocType | null>(null);
   const [isMobileCodeOpen, setIsMobileCodeOpen] = useState(false);
@@ -455,9 +461,7 @@ export default function App() {
           return;
       }
       
-      if (node.id) {
-          setHighlightedNodeId(node.id);
-      }
+      setHighlightedNodeId(node.id || null);
       if (node.lineIndex !== undefined && node.lineIndex !== null) {
           setHoveredLineIndex(node.lineIndex);
           
@@ -485,6 +489,8 @@ export default function App() {
                   }
               }
           }, 50);
+      } else {
+          setHoveredLineIndex(null);
       }
   };
   const [editingNode, setEditingNode] = useState<{id: string, text: string} | null>(null);
@@ -739,16 +745,18 @@ export default function App() {
           if (trimmedCode) {
             try {
               // Smart title generation and language detection
+              const isCsharp = language === 'csharp' || trimmedCode.includes('using System') || trimmedCode.includes('Console.WriteLine') || trimmedCode.includes('Console.ReadLine') || /\bstatic\s+void\s+Main\b/.test(trimmedCode);
+              const isJava = language === 'java' || trimmedCode.includes('System.out.print') || trimmedCode.includes('public static void main') || trimmedCode.includes('import java.') || trimmedCode.includes('Scanner in');
               const isCpp = language === 'cpp' || trimmedCode.includes('#include') || trimmedCode.includes('using namespace') || /\b(int|void|double|float|char|bool)\s+main\s*\(/.test(trimmedCode);
-              const saveLang = isCpp ? 'cpp' : 'python';
-              let autoTitle = isCpp ? 'Схема C++' : 'Схема Python';
+              const saveLang: 'python' | 'cpp' | 'csharp' | 'java' = isCsharp ? 'csharp' : isJava ? 'java' : isCpp ? 'cpp' : 'python';
+              let autoTitle = isCsharp ? 'Схема C#' : isJava ? 'Схема Java' : isCpp ? 'Схема C++' : 'Схема Python';
               const lines = code.split('\n').map(l => l.trim()).filter(Boolean);
               
-              if (isCpp) {
+              if (isCpp || isCsharp || isJava) {
                 for (const line of lines) {
-                  const cppMatch = line.match(/^(?:(?:inline|static|const|virtual|constexpr)\s+)*(?:[a-zA-Z0-9_:<>&*]+\s+)+([a-zA-Z0-9_]+)\s*\([^)]*\)\s*(?:const)?\s*\{?/);
-                  if (cppMatch && !['if', 'while', 'for', 'switch', 'main'].includes(cppMatch[1])) {
-                    autoTitle = `Функция ${cppMatch[1]}()`;
+                  const m = line.match(/(?:[a-zA-Z0-9_:<>&*]+\s+)+([a-zA-Z0-9_]+)\s*\([^)]*\)\s*\{?/);
+                  if (m && !['if', 'while', 'for', 'switch', 'main', 'Main', 'class', 'struct', 'record', 'namespace', 'catch'].includes(m[1])) {
+                    autoTitle = `Функция ${m[1]}()`;
                     break;
                   }
                 }
@@ -813,7 +821,7 @@ export default function App() {
     }
   };
 
-  const handleSelectDiagramFromHistory = (loadedCode: string, loadedLang: 'python' | 'cpp', diagramTitle?: string) => {
+  const handleSelectDiagramFromHistory = (loadedCode: string, loadedLang: 'python' | 'cpp' | 'csharp' | 'java', diagramTitle?: string) => {
     const trimmedLoaded = loadedCode?.trim() || '';
     const trimmedCurrent = code?.trim() || '';
 
@@ -821,7 +829,7 @@ export default function App() {
     if (trimmedCurrent && trimmedCurrent !== trimmedLoaded) {
       setPreviousBackup({
         code: code,
-        language: (language === 'cpp' ? 'cpp' : 'python'),
+        language: (language as any) || 'python',
         title: 'Предыдущий код'
       });
     }
@@ -923,6 +931,8 @@ export default function App() {
                   setActiveTab(res.graphIdx);
                   setActivePage(res.pageIdx, res.graphIdx);
                   setHighlightedNodeId(res.nodeId);
+              } else {
+                  setHighlightedNodeId(null);
               }
           }
       };
@@ -1041,6 +1051,77 @@ const downloadPng = (svgId: string, title: string) => {
     };
     img.src = url;
 }; // end downloadPng
+
+const copyPngToClipboard = (svgId: string, onNotify?: (msg: string) => void) => {
+    const svgElement = document.getElementById(svgId) as any as SVGSVGElement | null;
+    if (!svgElement) {
+        onNotify?.('Схема не найдена');
+        return;
+    }
+    
+    let svgBBox;
+    try {
+        svgBBox = svgElement.getBBox();
+    } catch (e) {
+        svgBBox = { x: 0, y: 0, width: 800, height: 800 };
+    }
+    
+    const padding = 80;
+    const w = Math.ceil(svgBBox.width + padding * 2);
+    const h = Math.ceil(svgBBox.height + padding * 2);
+    
+    const serializer = new XMLSerializer();
+    let source = serializer.serializeToString(svgElement);
+    if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+    }
+    
+    source = source.replace(/\bwidth="[^"]+"/, '');
+    source = source.replace(/\bheight="[^"]+"/, '');
+    source = source.replace(/\bviewBox="[^"]+"/, ''); 
+    source = source.replace(/^<svg/, `<svg viewBox="${svgBBox.x - padding} ${svgBBox.y - padding} ${w} ${h}" width="${w}" height="${h}" `);
+    source = source.replace(/\bclass(?:Name)?="[^"]+"/g, '');
+    
+    const canvas = document.createElement("canvas");
+    const scale = 2;
+    canvas.width = w * scale;
+    canvas.height = h * scale;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    
+    ctx.scale(scale, scale);
+    
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    
+    img.onload = () => {
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        
+        canvas.toBlob(async (pngBlob) => {
+            if (!pngBlob) {
+                onNotify?.('Не удалось создать изображение');
+                return;
+            }
+            try {
+                if (navigator.clipboard && (window as any).ClipboardItem) {
+                    await navigator.clipboard.write([
+                        new ClipboardItem({ 'image/png': pngBlob })
+                    ]);
+                    onNotify?.('Схема скопирована в буфер обмена!');
+                } else {
+                    onNotify?.('Буфер обмена недоступен в этом браузере');
+                }
+            } catch (err) {
+                console.error(err);
+                onNotify?.('Разрешите доступ к буферу обмена');
+            }
+        }, 'image/png');
+    };
+    img.src = url;
+};
 
 const escapeXml = (unsafe: string) => {
     return unsafe.replace(/[<>&'"]/g, (c) => {
@@ -1629,6 +1710,14 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     <span className="shrink-0 flex items-center" title="C++">
                       <CppIcon size={16} className="w-4 h-4 shadow-2xs" />
                     </span>
+                  ) : language === 'csharp' ? (
+                    <span className="shrink-0 flex items-center" title="C#">
+                      <CsharpIcon size={16} className="w-4 h-4 shadow-2xs" />
+                    </span>
+                  ) : language === 'java' ? (
+                    <span className="shrink-0 flex items-center" title="Java">
+                      <JavaIcon size={16} className="w-4 h-4 shadow-2xs" />
+                    </span>
                   ) : (
                     <span className="shrink-0 flex items-center" title="Python">
                       <PythonIcon size={16} className="w-4 h-4 shadow-2xs" />
@@ -1637,7 +1726,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   <select
                     value={language}
                     onChange={(e) => {
-                      const newLang = e.target.value as 'python' | 'cpp';
+                      const newLang = e.target.value as 'python' | 'cpp' | 'csharp' | 'java';
                       setLanguage(newLang);
                       localStorage.setItem('blockcraft_language', newLang);
                     }}
@@ -1647,6 +1736,8 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   >
                     <option value="python">Python</option>
                     <option value="cpp">C++</option>
+                    <option value="csharp">C#</option>
+                    <option value="java">Java</option>
                   </select>
                 </div>
 
@@ -1656,7 +1747,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       onClick={() => {
                         setPreviousBackup({
                           code: code,
-                          language: language === 'cpp' ? 'cpp' : 'python',
+                          language: (language as any) || 'python',
                           title: 'Предыдущий код'
                         });
                         setCode('');
@@ -1740,6 +1831,8 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                               setActiveTab(res.graphIdx);
                               setActivePage(res.pageIdx, res.graphIdx);
                               setHighlightedNodeId(res.nodeId);
+                            } else {
+                              setHighlightedNodeId(null);
                             }
                           }}
                           className={`editor-line-num cursor-pointer px-1 rounded-sm transition-colors flex items-center justify-end ${
@@ -1767,7 +1860,13 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       value={code}
                       onValueChange={code => setCode(code)}
                       highlight={code => {
-                        const grammar = language === 'cpp' ? Prism.languages.cpp : Prism.languages.python;
+                        const grammar = language === 'cpp' 
+                          ? Prism.languages.cpp 
+                          : language === 'csharp' 
+                          ? Prism.languages.csharp 
+                          : language === 'java' 
+                          ? Prism.languages.java 
+                          : Prism.languages.python;
                         return grammar ? Prism.highlight(code, grammar, language) : code;
                       }}
                       padding={0}
@@ -2088,6 +2187,17 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   >
                     DRAW.IO
                   </button>
+
+                  <button
+                    onClick={() => {
+                      copyPngToClipboard(`graph-svg-${activeTab}`, showToast);
+                    }}
+                    className="h-full px-2.5 flex items-center gap-1 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300 transition-colors cursor-pointer"
+                    title="Скопировать изображение схемы в буфер обмена (PNG)"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>В БУФЕР</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -2181,15 +2291,22 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     preserveAspectRatio="xMidYMid meet"
                     className={`overflow-visible bg-white border border-zinc-300 dark:border-zinc-700/80 shadow-md p-8 rounded-sm my-4 select-none ${isScissorsMode ? 'cursor-cell' : ''}`}
                     onClick={(e) => {
-                        if (!isScissorsMode || splitMode !== 'manual') return;
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const clickY = (e.clientY - rect.top) / scale;
-                        const updatedCuts = [...(customCuts[activeTab] || [])];
-                        updatedCuts.push(Math.round(clickY));
-                        const nextCuts = { ...customCuts, [activeTab]: updatedCuts };
-                        setCustomCuts(nextCuts);
-                        localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(nextCuts));
-                        setIsScissorsMode(false);
+                        if (isScissorsMode && splitMode === 'manual') {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const clickY = (e.clientY - rect.top) / scale;
+                            const updatedCuts = [...(customCuts[activeTab] || [])];
+                            updatedCuts.push(Math.round(clickY));
+                            const nextCuts = { ...customCuts, [activeTab]: updatedCuts };
+                            setCustomCuts(nextCuts);
+                            localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(nextCuts));
+                            setIsScissorsMode(false);
+                            return;
+                        }
+                        if (e.target === e.currentTarget) {
+                            setHighlightedNodeId(null);
+                            setHoveredLineIndex(null);
+                            setSelectedElement(null);
+                        }
                     }}
                     onMouseMove={(e) => {
                         if (!isScissorsMode || splitMode !== 'manual') return;
@@ -2241,7 +2358,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       >
                         <GostShape 
                           node={node} 
-                          highlighted={highlightedNodeId === node.id || (node.lineIndex !== undefined && node.lineIndex !== null && node.lineIndex === hoveredLineIndex)} 
+                          highlighted={highlightedNodeId ? (highlightedNodeId === node.id) : (hoveredLineIndex !== null && node.lineIndex !== undefined && node.lineIndex !== null && node.lineIndex === hoveredLineIndex)} 
                           fontFamily={fontFamily}
                           theme="light"
                           diagramStyle={diagramStyle}
@@ -2558,7 +2675,15 @@ const downloadDrawio = (title: string, fontFamily: string) => {
       {editingNode && (
         <div 
           className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-100"
-          onClick={() => setEditingNode(null)}
+          onMouseDown={(e) => {
+            isBackdropMouseDownRef.current = (e.target === e.currentTarget);
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && isBackdropMouseDownRef.current) {
+              setEditingNode(null);
+            }
+            isBackdropMouseDownRef.current = false;
+          }}
         >
           <div 
             className={`w-full max-w-md rounded-md border shadow-xl p-4 flex flex-col gap-3 animate-in zoom-in-95 duration-100 ${
@@ -2605,37 +2730,32 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               }}
             />
 
-            <div className="flex items-center justify-between pt-1 text-xs">
-              <span className="text-zinc-500 font-mono text-[11px]">
-                Сохранить: <kbd className="px-1 py-0.5 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 font-mono text-[10px]">Ctrl+Enter</kbd>
-              </span>
-              <div className="flex items-center gap-1.5">
-                <button 
-                  type="button"
-                  onClick={() => setEditingNode(null)}
-                  className={`px-2.5 py-1 text-xs rounded-md font-medium border transition-colors cursor-pointer ${
-                    isDark ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 hover:bg-zinc-200 text-zinc-700'
-                  }`}
-                >
-                  Отмена
-                </button>
-                <button 
-                  type="button"
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 text-xs rounded-md font-medium transition-colors shadow-2xs cursor-pointer"
-                  onClick={() => {
-                    const next = JSON.parse(JSON.stringify(overridesRef.current));
-                    if (!next[activeTab]) next[activeTab] = { nodes: {}, edges: {} };
-                    if (!next[activeTab].nodes) next[activeTab].nodes = {};
-                    if (!next[activeTab].nodes[editingNode.id]) next[activeTab].nodes[editingNode.id] = {};
-                    next[activeTab].nodes[editingNode.id].text = editingNode.text;
-                    pushHistory(next);
-                    setEditingNode(null);
-                    showToast('Текст блока сохранен');
-                  }}
-                >
-                  Сохранить
-                </button>
-              </div>
+            <div className="flex items-center justify-end gap-2 pt-1 text-xs">
+              <button 
+                type="button"
+                onClick={() => setEditingNode(null)}
+                className={`px-3 py-1.5 text-xs rounded-md font-medium border transition-colors cursor-pointer ${
+                  isDark ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 hover:bg-zinc-200 text-zinc-700'
+                }`}
+              >
+                Отмена
+              </button>
+              <button 
+                type="button"
+                className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white px-3.5 py-1.5 text-xs rounded-md font-medium transition-colors shadow-2xs cursor-pointer"
+                onClick={() => {
+                  const next = JSON.parse(JSON.stringify(overridesRef.current));
+                  if (!next[activeTab]) next[activeTab] = { nodes: {}, edges: {} };
+                  if (!next[activeTab].nodes) next[activeTab].nodes = {};
+                  if (!next[activeTab].nodes[editingNode.id]) next[activeTab].nodes[editingNode.id] = {};
+                  next[activeTab].nodes[editingNode.id].text = editingNode.text;
+                  pushHistory(next);
+                  setEditingNode(null);
+                  showToast('Текст блока сохранен');
+                }}
+              >
+                Сохранить
+              </button>
             </div>
           </div>
         </div>
@@ -2761,7 +2881,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         onClose={() => setIsMobileCodeOpen(false)}
         code={code}
         setCode={setCode}
-        language={language as 'python' | 'cpp'}
+        language={language as 'python' | 'cpp' | 'csharp' | 'java'}
         setLanguage={(l) => {
           setLanguage(l);
           localStorage.setItem('blockcraft_language', l);
@@ -2802,6 +2922,9 @@ const downloadDrawio = (title: string, fontFamily: string) => {
             name += `_стр_${activePage + 1}`;
           }
           downloadDrawio(name, fontFamily);
+        }}
+        onCopyToClipboard={() => {
+          copyPngToClipboard(`graph-svg-${activeTab}`, showToast);
         }}
         activePage={activePage}
         totalPages={activeGraph?.pages.length || 1}

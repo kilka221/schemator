@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Download, FileImage, FileCode, Layers } from 'lucide-react';
+import { X, Download, FileImage, FileCode, Layers, Copy } from 'lucide-react';
 
 interface MobileExportSheetProps {
   isOpen: boolean;
@@ -7,6 +7,7 @@ interface MobileExportSheetProps {
   onDownloadSvg: () => void;
   onDownloadPng: () => void;
   onDownloadDrawio: () => void;
+  onCopyToClipboard?: () => void;
   activePage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
@@ -18,6 +19,7 @@ export const MobileExportSheet: React.FC<MobileExportSheetProps> = ({
   onDownloadSvg,
   onDownloadPng,
   onDownloadDrawio,
+  onCopyToClipboard,
   activePage,
   totalPages,
   onPageChange,
@@ -79,6 +81,30 @@ export const MobileExportSheet: React.FC<MobileExportSheetProps> = ({
 
         {/* Export Options */}
         <div className="flex flex-col gap-2">
+          {/* Copy to Clipboard Option */}
+          {onCopyToClipboard && (
+            <button
+              onClick={() => {
+                onCopyToClipboard();
+                onClose();
+              }}
+              className="w-full p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-colors flex items-center gap-3 text-left cursor-pointer"
+            >
+              <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <Copy className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  Скопировать в буфер обмена (PNG)
+                </div>
+                <div className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                  Быстрая вставка в Word, презентации или мессенджеры
+                </div>
+              </div>
+              <Copy className="w-4 h-4 text-zinc-400 shrink-0" />
+            </button>
+          )}
+
           {/* PNG Option */}
           <button
             onClick={() => {

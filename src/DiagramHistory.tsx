@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { PythonIcon } from './PythonIcon';
 import { CppIcon } from './CppIcon';
+import { CsharpIcon } from './CsharpIcon';
+import { JavaIcon } from './JavaIcon';
 import { saveYdbDiagramItem, fetchYdbDiagrams, deleteYdbDiagramItem } from './ydbClient';
 import { AppUserProfile } from './App';
 
@@ -22,7 +24,7 @@ export interface SavedDiagram {
   userId: string;
   title: string;
   code: string;
-  language: 'python' | 'cpp';
+  language: 'python' | 'cpp' | 'csharp' | 'java';
   createdAt: string;
   updatedAt: string;
   isPinned?: boolean;
@@ -411,6 +413,14 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
                     <span className="shrink-0 flex items-center justify-center" title="C++">
                       <CppIcon size={16} className="w-4 h-4 shadow-2xs" />
                     </span>
+                  ) : diag.language === 'csharp' ? (
+                    <span className="shrink-0 flex items-center justify-center" title="C#">
+                      <CsharpIcon size={16} className="w-4 h-4 shadow-2xs" />
+                    </span>
+                  ) : diag.language === 'java' ? (
+                    <span className="shrink-0 flex items-center justify-center" title="Java">
+                      <JavaIcon size={16} className="w-4 h-4 shadow-2xs" />
+                    </span>
                   ) : (
                     <span className="shrink-0 flex items-center justify-center" title="Python">
                       <PythonIcon size={16} className="w-4 h-4 shadow-2xs" />
@@ -456,6 +466,14 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
                     {diag.language === 'cpp' ? (
                       <span className="shrink-0 flex items-center justify-center" title="C++">
                         <CppIcon size={16} className="w-4 h-4 shadow-2xs" />
+                      </span>
+                    ) : diag.language === 'csharp' ? (
+                      <span className="shrink-0 flex items-center justify-center" title="C#">
+                        <CsharpIcon size={16} className="w-4 h-4 shadow-2xs" />
+                      </span>
+                    ) : diag.language === 'java' ? (
+                      <span className="shrink-0 flex items-center justify-center" title="Java">
+                        <JavaIcon size={16} className="w-4 h-4 shadow-2xs" />
                       </span>
                     ) : (
                       <span className="shrink-0 flex items-center justify-center" title="Python">
