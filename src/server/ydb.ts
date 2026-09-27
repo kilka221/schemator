@@ -432,13 +432,8 @@ function localUpsertUser(userId: string, email: string, displayName: string, hin
   const cleanEmail = (email || '').toLowerCase().trim();
   const existing = localGetUser(userId, cleanEmail);
 
-  let tokensToKeep = typeof hintTokens === 'number' && !isNaN(hintTokens) && hintTokens > 0 
-    ? hintTokens 
-    : (existing ? existing.tokens : 1);
-
-  if (existing && existing.tokens > tokensToKeep) {
-    tokensToKeep = existing.tokens;
-  }
+  // Security: Always preserve existing balance. Do not allow client hint to overwrite database.
+  const tokensToKeep = existing ? (typeof existing.tokens === 'number' ? existing.tokens : 1) : 1;
 
   const record: LocalUserRecord = {
     userId,
@@ -455,6 +450,21 @@ function localUpsertUser(userId: string, email: string, displayName: string, hin
   memoryStore.users[userId] = record;
   persistLocalStore();
   return { tokens: tokensToKeep };
+}
+
+function localAddUserTokens(userId: string, tokensToAdd: number, email?: string): number {
+  loadLocalStore();
+  const cleanEmail = (email || '').toLowerCase().trim();
+  const user = localGetUser(userId, cleanEmail);
+  if (!user) {
+    return 0;
+  }
+  const current = typeof user.tokens === 'number' ? user.tokens : 0;
+  const updated = current + Math.max(0, tokensToAdd);
+  user.tokens = updated;
+  memoryStore.users[user.userId] = user;
+  persistLocalStore();
+  return updated;
 }
 
 function localDecrementToken(userId: string, email?: string): number {
@@ -718,7 +728,7 @@ export async function upsertYdbUser(userId: string, email: string, displayName: 
   return await executeYdbOrFallback(
     async (driverInstance) => {
       return await driverInstance.tableClient.withSession(async (session: any) => {
-        let tokensToKeep = typeof hintTokens === 'number' && !isNaN(hintTokens) && hintTokens > 0 ? hintTokens : 1;
+        let tokensToKeep = 1;
         const cleanEmail = (email || '').toLowerCase().trim();
 
         const checkUserQuery = `
@@ -732,8 +742,10 @@ export async function upsertYdbUser(userId: string, email: string, displayName: 
         const userRows = checkUserRes.resultSets[0]?.rows;
         if (userRows && userRows.length > 0) {
           const existing = TypedData.createNativeObjects(checkUserRes.resultSets[0])[0];
-          const t = toJsNumber(existing?.tokens, 1);
-          if (t > tokensToKeep) tokensToKeep = t;
+          // Security: Always preserve existing database tokens
+          tokensToKeep = toJsNumber(existing?.tokens, 1);
+        } else {
+          tokensToKeep = 1;
         }
 
         const determinedAuthType = userId.startsWith('yandex_') ? 'yandex' : 'local';
@@ -793,6 +805,32 @@ export async function decrementYdbToken(userId: string, email?: string): Promise
       });
     },
     () => localDecrementToken(userId, email)
+  );
+}
+
+export async function addYdbUserTokens(userId: string, tokensToAdd: number, email?: string): Promise<number> {
+  return await executeYdbOrFallback(
+    async (driverInstance) => {
+      return await driverInstance.tableClient.withSession(async (session: any) => {
+        const user = await getYdbUser(userId, email);
+        const currentTokens = user ? toJsNumber(user.tokens, 0) : 0;
+        const newTokens = currentTokens + Math.max(0, tokensToAdd);
+
+        const updateQuery = `
+          DECLARE $userId AS Utf8;
+          DECLARE $tokens AS Int64;
+          UPDATE users SET tokens = $tokens WHERE userId = $userId;
+        `;
+        const prep = await session.prepareQuery(updateQuery);
+        await session.executeQuery(prep, {
+          $userId: TypedValues.utf8(userId),
+          $tokens: TypedValues.int64(newTokens),
+        });
+
+        return newTokens;
+      });
+    },
+    () => localAddUserTokens(userId, tokensToAdd, email)
   );
 }
 

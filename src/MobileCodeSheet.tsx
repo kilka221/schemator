@@ -18,6 +18,7 @@ interface MobileCodeSheetProps {
   isGenerating: boolean;
   onOpenPresets: () => void;
   isDark: boolean;
+  onClear?: () => void;
 }
 
 const formatLinesRu = (n: number) => {
@@ -89,6 +90,7 @@ export const MobileCodeSheet: React.FC<MobileCodeSheetProps> = ({
   isGenerating,
   onOpenPresets,
   isDark,
+  onClear,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -102,7 +104,11 @@ export const MobileCodeSheet: React.FC<MobileCodeSheetProps> = ({
   };
 
   const handleClear = () => {
-    setCode('');
+    if (onClear) {
+      onClear();
+    } else {
+      setCode('');
+    }
   };
 
   const handleGenerateAndClose = () => {

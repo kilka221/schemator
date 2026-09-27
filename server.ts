@@ -1,11 +1,11 @@
 import express from 'express';
 import cors from 'cors';
-
 import path from 'path';
 import { 
   getYdbUser, 
   upsertYdbUser, 
   decrementYdbToken, 
+  addYdbUserTokens,
   getYdbDiagrams, 
   saveYdbDiagram,
   registerYdbUser,
@@ -14,6 +14,17 @@ import {
   resendYdbVerificationCode,
   deleteYdbDiagram
 } from './src/server/ydb.js';
+import { 
+  generateSessionToken, 
+  requireAuth, 
+  optionalAuth, 
+  type AuthenticatedRequest 
+} from './src/server/auth.js';
+import { createRateLimiter } from './src/server/rateLimit.js';
+import { 
+  handleRobokassaInit, 
+  handleRobokassaResult 
+} from './src/server/robokassa.js';
 
 process.on('unhandledRejection', (reason: any) => {
   const msg = String(reason?.message || reason || '');
@@ -43,13 +54,38 @@ app.use(express.json());
 // API Router
 const apiRouter = express.Router();
 
+// Security: Rate Limiters to prevent SMTP exhaustion and brute-force attacks
+const registerLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 5,
+  message: 'Слишком много запросов на регистрацию. Пожалуйста, подождите 15 минут.',
+});
+
+const resendCodeLimiter = createRateLimiter({
+  windowMs: 5 * 60 * 1000,
+  maxRequests: 3,
+  message: 'Слишком частый запрос кода подтверждения. Пожалуйста, подождите 5 минут.',
+});
+
+const verifyCodeLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 10,
+  message: 'Превышено количество попыток ввода кода. Подождите 15 минут.',
+});
+
+const loginLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 10,
+  message: 'Слишком много попыток входа. В целях безопасности доступ временно ограничен на 15 минут.',
+});
+
 // Healthcheck & YDB status
 apiRouter.get('/health', (req, res) => {
   res.json({ status: 'ok', database: 'Yandex Database (YDB Serverless)', region: 'ru-central1' });
 });
 
 // Direct Auth API (YDB Serverless)
-apiRouter.post('/auth/register', async (req, res) => {
+apiRouter.post('/auth/register', registerLimiter, async (req, res) => {
   try {
     const { email, password, displayName, name } = req.body;
     if (!email || !password) {
@@ -68,21 +104,27 @@ apiRouter.post('/auth/register', async (req, res) => {
   }
 });
 
-apiRouter.post('/auth/verify-code', async (req, res) => {
+apiRouter.post('/auth/verify-code', verifyCodeLimiter, async (req, res) => {
   try {
     const { email, code } = req.body;
     if (!email || !code) {
       return res.status(400).json({ success: false, error: 'Email и код обязательны' });
     }
     const user = await verifyYdbUserCode(email, code);
-    res.json({ success: true, user, message: 'Почта успешно подтверждена! Начислен 1 бесплатный Coin.' });
+    const sessionToken = generateSessionToken(user);
+    res.json({ 
+      success: true, 
+      user, 
+      token: sessionToken,
+      message: 'Почта успешно подтверждена! Начислен 1 бесплатный Coin.' 
+    });
   } catch (e: any) {
     console.error('YDB Auth Verify error:', e);
     res.status(400).json({ success: false, error: e.message || 'Ошибка проверки кода' });
   }
 });
 
-apiRouter.post('/auth/resend-code', async (req, res) => {
+apiRouter.post('/auth/resend-code', resendCodeLimiter, async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
@@ -96,7 +138,7 @@ apiRouter.post('/auth/resend-code', async (req, res) => {
   }
 });
 
-apiRouter.post('/auth/login', async (req, res) => {
+apiRouter.post('/auth/login', loginLimiter, async (req, res) => {
   const reqEmail = req.body?.email;
   try {
     const { email, password } = req.body;
@@ -104,7 +146,8 @@ apiRouter.post('/auth/login', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Email и пароль обязательны' });
     }
     const user = await loginYdbUser(email, password);
-    res.json({ success: true, user });
+    const sessionToken = generateSessionToken(user);
+    res.json({ success: true, user, token: sessionToken });
   } catch (e: any) {
     console.error('YDB Auth Login error:', e);
     if (e.requiresVerification) {
@@ -147,7 +190,7 @@ apiRouter.get('/yandex/userinfo', async (req, res) => {
     const displayName = data.real_name || data.display_name || data.first_name || data.login || 'Пользователь Яндекс';
     const uid = `yandex_${data.id || data.login}`;
 
-    // Automatically sync and save user to YDB
+    // Automatically sync and save user to YDB (server retains existing balance)
     const ydbRes = await upsertYdbUser(uid, email, displayName);
 
     const user = {
@@ -159,7 +202,8 @@ apiRouter.get('/yandex/userinfo', async (req, res) => {
       providerId: 'yandex.ru'
     };
 
-    return res.json({ success: true, data, user });
+    const sessionToken = generateSessionToken(user);
+    return res.json({ success: true, data, user, token: sessionToken });
   } catch (e: any) {
     console.error('[API] Yandex userinfo exception:', e);
     return res.status(500).json({ success: false, error: e.message || 'Server error' });
@@ -167,8 +211,8 @@ apiRouter.get('/yandex/userinfo', async (req, res) => {
 });
 
 // User Profile & Tokens API (YDB + High Reliability Fallback)
-apiRouter.get('/users/:uid', async (req, res) => {
-  const { uid } = req.params;
+apiRouter.get('/users/:uid', optionalAuth, async (req: AuthenticatedRequest, res) => {
+  const uid = Array.isArray(req.params.uid) ? req.params.uid[0] : req.params.uid;
   const email = req.query.email as string;
   try {
     const user = await getYdbUser(uid, email);
@@ -179,26 +223,34 @@ apiRouter.get('/users/:uid', async (req, res) => {
   }
 });
 
-apiRouter.post('/users/sync', async (req, res) => {
+// User Sync: SECURED — Never accepts tokens from client body
+apiRouter.post('/users/sync', optionalAuth, async (req: AuthenticatedRequest, res) => {
   const uid = req.body.uid || req.body.id;
   const email = req.body.email || '';
   const displayName = req.body.displayName || req.body.name || '';
-  const tokens = req.body.tokens;
+  
   if (!uid) return res.status(400).json({ success: false, error: 'uid is required' });
   try {
-    const result = await upsertYdbUser(uid, email, displayName, tokens);
-    res.json({ success: true, result });
+    // Security: Do NOT pass client tokens to upsertYdbUser!
+    const result = await upsertYdbUser(uid, email, displayName);
+    res.json({ success: true, result: { tokens: result.tokens } });
   } catch (e: any) {
     console.warn('syncUser notice:', e?.message);
-    res.json({ success: true, result: { tokens: typeof tokens === 'number' ? tokens : 1 } });
+    res.json({ success: true, result: { tokens: 1 } });
   }
 });
 
-apiRouter.post('/users/decrement-token', async (req, res) => {
+apiRouter.post('/users/decrement-token', optionalAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const uid = req.body.uid || req.body.id;
     const email = req.body.email;
     if (!uid) return res.status(400).json({ success: false, error: 'uid is required' });
+
+    // Security: If session token is present, ensure caller cannot decrement someone else's tokens
+    if (req.user && req.user.uid !== uid) {
+      return res.status(403).json({ success: false, error: 'Доступ запрещен (несоответствие идентификатора пользователя)' });
+    }
+
     try {
       const newBalance = await decrementYdbToken(uid, email);
       return res.json({ success: true, tokens: newBalance });
@@ -212,10 +264,15 @@ apiRouter.post('/users/decrement-token', async (req, res) => {
   }
 });
 
-apiRouter.post('/tokens/spend', async (req, res) => {
+apiRouter.post('/tokens/spend', optionalAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const uid = req.body.uid || req.body.id;
     if (!uid) return res.status(400).json({ success: false, error: 'uid is required' });
+
+    if (req.user && req.user.uid !== uid) {
+      return res.status(403).json({ success: false, error: 'Доступ запрещен' });
+    }
+
     try {
       const newBalance = await decrementYdbToken(uid);
       return res.json({ success: true, tokens: newBalance });
@@ -230,9 +287,10 @@ apiRouter.post('/tokens/spend', async (req, res) => {
 });
 
 // Diagrams API (YDB + Local Fallback)
-apiRouter.get('/diagrams/:uid', async (req, res) => {
-  const { uid } = req.params;
+apiRouter.get('/diagrams/:uid', optionalAuth, async (req: AuthenticatedRequest, res) => {
+  const uid = Array.isArray(req.params.uid) ? req.params.uid[0] : req.params.uid;
   const email = req.query.email as string | undefined;
+
   try {
     const list = await getYdbDiagrams(uid, email);
     res.json({ success: true, diagrams: list });
@@ -242,10 +300,15 @@ apiRouter.get('/diagrams/:uid', async (req, res) => {
   }
 });
 
-apiRouter.post('/diagrams/save', async (req, res) => {
+apiRouter.post('/diagrams/save', optionalAuth, async (req: AuthenticatedRequest, res) => {
   const uid = req.body.uid || req.body.id;
   const diagram = req.body.diagram;
   if (!uid || !diagram) return res.status(400).json({ success: false, error: 'uid and diagram are required' });
+
+  if (req.user && req.user.uid !== uid) {
+    return res.status(403).json({ success: false, error: 'Доступ запрещен' });
+  }
+
   try {
     const result = await saveYdbDiagram(uid, diagram);
     res.json({ success: true, result });
@@ -255,10 +318,15 @@ apiRouter.post('/diagrams/save', async (req, res) => {
   }
 });
 
-apiRouter.post('/diagrams/delete', async (req, res) => {
+apiRouter.post('/diagrams/delete', optionalAuth, async (req: AuthenticatedRequest, res) => {
   const uid = req.body.uid || req.body.id;
   const diagramId = req.body.diagramId || req.body.id;
   if (!uid || !diagramId) return res.status(400).json({ success: false, error: 'uid and diagramId are required' });
+
+  if (req.user && req.user.uid !== uid) {
+    return res.status(403).json({ success: false, error: 'Доступ запрещен' });
+  }
+
   try {
     const result = await deleteYdbDiagram(uid, diagramId);
     res.json({ success: true, result });
@@ -267,6 +335,11 @@ apiRouter.post('/diagrams/delete', async (req, res) => {
     res.json({ success: true, result: { success: true } });
   }
 });
+
+// Official Robokassa Payments Endpoints
+apiRouter.post('/payments/robokassa/init', optionalAuth, handleRobokassaInit);
+apiRouter.post('/payments/robokassa/result', handleRobokassaResult);
+apiRouter.get('/payments/robokassa/result', handleRobokassaResult);
 
 // Mount API router under both /api and root (for flexible serverless routing on Vercel and Node)
 app.use('/api', apiRouter);

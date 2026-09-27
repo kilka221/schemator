@@ -1,4 +1,25 @@
 {
-  "users": {},
+  "users": {
+    "hacker_1": {
+      "userId": "hacker_1",
+      "email": "",
+      "displayName": "Пользователь",
+      "tokens": 1,
+      "authType": "local",
+      "createdAt": "2026-09-27T15:54:09.114Z",
+      "emailVerified": true
+    },
+    "email_c3BhbUBzcGFtLmNvbQ": {
+      "userId": "email_c3BhbUBzcGFtLmNvbQ",
+      "email": "spam@spam.com",
+      "displayName": "spam",
+      "tokens": 0,
+      "authType": "local",
+      "createdAt": "2026-09-27T15:54:13.120Z",
+      "emailVerified": false,
+      "verificationCode": "362105",
+      "passwordHash": "e1f1b78bc28f6fd7409aae1af248d3b7f93814c117632068feac5f1a2ba7c02c"
+    }
+  },
   "diagrams": {}
 }

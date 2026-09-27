@@ -9,6 +9,7 @@ import {
 import { SchematorLogo } from './SchematorLogo';
 import { CoinsIcon } from './CoinsIcon';
 import { LegalDocType } from './LegalModal';
+import { initRobokassaPaymentApi } from './ydbClient';
 
 export interface TariffItem {
   id: 'lab' | 'semester' | 'diploma';
@@ -97,7 +98,7 @@ export const TariffModal: React.FC<TariffModalProps> = ({
 
   const isDark = theme === 'dark';
 
-  const handlePay = (tariff: TariffItem) => {
+  const handlePay = async (tariff: TariffItem) => {
     if (!user) {
       onNotify?.('Войдите в аккаунт, чтобы коины зачислились на ваш профиль.');
       onClose();
@@ -105,7 +106,22 @@ export const TariffModal: React.FC<TariffModalProps> = ({
       return;
     }
 
-    onNotify?.(`Переход на оплату ${tariff.priceRub} ₽ через Robokassa (СБП, карты, МИР)...`);
+    const packageId = tariff.id === 'lab' ? '10_coins' : tariff.id === 'semester' ? '30_coins' : '50_coins';
+    
+    try {
+      onNotify?.(`Подготовка платежа ${tariff.priceRub} ₽ через Robokassa...`);
+      const res = await initRobokassaPaymentApi(user.uid, packageId, user.email);
+
+      if (res && res.success && res.paymentUrl) {
+        window.location.href = res.paymentUrl;
+      } else if (res && res.notConfigured) {
+        onNotify?.(res.message || 'Оплата временно настраивается. Ожидаем одобрения Роскомнадзора.');
+      } else {
+        onNotify?.(res?.error || 'Сервис оплаты временно недоступен. Попробуйте позже.');
+      }
+    } catch {
+      onNotify?.('Ошибка соединения с платежным шлюзом.');
+    }
   };
 
   return (

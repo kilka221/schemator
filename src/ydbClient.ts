@@ -10,9 +10,38 @@ export interface YdbDiagramItem {
   updatedAt: string;
 }
 
+export function getStoredSessionToken(): string | null {
+  try {
+    return localStorage.getItem('blockcraft_session_token');
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredSessionToken(token: string | null) {
+  try {
+    if (token) {
+      localStorage.setItem('blockcraft_session_token', token);
+    } else {
+      localStorage.removeItem('blockcraft_session_token');
+    }
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
 async function safeFetchJson(url: string, options?: RequestInit) {
   try {
-    const res = await fetch(url, options);
+    const headers = new Headers(options?.headers || {});
+    const token = getStoredSessionToken();
+    if (token && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    const res = await fetch(url, {
+      ...options,
+      headers,
+    });
     const contentType = res.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
       return await res.json();
@@ -101,6 +130,9 @@ export async function loginYdbUserApi(email: string, pass: string) {
     }
     throw err;
   }
+  if (res.token) {
+    setStoredSessionToken(res.token);
+  }
   return res.user;
 }
 
@@ -112,6 +144,9 @@ export async function verifyYdbCodeApi(email: string, code: string) {
   });
   if (!res || !res.success) {
     throw new Error(res?.error || 'Неверный код подтверждения');
+  }
+  if (res.token) {
+    setStoredSessionToken(res.token);
   }
   return res.user;
 }
@@ -126,6 +161,14 @@ export async function resendYdbCodeApi(email: string) {
     throw new Error(res?.error || 'Ошибка повторной отправки кода');
   }
   return res;
+}
+
+export async function initRobokassaPaymentApi(uid: string, packageId: string, email?: string) {
+  return await safeFetchJson('/api/payments/robokassa/init', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid, packageId, email }),
+  });
 }
 
 export async function fetchYdbDiagrams(uid: string, email?: string | null): Promise<YdbDiagramItem[]> {

@@ -173,7 +173,15 @@ export default function App() {
   });
   const [lastGeneratedLanguage, setLastGeneratedLanguage] = useState("python");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [previousBackup, setPreviousBackup] = useState<{ code: string; language: 'python' | 'cpp' | 'csharp' | 'java'; title?: string } | null>(null);
+  const [previousBackup, setPreviousBackup] = useState<{
+    code: string;
+    language: 'python' | 'cpp' | 'csharp' | 'java';
+    title?: string;
+    bannerText?: string;
+    overrides?: Record<number, any>;
+    customCuts?: Record<number, number[]>;
+    lastGeneratedCode?: string;
+  } | null>(null);
   const isBackdropMouseDownRef = React.useRef(false);
   const sessionGeneratedCodesRef = React.useRef<Set<string>>(new Set());
   const [legalModalDoc, setLegalModalDoc] = useState<LegalDocType | null>(null);
@@ -402,7 +410,16 @@ export default function App() {
   };
 
   const [overrides, setOverrides] = useState<Record<number, any>>(() => {
-    try { return JSON.parse(localStorage.getItem('blockcraft_overrides') || '{}'); } catch { return {}; }
+    try {
+      const savedCode = (localStorage.getItem('blockcraft_code_persist') || '').trim();
+      const savedOvCode = (localStorage.getItem('blockcraft_overrides_code') || '').trim();
+      if (savedOvCode && savedCode && savedOvCode !== savedCode) {
+        localStorage.removeItem('blockcraft_overrides');
+        localStorage.removeItem('blockcraft_overrides_code');
+        return {};
+      }
+      return JSON.parse(localStorage.getItem('blockcraft_overrides') || '{}');
+    } catch { return {}; }
   });
   const overridesRef = React.useRef(overrides);
   React.useEffect(() => { 
@@ -434,6 +451,13 @@ export default function App() {
   const [isScissorsMode, setIsScissorsMode] = useState<boolean>(false);
   const [customCuts, setCustomCuts] = useState<Record<number, number[]>>(() => {
     try {
+      const savedCode = (localStorage.getItem('blockcraft_code_persist') || '').trim();
+      const savedCutsCode = (localStorage.getItem('blockcraft_custom_cuts_code') || '').trim();
+      if (savedCutsCode && savedCode && savedCutsCode !== savedCode) {
+        localStorage.removeItem('blockcraft_custom_cuts');
+        localStorage.removeItem('blockcraft_custom_cuts_code');
+        return {};
+      }
       return JSON.parse(localStorage.getItem('blockcraft_custom_cuts') || '{}');
     } catch {
       return {};
@@ -707,7 +731,13 @@ export default function App() {
           const isGenerated = trimmedCode === lastGeneratedCode?.trim() || sessionGeneratedCodesRef.current.has(trimmedCode);
           if (!isGenerated) return [];
 
-          return buildGraphs(code, language, overrides, splitMode, customCuts, isScissorsMode, diagramStyle);
+          // Double check: if overrides were saved for a different code, ignore them so diagrams NEVER mix!
+          const activeOvCode = (localStorage.getItem('blockcraft_overrides_code') || '').trim();
+          const effectiveOverrides = (activeOvCode && activeOvCode !== trimmedCode) ? {} : overrides;
+          const activeCutsCode = (localStorage.getItem('blockcraft_custom_cuts_code') || '').trim();
+          const effectiveCuts = (activeCutsCode && activeCutsCode !== trimmedCode) ? {} : customCuts;
+
+          return buildGraphs(code, language, effectiveOverrides, splitMode, effectiveCuts, isScissorsMode, diagramStyle);
       } catch (e) {
           console.error('buildGraphs error:', e);
           return [];
@@ -729,6 +759,17 @@ export default function App() {
 
       // If code was already generated in this session, restore without deducting coins
       if (sessionGeneratedCodesRef.current.has(trimmedCode)) {
+          if (trimmedCode !== lastGeneratedCode?.trim()) {
+              setOverrides({});
+              overridesRef.current = {};
+              localStorage.removeItem('blockcraft_overrides');
+              localStorage.removeItem('blockcraft_overrides_code');
+              setCustomCuts({});
+              localStorage.removeItem('blockcraft_custom_cuts');
+              localStorage.removeItem('blockcraft_custom_cuts_code');
+              setHistory([{}]);
+              setHistoryIndex(0);
+          }
           setLastGeneratedCode(code);
           setLastGeneratedLanguage(language);
           showToast('Блок-схема восстановлена из кэша сессии');
@@ -750,6 +791,18 @@ export default function App() {
       const currentUser = user;
       setIsGenerating(true);
       try {
+          if (trimmedCode !== lastGeneratedCode?.trim()) {
+              setOverrides({});
+              overridesRef.current = {};
+              localStorage.removeItem('blockcraft_overrides');
+              localStorage.removeItem('blockcraft_overrides_code');
+              setCustomCuts({});
+              localStorage.removeItem('blockcraft_custom_cuts');
+              localStorage.removeItem('blockcraft_custom_cuts_code');
+              setHistory([{}]);
+              setHistoryIndex(0);
+          }
+
           // Immediately register generated code so graphs render without blocking
           sessionGeneratedCodesRef.current.add(trimmedCode);
           setLastGeneratedCode(code);
@@ -846,6 +899,52 @@ export default function App() {
     }
   };
 
+  const handleClearCode = () => {
+    if (!code.trim()) return;
+
+    setPreviousBackup({
+      code: code,
+      language: (language as any) || 'python',
+      title: 'Предыдущий код',
+      bannerText: 'Код очищен.',
+      overrides: JSON.parse(JSON.stringify(overridesRef.current || {})),
+      customCuts: JSON.parse(JSON.stringify(customCuts || {})),
+      lastGeneratedCode: lastGeneratedCode,
+    });
+
+    setCode('');
+    setLastGeneratedCode('');
+    setLastGeneratedLanguage(language);
+    localStorage.removeItem('blockcraft_code_persist');
+
+    setOverrides({});
+    overridesRef.current = {};
+    localStorage.removeItem('blockcraft_overrides');
+    localStorage.removeItem('blockcraft_overrides_code');
+
+    setCustomCuts({});
+    localStorage.removeItem('blockcraft_custom_cuts');
+    localStorage.removeItem('blockcraft_custom_cuts_code');
+
+    setHistory([{}]);
+    setHistoryIndex(0);
+    localStorage.removeItem('blockcraft_history');
+    localStorage.removeItem('blockcraft_historyIndex');
+
+    if (code.trim()) {
+      sessionGeneratedCodesRef.current.delete(code.trim());
+    }
+
+    setSelectedElement(null);
+    setEditingNode(null);
+    setHighlightedNodeId(null);
+    setHoveredLineIndex(null);
+    setActiveTab(0);
+    setActivePage(0);
+
+    showToast('Код и схема очищены (доступно восстановление)');
+  };
+
   const handleSelectDiagramFromHistory = (loadedCode: string, loadedLang: 'python' | 'cpp' | 'csharp' | 'java', diagramTitle?: string) => {
     const trimmedLoaded = loadedCode?.trim() || '';
     const trimmedCurrent = code?.trim() || '';
@@ -855,14 +954,30 @@ export default function App() {
       setPreviousBackup({
         code: code,
         language: (language as any) || 'python',
-        title: 'Предыдущий код'
+        title: 'Предыдущий код',
+        bannerText: `Загружена схема «${diagramTitle || 'из истории'}».`,
+        overrides: JSON.parse(JSON.stringify(overridesRef.current || {})),
+        customCuts: JSON.parse(JSON.stringify(customCuts || {})),
+        lastGeneratedCode: lastGeneratedCode,
       });
     }
+
+    // Always clear old overrides and cuts from previous diagram!
+    setOverrides({});
+    overridesRef.current = {};
+    localStorage.removeItem('blockcraft_overrides');
+    localStorage.removeItem('blockcraft_overrides_code');
+    setCustomCuts({});
+    localStorage.removeItem('blockcraft_custom_cuts');
+    localStorage.removeItem('blockcraft_custom_cuts_code');
+    setHistory([{}]);
+    setHistoryIndex(0);
 
     sessionGeneratedCodesRef.current.add(trimmedLoaded);
     setCode(loadedCode);
     setLanguage(loadedLang);
     localStorage.setItem('blockcraft_language', loadedLang);
+    localStorage.setItem('blockcraft_code_persist', loadedCode);
     setLastGeneratedCode(loadedCode);
     setLastGeneratedLanguage(loadedLang);
     setActiveTab(0);
@@ -878,7 +993,7 @@ export default function App() {
 
   const handleRestorePreviousCode = () => {
     if (!previousBackup) return;
-    const { code: prevCode, language: prevLang } = previousBackup;
+    const { code: prevCode, language: prevLang, overrides: prevOv, customCuts: prevCuts, lastGeneratedCode: prevGenCode } = previousBackup;
     const trimmedPrev = prevCode?.trim() || '';
     if (trimmedPrev) {
       sessionGeneratedCodesRef.current.add(trimmedPrev);
@@ -886,8 +1001,34 @@ export default function App() {
     setCode(prevCode);
     setLanguage(prevLang);
     localStorage.setItem('blockcraft_language', prevLang);
-    setLastGeneratedCode(prevCode);
+    localStorage.setItem('blockcraft_code_persist', prevCode);
+    setLastGeneratedCode(prevGenCode !== undefined ? prevGenCode : prevCode);
     setLastGeneratedLanguage(prevLang);
+
+    if (prevOv && Object.keys(prevOv).length > 0) {
+      setOverrides(prevOv);
+      overridesRef.current = prevOv;
+      localStorage.setItem('blockcraft_overrides', JSON.stringify(prevOv));
+      localStorage.setItem('blockcraft_overrides_code', trimmedPrev);
+      setHistory([prevOv]);
+      setHistoryIndex(0);
+    } else {
+      setOverrides({});
+      overridesRef.current = {};
+      localStorage.removeItem('blockcraft_overrides');
+      localStorage.removeItem('blockcraft_overrides_code');
+    }
+
+    if (prevCuts && Object.keys(prevCuts).length > 0) {
+      setCustomCuts(prevCuts);
+      localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(prevCuts));
+      localStorage.setItem('blockcraft_custom_cuts_code', trimmedPrev);
+    } else {
+      setCustomCuts({});
+      localStorage.removeItem('blockcraft_custom_cuts');
+      localStorage.removeItem('blockcraft_custom_cuts_code');
+    }
+
     setPreviousBackup(null);
     showToast('Предыдущий код и блок-схема успешно возвращены');
   };
@@ -896,16 +1037,38 @@ export default function App() {
     if (code.trim() && code.trim() !== preset.code.trim()) {
       setPreviousBackup({
         code: code,
-        language: 'python',
-        title: 'Предыдущий код'
+        language: (language as any) || 'python',
+        title: 'Предыдущий код',
+        bannerText: `Загружен шаблон «${preset.title}».`,
+        overrides: JSON.parse(JSON.stringify(overridesRef.current || {})),
+        customCuts: JSON.parse(JSON.stringify(customCuts || {})),
+        lastGeneratedCode: lastGeneratedCode,
       });
     }
+
+    setOverrides({});
+    overridesRef.current = {};
+    localStorage.removeItem('blockcraft_overrides');
+    localStorage.removeItem('blockcraft_overrides_code');
+    setCustomCuts({});
+    localStorage.removeItem('blockcraft_custom_cuts');
+    localStorage.removeItem('blockcraft_custom_cuts_code');
+    setHistory([{}]);
+    setHistoryIndex(0);
+
     setCode(preset.code);
+    setLanguage('python');
+    localStorage.setItem('blockcraft_language', 'python');
+    localStorage.setItem('blockcraft_code_persist', preset.code);
     sessionGeneratedCodesRef.current.add(preset.code.trim());
     setLastGeneratedCode(preset.code);
     setLastGeneratedLanguage('python');
     setActiveTab(0);
     setActivePage(0);
+    setSelectedElement(null);
+    setEditingNode(null);
+    setHighlightedNodeId(null);
+    setHoveredLineIndex(null);
     showToast(`Загружен шаблон: «${preset.title}»`);
   };
 
@@ -1769,17 +1932,9 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 <div className="flex items-center gap-1">
                   {code.trim() && (
                     <button
-                      onClick={() => {
-                        setPreviousBackup({
-                          code: code,
-                          language: (language as any) || 'python',
-                          title: 'Предыдущий код'
-                        });
-                        setCode('');
-                        showToast('Код очищен (доступно восстановление)');
-                      }}
+                      onClick={handleClearCode}
                       className="h-6 w-6 rounded flex items-center justify-center text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                      title="Очистить код"
+                      title="Очистить код и сбросить кэш схемы"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -2628,34 +2783,74 @@ const downloadDrawio = (title: string, fontFamily: string) => {
           if (code.trim() && code.trim() !== template.code.trim()) {
             setPreviousBackup({
               code: code,
-              language: 'python',
-              title: 'Предыдущий код'
+              language: (language as any) || 'python',
+              title: 'Предыдущий код',
+              bannerText: `Загружен шаблон «${template.title}».`,
+              overrides: JSON.parse(JSON.stringify(overridesRef.current || {})),
+              customCuts: JSON.parse(JSON.stringify(customCuts || {})),
+              lastGeneratedCode: lastGeneratedCode,
             });
           }
+          setOverrides({});
+          overridesRef.current = {};
+          localStorage.removeItem('blockcraft_overrides');
+          localStorage.removeItem('blockcraft_overrides_code');
+          setCustomCuts({});
+          localStorage.removeItem('blockcraft_custom_cuts');
+          localStorage.removeItem('blockcraft_custom_cuts_code');
+          setHistory([{}]);
+          setHistoryIndex(0);
+
           setCode(template.code);
           setLanguage(template.language as any || 'python');
+          localStorage.setItem('blockcraft_language', template.language as any || 'python');
+          localStorage.setItem('blockcraft_code_persist', template.code);
           sessionGeneratedCodesRef.current.add(template.code.trim());
           setLastGeneratedCode(template.code);
           setLastGeneratedLanguage(template.language as any || 'python');
           setActiveTab(0);
           setActivePage(0);
+          setSelectedElement(null);
+          setEditingNode(null);
+          setHighlightedNodeId(null);
+          setHoveredLineIndex(null);
           showToast(`Загружен шаблон: «${template.title}»`);
         }}
         onSelectTemplate={(template) => {
           if (code.trim() && code.trim() !== template.code.trim()) {
             setPreviousBackup({
               code: code,
-              language: 'python',
-              title: 'Предыдущий код'
+              language: (language as any) || 'python',
+              title: 'Предыдущий код',
+              bannerText: `Загружен шаблон «${template.title}».`,
+              overrides: JSON.parse(JSON.stringify(overridesRef.current || {})),
+              customCuts: JSON.parse(JSON.stringify(customCuts || {})),
+              lastGeneratedCode: lastGeneratedCode,
             });
           }
+          setOverrides({});
+          overridesRef.current = {};
+          localStorage.removeItem('blockcraft_overrides');
+          localStorage.removeItem('blockcraft_overrides_code');
+          setCustomCuts({});
+          localStorage.removeItem('blockcraft_custom_cuts');
+          localStorage.removeItem('blockcraft_custom_cuts_code');
+          setHistory([{}]);
+          setHistoryIndex(0);
+
           setCode(template.code);
           setLanguage(template.language as any || 'python');
+          localStorage.setItem('blockcraft_language', template.language as any || 'python');
+          localStorage.setItem('blockcraft_code_persist', template.code);
           sessionGeneratedCodesRef.current.add(template.code.trim());
           setLastGeneratedCode(template.code);
           setLastGeneratedLanguage(template.language as any || 'python');
           setActiveTab(0);
           setActivePage(0);
+          setSelectedElement(null);
+          setEditingNode(null);
+          setHighlightedNodeId(null);
+          setHoveredLineIndex(null);
           showToast(`Загружен шаблон: «${template.title}»`);
         }}
       />
@@ -2734,6 +2929,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   if (!next[activeTab].nodes[editingNode.id]) next[activeTab].nodes[editingNode.id] = {};
                   next[activeTab].nodes[editingNode.id].text = editingNode.text;
                   pushHistory(next);
+                  localStorage.setItem('blockcraft_overrides_code', code.trim());
                   setEditingNode(null);
                   showToast('Текст блока сохранен');
                 } else if (e.key === 'Escape') {
@@ -2762,6 +2958,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   if (!next[activeTab].nodes[editingNode.id]) next[activeTab].nodes[editingNode.id] = {};
                   next[activeTab].nodes[editingNode.id].text = editingNode.text;
                   pushHistory(next);
+                  localStorage.setItem('blockcraft_overrides_code', code.trim());
                   setEditingNode(null);
                   showToast('Текст блока сохранен');
                 }}
@@ -2776,7 +2973,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
       {/* Accidental Click / Restore Previous Code Floating Banner */}
       {previousBackup && (
         <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[100] px-3 py-1.5 bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 text-xs font-medium rounded-md shadow-xl border border-zinc-700 flex items-center gap-2.5 animate-in fade-in duration-150">
-          <span className="text-zinc-300">Загружена схема из истории.</span>
+          <span className="text-zinc-300">{previousBackup.bannerText || 'Загружена схема из истории.'}</span>
           <button
             onClick={handleRestorePreviousCode}
             className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[11px] font-medium transition-colors cursor-pointer"
@@ -2903,6 +3100,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
           setIsMobileCodeOpen(false);
         }}
         isGenerating={isGenerating}
+        onClear={handleClearCode}
         onOpenPresets={() => {
           setIsMobileCodeOpen(false);
           setIsPresetsModalOpen(true);
