@@ -77,6 +77,7 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
   const [editingTitle, setEditingTitle] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -262,13 +263,17 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user) return;
+    if (!user || deletingId) return;
+    setDeletingId(id);
     try {
       await deleteYdbDiagramItem(user.uid, id);
       setDiagrams((prev) => prev.filter((d) => d.id !== id));
       onNotify('Схема удалена');
     } catch (err) {
       console.error('Error deleting diagram:', err);
+      onNotify('Ошибка при удалении схемы');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -516,10 +521,19 @@ export const DiagramHistory: React.FC<DiagramHistoryProps> = ({
                     </button>
                     <button
                       onClick={(e) => handleDelete(diag.id, e)}
-                      title="Удалить"
-                      className="p-1 rounded text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                      disabled={deletingId === diag.id}
+                      title={deletingId === diag.id ? 'Удаление...' : 'Удалить'}
+                      className={`p-1 rounded transition-colors cursor-pointer ${
+                        deletingId === diag.id
+                          ? 'text-red-500 bg-red-50 dark:bg-red-950/40 cursor-wait'
+                          : 'text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30'
+                      }`}
                     >
-                      <Trash2 className="w-3 h-3" />
+                      {deletingId === diag.id ? (
+                        <Loader2 className="w-3 h-3 animate-spin text-red-500" />
+                      ) : (
+                        <Trash2 className="w-3 h-3" />
+                      )}
                     </button>
                   </div>
                 </>
