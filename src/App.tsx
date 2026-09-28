@@ -49,7 +49,9 @@ import {
   Bookmark,
   Loader2,
   Save,
-  Copy
+  Copy,
+  User,
+  Maximize2
 } from 'lucide-react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
@@ -449,18 +451,28 @@ export default function App() {
     return (localStorage.getItem('blockcraft_split_mode') as 'auto' | 'manual' | 'none') || 'auto';
   });
   const [isScissorsMode, setIsScissorsMode] = useState<boolean>(false);
+  const [isSplitMenuOpen, setIsSplitMenuOpen] = useState<boolean>(false);
+  const splitMenuRef = React.useRef<HTMLDivElement>(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false);
   const exportMenuRef = React.useRef<HTMLDivElement>(null);
   const [isStyleMenuOpen, setIsStyleMenuOpen] = useState<boolean>(false);
   const styleMenuRef = React.useRef<HTMLDivElement>(null);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState<boolean>(false);
+  const profileMenuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      if (splitMenuRef.current && !splitMenuRef.current.contains(e.target as Node)) {
+        setIsSplitMenuOpen(false);
+      }
       if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
         setIsExportMenuOpen(false);
       }
       if (styleMenuRef.current && !styleMenuRef.current.contains(e.target as Node)) {
         setIsStyleMenuOpen(false);
+      }
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setIsProfileMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -1158,16 +1170,66 @@ export default function App() {
   const totalWidth = graphs.reduce((sum, g) => sum + (g.pages.length > 0 ? g.pages[0].width : 800) + 40, 0) || 800;
   const maxHeight = Math.max(...graphs.map(g => g.pages.length > 0 ? g.pages[0].height : 800), 800);
 
-const downloadSvg = (svgId: string, title: string) => {
-    const svgElement = document.getElementById(svgId) as any as SVGSVGElement | null;
-    if (!svgElement) return;
+// Helper to get clean SVG without cut lines, guides, or interactive overlays
+const getCleanExportSvg = (svgId: string) => {
+    const rawSvg = document.getElementById(svgId) as any as SVGSVGElement | null;
+    if (!rawSvg) return null;
+    
+    // Deep clone to safely remove interactive cut lines and scissors overlays
+    const svgElement = rawSvg.cloneNode(true) as SVGSVGElement;
+    svgElement.querySelectorAll('[data-no-export="true"], .no-export, .scissors-overlay').forEach(el => el.remove());
     
     let svgBBox;
     try {
-        svgBBox = svgElement.getBBox();
+        svgBBox = rawSvg.getBBox();
     } catch (e) {
         svgBBox = { x: 0, y: 0, width: 800, height: 800 };
     }
+    return { svgElement, svgBBox };
+};
+
+// Smart snapping helper for scissors cut lines
+function getSnappedCutY(rawY: number, nodes: any[]): number {
+    if (!nodes || nodes.length === 0) return Math.round(rawY);
+    
+    const boxes = nodes.map(n => {
+        const h = n.height || 64;
+        return { top: n.y - h / 2, bottom: n.y + h / 2, y: n.y };
+    }).sort((a, b) => a.y - b.y);
+
+    for (let box of boxes) {
+        if (rawY >= box.top - 8 && rawY <= box.bottom + 8) {
+            if (rawY <= box.y) {
+                const prev = [...boxes].reverse().find(b => b.bottom < box.top);
+                return prev ? Math.round((prev.bottom + box.top) / 2) : Math.max(10, Math.round(box.top - 20));
+            } else {
+                const next = boxes.find(b => b.top > box.bottom);
+                return next ? Math.round((box.bottom + next.top) / 2) : Math.round(box.bottom + 20);
+            }
+        }
+    }
+
+    let closestGap = rawY;
+    let minGapDist = Infinity;
+    for (let i = 0; i < boxes.length - 1; i++) {
+        const b1 = boxes[i];
+        const b2 = boxes[i + 1];
+        if (b2.top > b1.bottom + 8) {
+            const mid = (b1.bottom + b2.top) / 2;
+            const dist = Math.abs(rawY - mid);
+            if (dist < 45 && dist < minGapDist) {
+                minGapDist = dist;
+                closestGap = mid;
+            }
+        }
+    }
+    return Math.round(closestGap);
+}
+
+const downloadSvg = (svgId: string, title: string) => {
+    const clean = getCleanExportSvg(svgId);
+    if (!clean) return;
+    const { svgElement, svgBBox } = clean;
     
     const padding = 80;
     const w = Math.ceil(svgBBox.width + padding * 2);
@@ -1188,7 +1250,6 @@ const downloadSvg = (svgId: string, title: string) => {
     // Make SVG transparent by removing styling classes like bg-white and drop-shadow
     source = source.replace(/\bclass(?:Name)?="[^"]+"/g, '');
     
-    // Add white background specifically for SVG download if needed, or leave it transparent
     const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
     const a = document.createElement("a");
     a.href = url;
@@ -1199,15 +1260,9 @@ const downloadSvg = (svgId: string, title: string) => {
 };
 
 const downloadPng = (svgId: string, title: string) => {
-    const svgElement = document.getElementById(svgId) as any as SVGSVGElement | null;
-    if (!svgElement) return;
-    
-    let svgBBox;
-    try {
-        svgBBox = svgElement.getBBox();
-    } catch (e) {
-        svgBBox = { x: 0, y: 0, width: 800, height: 800 };
-    }
+    const clean = getCleanExportSvg(svgId);
+    if (!clean) return;
+    const { svgElement, svgBBox } = clean;
     
     const padding = 80;
     const w = Math.ceil(svgBBox.width + padding * 2);
@@ -1258,18 +1313,12 @@ const downloadPng = (svgId: string, title: string) => {
 }; // end downloadPng
 
 const copyPngToClipboard = (svgId: string, onNotify?: (msg: string) => void) => {
-    const svgElement = document.getElementById(svgId) as any as SVGSVGElement | null;
-    if (!svgElement) {
+    const clean = getCleanExportSvg(svgId);
+    if (!clean) {
         onNotify?.('Схема не найдена');
         return;
     }
-    
-    let svgBBox;
-    try {
-        svgBBox = svgElement.getBBox();
-    } catch (e) {
-        svgBBox = { x: 0, y: 0, width: 800, height: 800 };
-    }
+    const { svgElement, svgBBox } = clean;
     
     const padding = 80;
     const w = Math.ceil(svgBBox.width + padding * 2);
@@ -1588,63 +1637,173 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               </div>
             </div>
 
-            {/* Right Controls in Header */}
+            {/* Right Controls in Header: Unified "Мой профиль" */}
             <div className="flex items-center gap-2">
-              {/* Auth & Tokens */}
               {user ? (
-                <div className="flex items-center gap-2">
-                  <div className={`px-2 h-7 rounded-md border text-[11px] font-mono flex items-center gap-1.5 transition-colors ${
-                    isDark ? 'bg-zinc-800/80 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
-                  }`}>
-                    <CoinsIcon size={14} className="w-3.5 h-3.5 shrink-0" />
-                    <span className="font-medium">{userTokens !== null ? userTokens : '...'}</span>
-                    <span className="hidden sm:inline text-zinc-300 dark:text-zinc-600 select-none">|</span>
-                    <button
-                      onClick={() => setIsTariffModalOpen(true)}
-                      className="hidden sm:inline text-[11px] font-mono text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors cursor-pointer"
-                    >
-                      Тарифы
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-1.5">
+                <div className="relative" ref={profileMenuRef}>
+                  <button
+                    onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                    className={`h-7 px-2.5 rounded-md border flex items-center gap-2 text-xs font-medium transition-all cursor-pointer select-none shadow-2xs ${
+                      isDark
+                        ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border-zinc-800 hover:border-zinc-700'
+                        : 'bg-white hover:bg-zinc-50 text-zinc-800 border-zinc-200 hover:border-zinc-300'
+                    }`}
+                    title="Мой профиль"
+                  >
                     {user.photoURL ? (
-                      <img src={user.photoURL} alt="Avatar" className="w-6 h-6 rounded-md border border-zinc-700 object-cover" referrerPolicy="no-referrer" />
+                      <img src={user.photoURL} alt="Avatar" className="w-4 h-4 rounded-full object-cover shrink-0 border border-zinc-700/50" referrerPolicy="no-referrer" />
                     ) : (
-                      <div className="w-6 h-6 rounded-md bg-zinc-800 text-zinc-200 border border-zinc-700 flex items-center justify-center text-[11px] font-mono font-bold">
+                      <div className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-200 flex items-center justify-center text-[10px] font-bold">
                         {user.displayName?.[0] || 'U'}
                       </div>
                     )}
-                    <button
-                      onClick={handleLogout}
-                      className={`hidden md:flex h-7 w-7 rounded-md items-center justify-center transition-colors cursor-pointer ${
-                        isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-zinc-800' : 'text-zinc-500 hover:text-red-500 hover:bg-zinc-100'
-                      }`}
-                      title="Выйти из аккаунта"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+
+                    <span className="text-xs font-medium">
+                      Мой профиль
+                    </span>
+
+                    <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-semibold ${
+                      isDark ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-100 text-zinc-700'
+                    }`}>
+                      <CoinsIcon size={11} className="shrink-0" />
+                      <span>{userTokens !== null ? userTokens : '...'}</span>
+                    </div>
+
+                    <ChevronDown className={`w-3 h-3 text-zinc-400 transition-transform duration-150 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Profile Dropdown Menu - Styled consistently with left sidebar */}
+                  {isProfileMenuOpen && (
+                    <div className={`absolute right-0 top-full mt-1.5 w-64 p-2 rounded-lg border shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100 text-xs ${
+                      isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-200' : 'bg-white border-zinc-200 text-zinc-800'
+                    }`}>
+                      {/* User Info Header */}
+                      <div className="px-2 py-1.5 flex items-center gap-2.5">
+                        {user.photoURL ? (
+                          <img src={user.photoURL} alt="Avatar" className="w-9 h-9 rounded-md border border-zinc-200 dark:border-zinc-700 object-cover shrink-0" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-xs font-mono font-bold shrink-0">
+                            {user.displayName?.[0] || 'U'}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                            {user.displayName || 'Пользователь'}
+                          </div>
+                          <div className="text-[11px] text-zinc-400 truncate">
+                            {user.email || 'Авторизован'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Token Balance Card */}
+                      <div className={`p-2.5 rounded-md border my-1.5 ${
+                        isDark ? 'bg-zinc-950/60 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+                      }`}>
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-1.5 text-zinc-400">
+                            <CoinsIcon size={14} className="shrink-0 text-zinc-400" />
+                            <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">Баланс токенов:</span>
+                          </div>
+                          <span className="font-mono font-bold text-xs text-zinc-900 dark:text-zinc-100">
+                            {userTokens !== null ? userTokens : '...'}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            setIsProfileMenuOpen(false);
+                            setIsTariffModalOpen(true);
+                          }}
+                          className="w-full mt-2 h-7 px-2.5 rounded-md bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-medium flex items-center justify-between transition-colors cursor-pointer shadow-2xs"
+                        >
+                          <span>Пополнить / Тарифы</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Menu Items matching Left Sidebar */}
+                      <div className="pt-0.5 space-y-0.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-2 py-1 block select-none">
+                          Навигация
+                        </span>
+
+                        <button
+                          onClick={() => {
+                            setIsProfileMenuOpen(false);
+                            if (isSidebarCollapsed) {
+                              setIsSidebarCollapsed(false);
+                              localStorage.setItem('blockcraft_sidebar_collapsed', 'false');
+                            }
+                            setIsHistoryOpen(true);
+                          }}
+                          className={`h-8 flex items-center px-2 gap-2.5 w-full rounded-md transition-colors cursor-pointer text-xs ${
+                            isDark ? 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100' : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900'
+                          }`}
+                        >
+                          <HistoryIcon className="w-4 h-4 shrink-0 text-zinc-400" />
+                          <span>История схем</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setIsProfileMenuOpen(false);
+                            setIsSettingsModalOpen(true);
+                          }}
+                          className={`h-8 flex items-center px-2 gap-2.5 w-full rounded-md transition-colors cursor-pointer text-xs ${
+                            isDark ? 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100' : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900'
+                          }`}
+                        >
+                          <SettingsIcon className="w-4 h-4 shrink-0 text-zinc-400" />
+                          <span>Настройки</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setIsProfileMenuOpen(false);
+                            setIsTipsModalOpen(true);
+                          }}
+                          className={`h-8 flex items-center px-2 gap-2.5 w-full rounded-md transition-colors cursor-pointer text-xs ${
+                            isDark ? 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100' : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900'
+                          }`}
+                        >
+                          <BookOpen className="w-4 h-4 shrink-0 text-zinc-400" />
+                          <span>Справка</span>
+                        </button>
+                      </div>
+
+                      {/* Divider */}
+                      <div className="w-full h-px my-1.5 bg-zinc-200 dark:bg-zinc-800" />
+
+                      {/* Logout Button */}
+                      <button
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          handleLogout();
+                        }}
+                        className={`h-8 flex items-center px-2 gap-2.5 w-full rounded-md transition-colors cursor-pointer text-xs ${
+                          isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-red-500/10' : 'text-zinc-500 hover:text-red-600 hover:bg-red-50'
+                        }`}
+                      >
+                        <LogOut className="w-4 h-4 shrink-0" />
+                        <span>Выйти из аккаунта</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setIsTariffModalOpen(true)}
-                    className={`hidden sm:inline-flex items-center justify-center h-7 px-2.5 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
-                      isDark
-                        ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800'
-                        : 'bg-zinc-50 border-zinc-200 text-zinc-700 hover:text-zinc-900 hover:bg-zinc-100'
-                    }`}
-                  >
-                    Тарифы
-                  </button>
-                  <button
-                    onClick={handleLogin}
-                    className="h-7 px-3 rounded-md bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <LogIn className="w-3.5 h-3.5" />
-                    <span>Войти</span>
-                  </button>
-                </div>
+                <button
+                  onClick={handleLogin}
+                  className={`h-7 px-2.5 rounded-md border flex items-center gap-1.5 text-xs font-medium transition-all cursor-pointer shadow-2xs ${
+                    isDark
+                      ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border-zinc-800 hover:border-zinc-700'
+                      : 'bg-white hover:bg-zinc-50 text-zinc-800 border-zinc-200 hover:border-zinc-300'
+                  }`}
+                  title="Войти в личный кабинет"
+                >
+                  <User className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>Мой профиль</span>
+                </button>
               )}
             </div>
           </header>
@@ -2174,37 +2333,116 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     </button>
                   )}
 
-                  <div className={`inline-flex p-0.5 rounded-lg border gap-0.5 ${
-                    isDark ? 'bg-zinc-950/80 border-zinc-800' : 'bg-zinc-100 border-zinc-200'
-                  }`}>
+                  {/* Dropdown Menu for Split Mode (analogous to Style and Export menus) */}
+                  <div className="relative" ref={splitMenuRef}>
                     <button
-                      onClick={() => {
-                        setSplitMode('auto');
-                        setIsScissorsMode(false);
-                        localStorage.setItem('blockcraft_split_mode', 'auto');
-                      }}
-                      className={`h-7 px-3 text-xs font-medium rounded-md transition-all cursor-pointer ${
-                        splitMode === 'auto'
-                          ? isDark ? 'bg-zinc-800 text-zinc-100 shadow-2xs font-semibold' : 'bg-white text-zinc-900 shadow-2xs font-semibold'
-                          : isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
+                      onClick={() => setIsSplitMenuOpen(!isSplitMenuOpen)}
+                      title="Режим деления страниц"
+                      className={`h-7 px-2.5 flex items-center gap-1.5 text-xs font-medium rounded-lg border transition-all cursor-pointer ${
+                        isDark
+                          ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border-zinc-800 shadow-2xs'
+                          : 'bg-white hover:bg-zinc-50 text-zinc-800 border-zinc-200 shadow-2xs'
                       }`}
                     >
-                      Авто
+                      <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                        {splitMode === 'auto' ? 'Деление: Авто' : splitMode === 'manual' ? 'Деление: Вручную' : 'Без деления'}
+                      </span>
+                      <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${isSplitMenuOpen ? 'rotate-180' : ''}`} />
                     </button>
-                    <button
-                      onClick={() => {
-                        setSplitMode('none');
-                        setIsScissorsMode(false);
-                        localStorage.setItem('blockcraft_split_mode', 'none');
-                      }}
-                      className={`h-7 px-3 text-xs font-medium rounded-md transition-all cursor-pointer ${
-                        splitMode === 'none'
-                          ? isDark ? 'bg-zinc-800 text-zinc-100 shadow-2xs font-semibold' : 'bg-white text-zinc-900 shadow-2xs font-semibold'
-                          : isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
-                      }`}
-                    >
-                      Без деления
-                    </button>
+
+                    {isSplitMenuOpen && (
+                      <div className={`absolute left-0 top-full mt-1 w-56 py-1 rounded-lg border shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100 ${
+                        isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-200' : 'bg-white border-zinc-200 text-zinc-800'
+                      }`}>
+                        <div className="px-1 py-0.5 space-y-0.5">
+                          {/* Option 1: Auto */}
+                          <button
+                            onClick={() => {
+                              setSplitMode('auto');
+                              setIsScissorsMode(false);
+                              localStorage.setItem('blockcraft_split_mode', 'auto');
+                              setIsSplitMenuOpen(false);
+                              showToast('Режим: Автоматическое деление');
+                            }}
+                            className={`w-full px-2.5 py-1.5 rounded-md text-xs flex items-center justify-between text-left transition-colors cursor-pointer ${
+                              splitMode === 'auto'
+                                ? isDark ? 'bg-zinc-800 text-zinc-100 font-semibold' : 'bg-zinc-100 text-zinc-900 font-semibold'
+                                : isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-zinc-100 text-zinc-700'
+                            }`}
+                          >
+                            <div>
+                              <div className="font-medium">Автоматически</div>
+                              <div className="text-[10px] text-zinc-400">Умное деление по высоте ГОСТ</div>
+                            </div>
+                            {splitMode === 'auto' && <Check className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
+                          </button>
+
+                          {/* Option 2: Manual / Scissors */}
+                          <button
+                            onClick={() => {
+                              setSplitMode('manual');
+                              setIsScissorsMode(true);
+                              localStorage.setItem('blockcraft_split_mode', 'manual');
+                              setIsSplitMenuOpen(false);
+                              showToast('Режим ножниц: кликните между блоками схемы');
+                            }}
+                            className={`w-full px-2.5 py-1.5 rounded-md text-xs flex items-center justify-between text-left transition-colors cursor-pointer ${
+                              splitMode === 'manual'
+                                ? isDark ? 'bg-zinc-800 text-zinc-100 font-semibold' : 'bg-zinc-100 text-zinc-900 font-semibold'
+                                : isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-zinc-100 text-zinc-700'
+                            }`}
+                          >
+                            <div>
+                              <div className="font-medium">Вручную (Ножницы)</div>
+                              <div className="text-[10px] text-zinc-400">Кликните на схему для разреза</div>
+                            </div>
+                            {splitMode === 'manual' && <Check className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
+                          </button>
+
+                          {/* Option 3: None */}
+                          <button
+                            onClick={() => {
+                              setSplitMode('none');
+                              setIsScissorsMode(false);
+                              localStorage.setItem('blockcraft_split_mode', 'none');
+                              setIsSplitMenuOpen(false);
+                              showToast('Режим: Без деления');
+                            }}
+                            className={`w-full px-2.5 py-1.5 rounded-md text-xs flex items-center justify-between text-left transition-colors cursor-pointer ${
+                              splitMode === 'none'
+                                ? isDark ? 'bg-zinc-800 text-zinc-100 font-semibold' : 'bg-zinc-100 text-zinc-900 font-semibold'
+                                : isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-zinc-100 text-zinc-700'
+                            }`}
+                          >
+                            <div>
+                              <div className="font-medium">Без деления</div>
+                              <div className="text-[10px] text-zinc-400">Вся блок-схема на одной странице</div>
+                            </div>
+                            {splitMode === 'none' && <Check className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
+                          </button>
+                        </div>
+
+                        {/* Clear cuts action if any cuts exist */}
+                        {(customCuts[activeTab] || []).length > 0 && (
+                          <div className="border-t border-zinc-200 dark:border-zinc-800 mt-1 pt-1 px-1">
+                            <button
+                              onClick={() => {
+                                const nextCuts = { ...customCuts, [activeTab]: [] };
+                                setCustomCuts(nextCuts);
+                                localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(nextCuts));
+                                setIsSplitMenuOpen(false);
+                                showToast('Все разрезы очищены');
+                              }}
+                              className={`w-full px-2.5 py-1.5 rounded-md text-xs text-left transition-colors cursor-pointer font-medium ${
+                                isDark ? 'hover:bg-zinc-800 text-red-400' : 'hover:bg-zinc-100 text-red-600'
+                              }`}
+                            >
+                              Сбросить разрезы ({(customCuts[activeTab] || []).length})
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Minimal Style selector: "Стиль 1", "Стиль 2" ... */}
@@ -2295,8 +2533,8 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     <Shuffle className="w-3.5 h-3.5" />
                   </button>
 
-                  {/* Multi-page switcher: only visible if multi-page in auto mode */}
-                  {splitMode === 'auto' && activeGraph && activeGraph.pages.length > 1 && (
+                  {/* Multi-page switcher: visible whenever diagram is split into multiple pages */}
+                  {!isScissorsMode && activeGraph && activeGraph.pages.length > 1 && (
                     <div className={`inline-flex h-7 rounded-lg border overflow-hidden shadow-2xs ${
                       isDark ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-200 bg-white'
                     }`}>
@@ -2467,21 +2705,37 @@ const downloadDrawio = (title: string, fontFamily: string) => {
           >
             {/* Stray corner toggle button removed. Panel toggling is now in header and on split divider */}
               {isScissorsMode && splitMode === 'manual' && (
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 bg-zinc-900 dark:bg-zinc-800 text-white text-xs font-medium rounded-md shadow-xl border border-zinc-700 dark:border-zinc-600 flex items-center gap-3 animate-in fade-in duration-150">
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1.5 bg-zinc-900/95 dark:bg-zinc-800/95 backdrop-blur-md text-white text-xs font-medium rounded-lg shadow-xl border border-zinc-700 dark:border-zinc-600 flex items-center gap-3 animate-in fade-in duration-150">
                   <div className="flex items-center gap-2">
-                    <Scissors className="w-3.5 h-3.5 text-zinc-300 stroke-zinc-300" />
-                    <span>Режим ножниц: кликните на схему для разделения страниц</span>
+                    <Scissors className="w-3.5 h-3.5 text-red-400 stroke-red-400" />
+                    <span>Режим ножниц: кликайте между блоками для разреза</span>
                   </div>
                   <div className="flex items-center gap-1.5 ml-auto">
+                    {(customCuts[activeTab] || []).length > 0 && (
+                      <button
+                        onClick={() => {
+                          const nextCuts = { ...customCuts, [activeTab]: [] };
+                          setCustomCuts(nextCuts);
+                          localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(nextCuts));
+                          showToast('Разрезы очищены');
+                        }}
+                        className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded text-[11px] font-medium transition-colors cursor-pointer"
+                      >
+                        Очистить ({(customCuts[activeTab] || []).length})
+                      </button>
+                    )}
                     <button
-                      onClick={() => setIsScissorsMode(false)}
-                      className="px-2 py-0.5 bg-zinc-800 dark:bg-zinc-700 hover:bg-zinc-700 dark:hover:bg-zinc-600 rounded text-[11px] font-medium transition-colors cursor-pointer"
+                      onClick={() => {
+                        setIsScissorsMode(false);
+                        showToast('Страницы сформированы');
+                      }}
+                      className="px-2.5 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[11px] font-semibold transition-colors cursor-pointer shadow-xs"
                     >
-                      Отмена
+                      Готово
                     </button>
                     <button
                       onClick={() => setIsTipsModalOpen(true)}
-                      className="px-2 py-0.5 bg-zinc-800 dark:bg-zinc-700 hover:bg-zinc-700 dark:hover:bg-zinc-600 rounded text-[11px] font-medium transition-colors cursor-pointer"
+                      className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded text-[11px] font-medium transition-colors cursor-pointer"
                     >
                       Справка
                     </button>
@@ -2507,13 +2761,16 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     onClick={(e) => {
                         if (isScissorsMode && splitMode === 'manual') {
                             const rect = e.currentTarget.getBoundingClientRect();
-                            const clickY = (e.clientY - rect.top) / scale;
-                            const updatedCuts = [...(customCuts[activeTab] || [])];
-                            updatedCuts.push(Math.round(clickY));
-                            const nextCuts = { ...customCuts, [activeTab]: updatedCuts };
-                            setCustomCuts(nextCuts);
-                            localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(nextCuts));
-                            setIsScissorsMode(false);
+                            const rawY = (e.clientY - rect.top) / scale;
+                            const snappedY = getSnappedCutY(rawY, activeGraphPage.nodes);
+                            const currentCuts = customCuts[activeTab] || [];
+                            if (!currentCuts.some(c => Math.abs(c - snappedY) < 30)) {
+                                const updatedCuts = [...currentCuts, snappedY].sort((a, b) => a - b);
+                                const nextCuts = { ...customCuts, [activeTab]: updatedCuts };
+                                setCustomCuts(nextCuts);
+                                localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(nextCuts));
+                                showToast(`Разрез добавлен (${updatedCuts.length} ${updatedCuts.length === 1 ? 'разрез' : 'разреза'}). Нажмите «Готово» для просмотра`);
+                            }
                             return;
                         }
                         if (e.target === e.currentTarget) {
@@ -2525,8 +2782,9 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     onMouseMove={(e) => {
                         if (!isScissorsMode || splitMode !== 'manual') return;
                         const rect = e.currentTarget.getBoundingClientRect();
-                        const hoverY = (e.clientY - rect.top) / scale;
-                        setHoveredY(Math.round(hoverY));
+                        const rawY = (e.clientY - rect.top) / scale;
+                        const snappedY = getSnappedCutY(rawY, activeGraphPage.nodes);
+                        setHoveredY(snappedY);
                     }}
                     onMouseLeave={() => {
                         setHoveredY(null);
@@ -2580,9 +2838,9 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       </g>
                     ))}
 
-                    {/* Render manual custom cut lines in Scissors Mode */}
-                    {splitMode === 'manual' && (customCuts[activeTab] || []).map((cutY, index) => (
-                        <g key={`cut-line-${index}`} className="group cursor-pointer">
+                    {/* Render manual custom cut lines ONLY in Scissors Mode */}
+                    {isScissorsMode && splitMode === 'manual' && (customCuts[activeTab] || []).map((cutY, index) => (
+                        <g key={`cut-line-${index}`} data-no-export="true" className="no-export group cursor-pointer">
                             {/* Interactive broad line */}
                             <line
                                 x1={0}
@@ -2597,6 +2855,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                                     const nextCuts = { ...customCuts, [activeTab]: updatedCuts };
                                     setCustomCuts(nextCuts);
                                     localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(nextCuts));
+                                    showToast('Разрез удален');
                                 }}
                             />
                             {/* Visual cut line */}
@@ -2617,27 +2876,28 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                                     const nextCuts = { ...customCuts, [activeTab]: updatedCuts };
                                     setCustomCuts(nextCuts);
                                     localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(nextCuts));
+                                    showToast('Разрез удален');
                                 }}
                             >
                                 <rect
-                                    x={10}
-                                    y={cutY - 10}
-                                    width={70}
-                                    height={20}
-                                    rx={4}
+                                    x={12}
+                                    y={cutY - 12}
+                                    width={95}
+                                    height={24}
+                                    rx={6}
                                     fill="#ef4444"
-                                    className="hover:fill-red-600 transition-colors"
+                                    className="hover:fill-red-600 transition-colors drop-shadow-xs"
                                 />
                                 <text
-                                    x={45}
+                                    x={59}
                                     y={cutY + 4}
                                     textAnchor="middle"
                                     fill="white"
-                                    fontSize={10}
-                                    fontWeight="bold"
+                                    fontSize={11}
+                                    fontWeight="600"
                                     className="select-none pointer-events-none"
                                 >
-                                    Удалить ✕
+                                    Разрез {index + 1} • ✕
                                 </text>
                             </g>
                         </g>
@@ -2645,7 +2905,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
 
                     {/* Preview line while dragging or hovering with active scissors */}
                     {isScissorsMode && hoveredY !== null && (
-                        <g className="pointer-events-none">
+                        <g data-no-export="true" className="no-export pointer-events-none">
                             <line
                                 x1={0}
                                 y1={hoveredY}
@@ -2656,22 +2916,23 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                                 strokeDasharray="4,4"
                             />
                             <rect
-                                x={10}
-                                y={hoveredY - 10}
-                                width={85}
-                                height={20}
-                                rx={4}
+                                x={12}
+                                y={hoveredY - 12}
+                                width={125}
+                                height={24}
+                                rx={6}
                                 fill="#3b82f6"
+                                className="drop-shadow-xs"
                             />
                             <text
-                                x={52}
+                                x={74}
                                 y={hoveredY + 4}
                                 textAnchor="middle"
                                 fill="white"
-                                fontSize={10}
-                                fontWeight="bold"
+                                fontSize={11}
+                                fontWeight="600"
                             >
-                                Сделать разрез
+                                ✂ Разрезать здесь
                             </text>
                         </g>
                     )}

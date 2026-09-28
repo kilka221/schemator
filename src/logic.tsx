@@ -2169,10 +2169,50 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
         let pageIntervals: { yMin: number, yMax: number, s: number }[] = [];
         
         if (splitMode === 'manual') {
-            let sortedCuts = [...customCuts].sort((a, b) => a - b);
-            for (let s = 0; s <= sortedCuts.length; s++) {
-                let yMin = (s === 0) ? 0 : sortedCuts[s - 1];
-                let yMax = (s === sortedCuts.length) ? Infinity : sortedCuts[s];
+            const rawCuts = (customCuts && customCuts.length > 0) ? customCuts : [];
+            const nodeBoxes = allNodes.map(n => {
+                const h = n.height || 64;
+                return { top: n.y - h / 2, bottom: n.y + h / 2, y: n.y };
+            }).sort((a, b) => a.y - b.y);
+
+            const sortedCuts = [...rawCuts]
+                .filter(c => typeof c === 'number' && !isNaN(c))
+                .sort((a, b) => a - b);
+
+            const sanitizedCuts: number[] = [];
+            for (let rawCut of sortedCuts) {
+                let targetCut = rawCut;
+                for (let box of nodeBoxes) {
+                    if (targetCut >= box.top - 8 && targetCut <= box.bottom + 8) {
+                        if (targetCut <= box.y) {
+                            const prevBox = [...nodeBoxes].reverse().find(b => b.bottom < box.top);
+                            targetCut = prevBox ? Math.round((prevBox.bottom + box.top) / 2) : Math.max(10, Math.round(box.top - 20));
+                        } else {
+                            const nextBox = nodeBoxes.find(b => b.top > box.bottom);
+                            targetCut = nextBox ? Math.round((box.bottom + nextBox.top) / 2) : Math.round(box.bottom + 20);
+                        }
+                        break;
+                    }
+                }
+                // Avoid exact collision with horizontal segments
+                allEdgesFinal.forEach(e => {
+                    if (e.segments) {
+                        e.segments.forEach(seg => {
+                            if (Math.abs(seg.startY - seg.endY) < 2 && Math.abs(seg.startY - targetCut) < 6) {
+                                targetCut += 12;
+                            }
+                        });
+                    }
+                });
+
+                if (sanitizedCuts.length === 0 || Math.abs(targetCut - sanitizedCuts[sanitizedCuts.length - 1]) >= 40) {
+                    sanitizedCuts.push(targetCut);
+                }
+            }
+
+            for (let s = 0; s <= sanitizedCuts.length; s++) {
+                let yMin = (s === 0) ? 0 : sanitizedCuts[s - 1];
+                let yMax = (s === sanitizedCuts.length) ? Infinity : sanitizedCuts[s];
                 pageIntervals.push({ yMin, yMax, s });
             }
         } else {
@@ -2398,7 +2438,9 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 let clipEy = seg.endY - yMin + SHIFT;
                                 if (seg.endY >= yMax) {
                                     clipEy = jumpOutY - 20;
-                                    sNodes.push({ id: `jump_out_${k}`, type: 'circle', text: letter, x: seg.endX, y: jumpOutY, height: 40 });
+                                    if (!sNodes.some(n => n.id === `jump_out_${k}`)) {
+                                        sNodes.push({ id: `jump_out_${k}`, type: 'circle', text: letter, x: seg.endX, y: jumpOutY, height: 40 });
+                                    }
                                     hasJumpOut = true;
                                     hasClipped = true;
                                 }
@@ -2447,7 +2489,9 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 let clipEy = seg.endY - yMin + SHIFT;
                                 if (seg.startY <= yMin) {
                                     clipSy = JUMP_IN_Y + 20;
-                                    sNodes.push({ id: `jump_in_${k}`, type: 'circle', text: letter, x: seg.startX, y: JUMP_IN_Y, height: 40 });
+                                    if (!sNodes.some(n => n.id === `jump_in_${k}`)) {
+                                        sNodes.push({ id: `jump_in_${k}`, type: 'circle', text: letter, x: seg.startX, y: JUMP_IN_Y, height: 40 });
+                                    }
                                 }
                                 if (Math.abs(clipSy - clipEy) > 0.1 || Math.abs(seg.startX - seg.endX) > 0.1) {
                                     newSegments.push({
@@ -2476,7 +2520,9 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 let clipEy = seg.endY - yMin + SHIFT;
                                 if (seg.endY <= yMin) {
                                     clipEy = JUMP_IN_Y + 20;
-                                    sNodes.push({ id: `jump_out_up_${k}`, type: 'circle', text: letter, x: seg.endX, y: JUMP_IN_Y, height: 40 });
+                                    if (!sNodes.some(n => n.id === `jump_out_up_${k}`)) {
+                                        sNodes.push({ id: `jump_out_up_${k}`, type: 'circle', text: letter, x: seg.endX, y: JUMP_IN_Y, height: 40 });
+                                    }
                                     hasJumpOut = true;
                                     hasClipped = true;
                                 }
@@ -2525,7 +2571,9 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 let clipEy = seg.endY - yMin + SHIFT;
                                 if (seg.startY >= yMax) {
                                     clipSy = jumpOutY - 20;
-                                    sNodes.push({ id: `jump_in_up_${k}`, type: 'circle', text: letter, x: seg.startX, y: jumpOutY, height: 40 });
+                                    if (!sNodes.some(n => n.id === `jump_in_up_${k}`)) {
+                                        sNodes.push({ id: `jump_in_up_${k}`, type: 'circle', text: letter, x: seg.startX, y: jumpOutY, height: 40 });
+                                    }
                                 }
                                 if (Math.abs(clipSy - clipEy) > 0.1 || Math.abs(seg.startX - seg.endX) > 0.1) {
                                     newSegments.push({
