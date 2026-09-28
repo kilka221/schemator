@@ -1155,7 +1155,7 @@ function orthogonalRoute(p1: {x:number, y:number}, p2: {x:number, y:number}) {
     return [p1, {x: p1.x, y: midY}, {x: p2.x, y: midY}, p2];
 }
 
-export function buildGraphs(code: string, language: string, activeOverrides: any = {}, splitMode: 'auto' | 'manual' = 'auto', allCustomCuts: Record<number, number[]> = {}, isScissorsMode: boolean = false, diagramStyleId: string = 'classic_gost') {
+export function buildGraphs(code: string, language: string, activeOverrides: any = {}, splitMode: 'auto' | 'manual' | 'none' = 'auto', allCustomCuts: Record<number, number[]> = {}, isScissorsMode: boolean = false, diagramStyleId: string = 'classic_gost') {
     let parsed;
     if (language === 'cpp') {
         parsed = parseCppSourceWhole(code);
@@ -1179,7 +1179,7 @@ export function buildGraphs(code: string, language: string, activeOverrides: any
     return graphs;
 }
 
-function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | undefined, isMain: boolean, graphOverrides: any = {}, splitMode: 'auto' | 'manual' = 'auto', customCuts: number[] = [], isScissorsMode: boolean = false, diagramStyleId: string = 'classic_gost') {
+function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | undefined, isMain: boolean, graphOverrides: any = {}, splitMode: 'auto' | 'manual' | 'none' = 'auto', customCuts: number[] = [], isScissorsMode: boolean = false, diagramStyleId: string = 'classic_gost') {
     const style = getDiagramStyle(diagramStyleId);
     const NODE_WIDTH = style.nodeWidth;
     const X_SEP = style.xSep;
@@ -2127,7 +2127,9 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
     let pages: {nodes: FlowNode[], edges: FlowEdge[], width: number, height: number}[] = [];
     
     let shouldSplit = false;
-    if (splitMode === 'manual') {
+    if (splitMode === 'none') {
+        shouldSplit = false;
+    } else if (splitMode === 'manual') {
         shouldSplit = (customCuts && customCuts.length > 0) && !isScissorsMode;
     } else {
         shouldSplit = actualMaxY > PAGE_H + 50;

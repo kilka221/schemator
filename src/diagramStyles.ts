@@ -479,3 +479,10 @@ export function getDiagramStyle(id?: string): DiagramStyleConfig {
   const found = DIAGRAM_STYLES.find(s => s.id === id);
   return found || DIAGRAM_STYLES[0];
 }
+
+export function getStyleShortName(id?: string): string {
+  if (!id) return 'Стиль 1';
+  const idx = DIAGRAM_STYLES.findIndex(s => s.id === id);
+  return idx >= 0 ? `Стиль ${idx + 1}` : 'Стиль 1';
+}
+

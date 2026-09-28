@@ -32,7 +32,7 @@ interface MobileMenuDrawerProps {
   onOpenHistory: () => void;
   onOpenLegal: (doc: LegalDocType) => void;
   isDark: boolean;
-  onToggleTheme: () => void;
+  onToggleTheme?: () => void;
 }
 
 export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
@@ -210,20 +210,6 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
           </button>
 
           <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-2" />
-
-          {/* Theme Switcher Button */}
-          <button
-            onClick={onToggleTheme}
-            className="h-10 px-3 rounded-xl flex items-center justify-between text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2.5">
-              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-zinc-500" />}
-              <span>Тема оформления</span>
-            </div>
-            <span className="text-[11px] font-medium text-zinc-400">
-              {isDark ? 'Тёмная' : 'Светлая'}
-            </span>
-          </button>
 
           {user && (
             <button

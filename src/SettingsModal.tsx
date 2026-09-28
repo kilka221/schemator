@@ -1,20 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { 
   X, 
   Settings, 
-  Scissors, 
   Sun, 
   Moon, 
   Check, 
   Type, 
-  Layers, 
   Search, 
-  Sliders,
-  Sparkles,
-  Shuffle
+  Palette
 } from 'lucide-react';
-import { FONTS_CATALOG, FontItem, ensureFontLoaded } from './fonts';
-import { DIAGRAM_STYLES, DiagramStyleConfig, getDiagramStyle } from './diagramStyles';
+import { FONTS_CATALOG, ensureFontLoaded } from './fonts';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -22,135 +17,17 @@ interface SettingsModalProps {
   fontFamily: string;
   setFontFamily?: (font: string) => void;
   onFontChange?: (font: string) => void;
-  diagramStyle: string;
-  setDiagramStyle?: (style: string) => void;
-  onDiagramStyleChange?: (style: string) => void;
   theme: 'light' | 'dark';
   setTheme?: (theme: 'light' | 'dark') => void;
   onThemeChange?: (theme: 'light' | 'dark') => void;
-  splitMode: 'auto' | 'manual';
-  setSplitMode?: (mode: 'auto' | 'manual') => void;
-  onSplitModeChange?: (mode: 'auto' | 'manual') => void;
-  onResetCache?: () => void;
   onNotify?: (msg: string) => void;
-  initialTab?: 'styles' | 'fonts' | 'general';
+  // Legacy optional props to prevent type breakage
+  diagramStyle?: string;
+  setDiagramStyle?: (style: string) => void;
+  splitMode?: 'auto' | 'manual' | 'none';
+  setSplitMode?: (mode: 'auto' | 'manual' | 'none') => void;
+  initialTab?: string;
 }
-
-/**
- * Mini vector preview of a diagram style showing Start, Process, and Rhombus blocks
- */
-const StyleMiniPreview: React.FC<{ style: DiagramStyleConfig; isSelected: boolean }> = ({ style, isSelected }) => {
-  const scale = 0.38;
-  const w = style.nodeWidth * scale;
-  const startH = (style.startBaseHeight || 38) * scale;
-  const h = style.baseHeight * scale;
-  const rhH = (style.rhombusBaseHeight || 46) * scale;
-  const strokeW = Math.max(1, style.strokeWidth * scale * 1.5);
-  const filter = style.isRough ? 'url(#modal-rough-preview)' : undefined;
-
-  const baseStroke = style.strokeColor || '#3f3f46';
-  const strokeColor = isSelected ? '#2563eb' : baseStroke;
-  const fillColor = '#ffffff';
-
-  const startY = 15;
-  const processY = 44;
-  const rhY = 73;
-
-  return (
-    <div className="w-full h-24 bg-zinc-50 dark:bg-zinc-950/60 rounded border border-zinc-200 dark:border-zinc-800 flex items-center justify-center p-2 relative overflow-hidden">
-      <svg width="220" height="90" viewBox="0 0 220 90" className="select-none">
-        <defs>
-          <filter id="modal-rough-preview" x="-10%" y="-10%" width="120%" height="120%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="2" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-        </defs>
-
-        {/* Start block - uniform width w, narrow vertical height startH */}
-        <g transform={`translate(110, ${startY})`}>
-          <rect 
-            x={-w / 2} 
-            y={-startH / 2} 
-            width={w} 
-            height={startH} 
-            rx={startH / 2} 
-            ry={startH / 2} 
-            fill={fillColor} 
-            stroke={strokeColor} 
-            strokeWidth={strokeW} 
-            filter={filter}
-          />
-          <text 
-            x="0" 
-            y="1" 
-            textAnchor="middle" 
-            dominantBaseline="central" 
-            fontSize="7" 
-            fontWeight={style.fontWeight} 
-            fill="#27272a"
-          >
-            Начало
-          </text>
-        </g>
-
-        {/* Arrow 1 */}
-        <line x1="110" y1={startY + startH / 2} x2="110" y2={processY - h / 2} stroke={strokeColor} strokeWidth={strokeW} />
-
-        {/* Process block - uniform width w */}
-        <g transform={`translate(110, ${processY})`}>
-          <rect 
-            x={-w / 2} 
-            y={-h / 2} 
-            width={w} 
-            height={h} 
-            rx={style.processRx || 0} 
-            ry={style.processRx || 0} 
-            fill={fillColor} 
-            stroke={strokeColor} 
-            strokeWidth={strokeW} 
-            filter={filter}
-          />
-          <text 
-            x="0" 
-            y="1" 
-            textAnchor="middle" 
-            dominantBaseline="central" 
-            fontSize="6.5" 
-            fontWeight={style.fontWeight} 
-            fill="#27272a"
-          >
-            x = a + b
-          </text>
-        </g>
-
-        {/* Arrow 2 */}
-        <line x1="110" y1={processY + h / 2} x2="110" y2={rhY - rhH / 2} stroke={strokeColor} strokeWidth={strokeW} />
-
-        {/* Rhombus decision block - uniform width w */}
-        <g transform={`translate(110, ${rhY})`}>
-          <polygon 
-            points={`0,${-rhH / 2} ${w / 2},0 0,${rhH / 2} ${-w / 2},0`} 
-            fill={fillColor} 
-            stroke={strokeColor} 
-            strokeWidth={strokeW} 
-            filter={filter}
-          />
-          <text 
-            x="0" 
-            y="1" 
-            textAnchor="middle" 
-            dominantBaseline="central" 
-            fontSize="6.5" 
-            fontWeight={style.fontWeight} 
-            fill="#27272a"
-          >
-            x &gt; 0?
-          </text>
-        </g>
-      </svg>
-    </div>
-  );
-};
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -158,22 +35,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   fontFamily,
   setFontFamily,
   onFontChange,
-  diagramStyle,
-  setDiagramStyle,
-  onDiagramStyleChange,
   theme,
   setTheme,
   onThemeChange,
-  splitMode,
-  setSplitMode,
-  onSplitModeChange,
   onNotify,
-  initialTab = 'styles'
 }) => {
-  const [activeTab, setActiveTab] = useState<'styles' | 'fonts' | 'general'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'fonts' | 'theme'>('fonts');
   const [fontSearch, setFontSearch] = useState('');
   const [fontCategory, setFontCategory] = useState<string>('all');
-  const [styleSearch, setStyleSearch] = useState('');
 
   // Auto ensure selected font is loaded
   React.useEffect(() => {
@@ -189,6 +58,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleTheme = (nextTheme: 'light' | 'dark') => {
     if (onThemeChange) onThemeChange(nextTheme);
     if (setTheme) setTheme(nextTheme);
+    if (onNotify) {
+      onNotify(nextTheme === 'dark' ? 'Включена тёмная тема' : 'Включена светлая тема');
+    }
   };
 
   const handleFont = (nextFont: string) => {
@@ -201,31 +73,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
-  const handleStyle = (nextStyle: string) => {
-    if (onDiagramStyleChange) onDiagramStyleChange(nextStyle);
-    if (setDiagramStyle) setDiagramStyle(nextStyle);
-    const styleObj = getDiagramStyle(nextStyle);
-    if (onNotify) {
-      onNotify(`Выбран стиль: «${styleObj.name}»`);
-    }
-  };
-
-  const handleSplitMode = (nextMode: 'auto' | 'manual') => {
-    if (onSplitModeChange) onSplitModeChange(nextMode);
-    if (setSplitMode) setSplitMode(nextMode);
-  };
-
-  // Randomizer: pick a random style & font combo
-  const handleRandomize = () => {
-    const randomStyle = DIAGRAM_STYLES[Math.floor(Math.random() * DIAGRAM_STYLES.length)];
-    const randomFont = FONTS_CATALOG[Math.floor(Math.random() * FONTS_CATALOG.length)];
-    handleStyle(randomStyle.id);
-    handleFont(randomFont.id);
-    if (onNotify) {
-      onNotify(`🎲 Уникальная комбинация: «${randomStyle.name}» + ${randomFont.name}`);
-    }
-  };
-
   // Filter fonts
   const filteredFonts = FONTS_CATALOG.filter((f) => {
     const matchesSearch = 
@@ -235,445 +82,363 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     return matchesSearch && matchesCategory;
   });
 
-  // Filter styles
-  const filteredStyles = DIAGRAM_STYLES.filter((s) => {
-    const q = styleSearch.toLowerCase();
-    return s.name.toLowerCase().includes(q) || 
-      s.description.toLowerCase().includes(q) || 
-      (s.badge && s.badge.toLowerCase().includes(q)) ||
-      s.tags.some(t => t.toLowerCase().includes(q));
-  });
-
-  const currentStyleObj = getDiagramStyle(diagramStyle);
   const currentFontObj = FONTS_CATALOG.find(f => f.id === fontFamily) || FONTS_CATALOG[0];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={onClose}
+    >
       <div 
-        className={`w-full max-w-4xl max-h-[92vh] rounded-xl border shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150 transition-colors ${
+        className={`w-full max-w-3xl h-[560px] max-h-[85vh] rounded-md border shadow-xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150 transition-colors ${
           isDark 
             ? 'bg-zinc-900 text-zinc-100 border-zinc-800' 
             : 'bg-white text-zinc-900 border-zinc-200'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className={`flex items-center justify-between px-5 py-3.5 border-b ${
-          isDark ? 'border-zinc-800 bg-zinc-900/90' : 'border-zinc-200 bg-zinc-50'
-        }`}>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <Sliders className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold tracking-tight">
-                  Оформление и стили блок-схем
-                </h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300">
-                  Анти-плагиат препод
-                </span>
-              </div>
-              <p className={`text-[11px] ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                20 уникальных стилей геометрии + {FONTS_CATALOG.length} шрифтов (ГОСТ, Академические, Гротески, Моно)
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleRandomize}
-              title="Сгенерировать случайный уникальный стиль и шрифт"
-              className="px-2.5 py-1.5 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
-            >
-              <Shuffle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden sm:inline">Случайный стиль</span>
-            </button>
-            <button 
-              onClick={onClose}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                isDark 
-                  ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' 
-                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200'
-              }`}
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className={`flex items-center gap-1 px-5 border-b text-xs font-medium ${
-          isDark ? 'border-zinc-800 bg-zinc-900/60' : 'border-zinc-200 bg-zinc-100/60'
-        }`}>
-          <button
-            onClick={() => setActiveTab('styles')}
-            className={`flex items-center gap-2 py-2.5 px-3 border-b-2 transition-colors cursor-pointer ${
-              activeTab === 'styles'
-                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 font-semibold'
-                : isDark
-                  ? 'border-transparent text-zinc-400 hover:text-zinc-200'
-                  : 'border-transparent text-zinc-600 hover:text-zinc-900'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Стили схем (20)</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
-              {currentStyleObj.name.split(' ')[0]}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('fonts')}
-            className={`flex items-center gap-2 py-2.5 px-3 border-b-2 transition-colors cursor-pointer ${
-              activeTab === 'fonts'
-                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 font-semibold'
-                : isDark
-                  ? 'border-transparent text-zinc-400 hover:text-zinc-200'
-                  : 'border-transparent text-zinc-600 hover:text-zinc-900'
-            }`}
-          >
-            <Type className="w-3.5 h-3.5" />
-            <span>Шрифты ({FONTS_CATALOG.length})</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 truncate max-w-[110px]">
-              {currentFontObj.name}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('general')}
-            className={`flex items-center gap-2 py-2.5 px-3 border-b-2 transition-colors cursor-pointer ${
-              activeTab === 'general'
-                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 font-semibold'
-                : isDark
-                  ? 'border-transparent text-zinc-400 hover:text-zinc-200'
-                  : 'border-transparent text-zinc-600 hover:text-zinc-900'
-            }`}
-          >
-            <Settings className="w-3.5 h-3.5" />
-            <span>Разбиение и тема</span>
-          </button>
-        </div>
-
-        {/* Tab Content Area */}
-        <div className="flex-1 overflow-y-auto p-5 text-xs">
-          {/* ========================================================= */}
-          {/* TAB 1: 20 DIAGRAM STYLES */}
-          {/* ========================================================= */}
-          {activeTab === 'styles' && (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <p className={`text-xs ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
-                    Выберите стиль оформления. Меняются пропорции, вытянутость ромбов, овал старта, толщина линий и кегль, но семантика ГОСТ строго сохраняется:
-                  </p>
-                </div>
-                <div className="relative w-full sm:w-64 shrink-0">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
-                  <input 
-                    type="text"
-                    value={styleSearch}
-                    onChange={(e) => setStyleSearch(e.target.value)}
-                    placeholder="Поиск по стилям..."
-                    className="w-full pl-8 pr-3 py-1.5 text-xs rounded-md border bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
-                  />
-                  {styleSearch && (
-                    <button 
-                      onClick={() => setStyleSearch('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 cursor-pointer"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Grid of 20 styles */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                {filteredStyles.map((s) => {
-                  const isSelected = diagramStyle === s.id;
-                  return (
-                    <div
-                      key={s.id}
-                      onClick={() => handleStyle(s.id)}
-                      className={`rounded-lg border p-3.5 flex flex-col justify-between transition-all cursor-pointer relative group ${
-                        isSelected
-                          ? 'border-emerald-500 bg-emerald-500/5 ring-2 ring-emerald-500/30 shadow-md'
-                          : isDark
-                            ? 'border-zinc-800 bg-zinc-900/80 hover:border-zinc-700 hover:bg-zinc-850'
-                            : 'border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50'
-                      }`}
-                    >
-                      {/* Mini vector preview */}
-                      <div className="mb-2.5">
-                        <StyleMiniPreview style={s} isSelected={isSelected} />
-                      </div>
-
-                      <div>
-                        <div className="flex items-start justify-between gap-1.5 mb-1">
-                          <h3 className={`text-xs font-bold ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>
-                            {s.name}
-                          </h3>
-                          {s.badge && (
-                            <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
-                              {s.badge}
-                            </span>
-                          )}
-                        </div>
-                        <p className={`text-[11px] leading-relaxed mb-3 ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                          {s.description}
-                        </p>
-                      </div>
-
-                      <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
-                        <div className="flex flex-wrap gap-1">
-                          <span className="text-[10px] px-1 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 font-mono">
-                            {s.nodeWidth}px
-                          </span>
-                          <span className="text-[10px] px-1 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 font-mono">
-                            {s.strokeWidth}мм
-                          </span>
-                          <span className="text-[10px] px-1 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 font-mono">
-                            {s.fontSize}pt
-                          </span>
-                        </div>
-
-                        {isSelected ? (
-                          <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-[11px]">
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Активен</span>
-                          </div>
-                        ) : (
-                          <span className="text-[11px] text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200 font-medium">
-                            Выбрать →
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================= */}
-          {/* TAB 2: 64 FONTS BROWSER */}
-          {/* ========================================================= */}
-          {activeTab === 'fonts' && (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
-                  {[
-                    { id: 'all', label: `Все (${FONTS_CATALOG.length})` },
-                    { id: 'gost', label: 'ГОСТ и чертёжные' },
-                    { id: 'serif', label: 'Академические (Serif)' },
-                    { id: 'sans', label: 'Гротески (Sans)' },
-                    { id: 'mono', label: 'Моноширинные' },
-                  ].map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setFontCategory(cat.id)}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer ${
-                        fontCategory === cat.id
-                          ? 'bg-emerald-600 text-white font-semibold shadow-xs'
-                          : isDark
-                            ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                            : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
-                      }`}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="relative w-full sm:w-60 shrink-0">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
-                  <input 
-                    type="text"
-                    value={fontSearch}
-                    onChange={(e) => setFontSearch(e.target.value)}
-                    placeholder="Поиск шрифта..."
-                    className="w-full pl-8 pr-3 py-1.5 text-xs rounded-md border bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
-                  />
-                  {fontSearch && (
-                    <button 
-                      onClick={() => setFontSearch('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 cursor-pointer"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Fonts List */}
-              <div className="space-y-2">
-                {filteredFonts.map((f) => {
-                  const isSelected = fontFamily === f.id;
-                  return (
-                    <button
-                      key={f.id}
-                      onClick={() => handleFont(f.id)}
-                      onMouseEnter={() => ensureFontLoaded(f)}
-                      className={`w-full text-left p-3 rounded-lg border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
-                        isSelected
-                          ? 'border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/30 font-semibold'
-                          : isDark
-                            ? 'border-zinc-800 bg-zinc-900/70 hover:border-zinc-700 hover:bg-zinc-800/60'
-                            : 'border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50'
-                      }`}
-                    >
-                      <div className="min-w-[180px]">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-xs">{f.name}</span>
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
-                            {f.categoryLabel}
-                          </span>
-                        </div>
-                        <span className={`text-[11px] block mt-0.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                          {f.desc}
-                        </span>
-                      </div>
-
-                      {/* Live font sample preview */}
-                      <div 
-                        className="flex-1 px-3 py-1.5 rounded bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200/60 dark:border-zinc-800 text-sm overflow-hidden text-ellipsis whitespace-nowrap text-zinc-900 dark:text-zinc-100"
-                        style={{ fontFamily: f.id }}
-                      >
-                        ГОСТ 19.701: if (count &gt; 0) return true;
-                      </div>
-
-                      <div className="shrink-0 flex items-center justify-end">
-                        {isSelected ? (
-                          <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
-                            <Check className="w-4 h-4" />
-                            <span>Выбран</span>
-                          </div>
-                        ) : (
-                          <span className="text-[11px] text-zinc-400 hover:text-zinc-600">
-                            Применить
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================= */}
-          {/* TAB 3: GENERAL & SPLIT MODE */}
-          {/* ========================================================= */}
-          {activeTab === 'general' && (
-            <div className="max-w-lg space-y-6">
-              {/* Theme */}
-              <div>
-                <label className={`block text-[10px] font-mono uppercase tracking-wider mb-2 ${
-                  isDark ? 'text-zinc-400' : 'text-zinc-500'
-                }`}>
-                  Тема интерфейса
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => handleTheme('dark')}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
-                      theme === 'dark'
-                        ? 'bg-zinc-800 border-zinc-700 text-zinc-100 font-semibold shadow-2xs ring-1 ring-zinc-600'
-                        : isDark
-                          ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                          : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900'
-                    }`}
-                  >
-                    <Moon className="w-4 h-4" />
-                    <span>Тёмная тема</span>
-                  </button>
-                  <button
-                    onClick={() => handleTheme('light')}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
-                      theme === 'light'
-                        ? 'bg-white border-zinc-300 text-zinc-900 font-semibold shadow-2xs ring-1 ring-zinc-300'
-                        : isDark
-                          ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                          : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900'
-                    }`}
-                  >
-                    <Sun className="w-4 h-4 text-amber-500" />
-                    <span>Светлая тема</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Split Mode */}
-              <div>
-                <label className={`block text-[10px] font-mono uppercase tracking-wider mb-2 ${
-                  isDark ? 'text-zinc-400' : 'text-zinc-500'
-                }`}>
-                  Разбиение на страницы
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => {
-                      handleSplitMode('auto');
-                      if (onNotify) onNotify('Режим разбиения: Автоматический');
-                    }}
-                    className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
-                      splitMode === 'auto'
-                        ? isDark 
-                          ? 'bg-zinc-800 border-zinc-600 text-white font-medium ring-1 ring-zinc-600'
-                          : 'bg-white border-zinc-300 text-zinc-900 font-medium shadow-2xs ring-1 ring-zinc-300'
-                        : isDark
-                          ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
-                          : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900'
-                    }`}
-                  >
-                    <span className="font-semibold">Авто-разбиение</span>
-                    <span className="text-[10px] text-zinc-500">Автоматически по высоте страницы</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleSplitMode('manual');
-                      if (onNotify) onNotify('Режим ножниц активирован');
-                    }}
-                    className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
-                      splitMode === 'manual'
-                        ? isDark
-                          ? 'bg-zinc-800 border-zinc-600 text-white font-medium ring-1 ring-zinc-600'
-                          : 'bg-white border-zinc-300 text-zinc-900 font-medium shadow-2xs ring-1 ring-zinc-300'
-                        : isDark
-                          ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
-                          : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1">
-                      <Scissors className="w-3.5 h-3.5" />
-                      <span className="font-semibold">Ножницы</span>
-                    </div>
-                    <span className="text-[10px] text-zinc-500">Ручной разрез схемы кликом</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className={`px-5 py-3 border-t flex items-center justify-between ${
+        {/* Header - Identical to TipsModal */}
+        <div className={`flex items-center justify-between px-4 py-3 border-b shrink-0 ${
           isDark ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-200 bg-zinc-50'
         }`}>
-          <div className="flex items-center gap-2 text-[11px] text-zinc-500">
-            <span>Текущий стиль:</span>
-            <span className="font-semibold text-zinc-800 dark:text-zinc-200">{currentStyleObj.name}</span>
-            <span>•</span>
-            <span className="font-semibold text-zinc-800 dark:text-zinc-200">{currentFontObj.name}</span>
+          <div className="flex items-center gap-2">
+            <Settings className="w-4 h-4 text-zinc-500" />
+            <h2 className={`text-xs font-bold tracking-tight uppercase ${
+              isDark ? 'text-zinc-100' : 'text-zinc-900'
+            }`}>
+              Настройки
+            </h2>
           </div>
 
           <button 
+            type="button"
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium shadow-xs transition-colors cursor-pointer"
+            className={`p-1 rounded transition-colors cursor-pointer ${
+              isDark 
+                ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' 
+                : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200'
+            }`}
           >
-            Готово
+            <X className="w-4 h-4" />
           </button>
+        </div>
+
+        {/* Content with Sidebar tabs - Identical layout to TipsModal */}
+        <div className="flex-1 flex flex-col sm:flex-row overflow-hidden min-h-0 text-xs">
+          {/* Left Navigation Sidebar */}
+          <div className={`w-full sm:w-48 border-b sm:border-b-0 sm:border-r p-2.5 space-y-1 shrink-0 overflow-y-auto ${
+            isDark ? 'border-zinc-800 bg-zinc-950/40' : 'border-zinc-200 bg-zinc-50/60'
+          }`}>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-2.5 py-1 block">
+              Разделы
+            </span>
+
+            <button
+              onClick={() => setActiveTab('fonts')}
+              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-md font-medium transition-colors cursor-pointer text-left ${
+                activeTab === 'fonts'
+                  ? isDark
+                    ? 'bg-zinc-800 text-zinc-100 shadow-2xs font-semibold'
+                    : 'bg-zinc-200/80 text-zinc-900 shadow-2xs font-semibold'
+                  : isDark
+                    ? 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850'
+                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Type className="w-4 h-4 shrink-0 text-zinc-400" />
+                <span>Шрифты</span>
+              </div>
+              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-zinc-100 text-zinc-500'
+              }`}>
+                {FONTS_CATALOG.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('theme')}
+              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-md font-medium transition-colors cursor-pointer text-left ${
+                activeTab === 'theme'
+                  ? isDark
+                    ? 'bg-zinc-800 text-zinc-100 shadow-2xs font-semibold'
+                    : 'bg-zinc-200/80 text-zinc-900 shadow-2xs font-semibold'
+                  : isDark
+                    ? 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850'
+                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Palette className="w-4 h-4 shrink-0 text-zinc-400" />
+                <span>Тема оформления</span>
+              </div>
+            </button>
+          </div>
+
+          {/* Right Content Area */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+            {/* ========================================================= */}
+            {/* SECTION 1: FONTS SELECTION */}
+            {/* ========================================================= */}
+            {activeTab === 'fonts' && (
+              <div className="space-y-4">
+                {/* Active Font Preview Banner */}
+                <div className={`p-3 rounded-md border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  isDark ? 'bg-zinc-950/60 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+                }`}>
+                  <div>
+                    <div className="text-[10px] uppercase font-semibold text-zinc-400 mb-0.5">
+                      Текущий шрифт схемы
+                    </div>
+                    <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                      {currentFontObj.name}
+                    </div>
+                    <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      {currentFontObj.desc}
+                    </div>
+                  </div>
+                  <div 
+                    style={{ fontFamily: currentFontObj.id }}
+                    className={`text-sm px-3 py-1.5 rounded border select-none shrink-0 ${
+                      isDark ? 'bg-zinc-900 border-zinc-700 text-zinc-200' : 'bg-white border-zinc-200 text-zinc-800'
+                    }`}
+                  >
+                    АБВГД abcdef 123 y = f(x)
+                  </div>
+                </div>
+
+                {/* Search & Categories Filter */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+                    {[
+                      { id: 'all', label: 'Все' },
+                      { id: 'gost', label: 'ГОСТ и чертёжные' },
+                      { id: 'serif', label: 'Академические' },
+                      { id: 'sans', label: 'Гротески' },
+                      { id: 'mono', label: 'Моно' },
+                    ].map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setFontCategory(cat.id)}
+                        className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors cursor-pointer border ${
+                          fontCategory === cat.id
+                            ? isDark
+                              ? 'bg-zinc-100 text-zinc-900 border-zinc-100 font-semibold'
+                              : 'bg-zinc-900 text-white border-zinc-900 font-semibold'
+                            : isDark
+                              ? 'bg-zinc-800/80 text-zinc-300 border-zinc-700 hover:bg-zinc-750'
+                              : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="relative w-full sm:w-56 shrink-0">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+                    <input 
+                      type="text"
+                      value={fontSearch}
+                      onChange={(e) => setFontSearch(e.target.value)}
+                      placeholder="Поиск шрифта..."
+                      className={`w-full pl-8 pr-7 py-1 text-xs rounded border transition-colors focus:outline-hidden focus:ring-1 ${
+                        isDark 
+                          ? 'bg-zinc-800 border-zinc-700 text-zinc-200 focus:ring-zinc-400 placeholder-zinc-500' 
+                          : 'bg-zinc-50 border-zinc-200 text-zinc-800 focus:ring-zinc-600 placeholder-zinc-400'
+                      }`}
+                    />
+                    {fontSearch && (
+                      <button 
+                        onClick={() => setFontSearch('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Fonts List */}
+                <div className="space-y-1.5 max-h-[310px] overflow-y-auto pr-1">
+                  {filteredFonts.map((f) => {
+                    const isSelected = fontFamily === f.id;
+                    return (
+                      <div
+                        key={f.id}
+                        onClick={() => handleFont(f.id)}
+                        className={`p-2.5 rounded-md border flex items-center justify-between gap-3 transition-colors cursor-pointer ${
+                          isSelected
+                            ? isDark
+                              ? 'bg-zinc-800 border-zinc-500 shadow-2xs'
+                              : 'bg-zinc-100 border-zinc-400 shadow-2xs'
+                            : isDark
+                              ? 'bg-zinc-900/60 border-zinc-800 hover:bg-zinc-800/60 hover:border-zinc-700'
+                              : 'bg-white border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-semibold ${isSelected ? (isDark ? 'text-white' : 'text-zinc-900') : ''}`}>
+                              {f.name}
+                            </span>
+                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                              • {f.categoryLabel}
+                            </span>
+                          </div>
+                          <div 
+                            style={{ fontFamily: f.id }}
+                            className={`text-xs truncate mt-0.5 ${
+                              isDark ? 'text-zinc-300' : 'text-zinc-700'
+                            }`}
+                          >
+                            АБВГДЕЖ abcdefgh 12345 y = a + b * c
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 flex items-center gap-2">
+                          {isSelected ? (
+                            <div className="flex items-center gap-1 text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                              <Check className="w-4 h-4" />
+                              <span>Выбран</span>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+                              Выбрать
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {filteredFonts.length === 0 && (
+                    <div className="py-8 text-center text-zinc-400 text-xs">
+                      Шрифты не найдены. Попробуйте изменить запрос.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* SECTION 2: THEME SELECTION */}
+            {/* ========================================================= */}
+            {activeTab === 'theme' && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                    Цветовая тема интерфейса
+                  </h3>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    Выберите оформление рабочей области приложения. Настройка сохраняется в браузере.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                  {/* Dark Theme Card */}
+                  <div
+                    onClick={() => handleTheme('dark')}
+                    className={`p-4 rounded-md border flex flex-col justify-between transition-colors cursor-pointer ${
+                      isDark
+                        ? 'border-zinc-400 dark:border-zinc-500 bg-zinc-800/80 shadow-2xs'
+                        : 'border-zinc-200 hover:border-zinc-300 bg-zinc-50 hover:bg-zinc-100'
+                    }`}
+                  >
+                    <div>
+                      {/* Dark Mock Preview Box */}
+                      <div className="w-full h-24 rounded border border-zinc-700 bg-zinc-950 p-2.5 flex flex-col justify-between mb-3 select-none">
+                        <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-zinc-700" />
+                            <div className="w-12 h-2 rounded bg-zinc-800" />
+                          </div>
+                          <div className="w-4 h-2 rounded bg-zinc-800" />
+                        </div>
+                        <div className="flex gap-2 flex-1 pt-2">
+                          <div className="w-1/3 h-full rounded bg-zinc-900 border border-zinc-800 p-1 flex flex-col gap-1">
+                            <div className="w-full h-1.5 rounded bg-zinc-800" />
+                            <div className="w-3/4 h-1.5 rounded bg-zinc-800" />
+                          </div>
+                          <div className="w-2/3 h-full rounded bg-zinc-900/60 border border-zinc-800/60 flex items-center justify-center">
+                            <div className="w-8 h-4 rounded border border-zinc-700" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Moon className="w-4 h-4 text-zinc-400" />
+                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                            Тёмная тема
+                          </span>
+                        </div>
+                        {isDark && (
+                          <div className="flex items-center gap-1 text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Активна</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+                        Контрастный темный интерфейс для снижения усталости глаз.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Light Theme Card */}
+                  <div
+                    onClick={() => handleTheme('light')}
+                    className={`p-4 rounded-md border flex flex-col justify-between transition-colors cursor-pointer ${
+                      !isDark
+                        ? 'border-zinc-400 dark:border-zinc-500 bg-zinc-100 shadow-2xs'
+                        : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60 hover:bg-zinc-850'
+                    }`}
+                  >
+                    <div>
+                      {/* Light Mock Preview Box */}
+                      <div className="w-full h-24 rounded border border-zinc-200 bg-white p-2.5 flex flex-col justify-between mb-3 select-none">
+                        <div className="flex items-center justify-between border-b border-zinc-200 pb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-zinc-300" />
+                            <div className="w-12 h-2 rounded bg-zinc-200" />
+                          </div>
+                          <div className="w-4 h-2 rounded bg-zinc-200" />
+                        </div>
+                        <div className="flex gap-2 flex-1 pt-2">
+                          <div className="w-1/3 h-full rounded bg-zinc-50 border border-zinc-200 p-1 flex flex-col gap-1">
+                            <div className="w-full h-1.5 rounded bg-zinc-200" />
+                            <div className="w-3/4 h-1.5 rounded bg-zinc-200" />
+                          </div>
+                          <div className="w-2/3 h-full rounded bg-zinc-50/60 border border-zinc-200/60 flex items-center justify-center">
+                            <div className="w-8 h-4 rounded border border-zinc-300" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Sun className="w-4 h-4 text-zinc-400" />
+                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                            Светлая тема
+                          </span>
+                        </div>
+                        {!isDark && (
+                          <div className="flex items-center gap-1 text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Активна</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+                        Классическое светлое оформление для дневной работы и печати.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
