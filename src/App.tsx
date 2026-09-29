@@ -51,7 +51,8 @@ import {
   Save,
   Copy,
   User,
-  Maximize2
+  Maximize2,
+  Lock
 } from 'lucide-react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
@@ -167,6 +168,8 @@ export default function App() {
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const startPanRef = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const isDragging = React.useRef(false);
+  const panStartMousePos = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const hasPannedFar = React.useRef(false);
 
   const [lastGeneratedCode, setLastGeneratedCode] = useState(() => {
     const saved = localStorage.getItem('blockcraft_code_persist');
@@ -727,7 +730,7 @@ export default function App() {
   };
 
   const handleCanvasTouchMove = (e: React.TouchEvent) => {
-    if (isScissorsMode || editingNode) return;
+    if (editingNode) return;
     if (e.touches.length === 1 && isPanning) {
       setPan({
         x: e.touches[0].clientX - startPanRef.current.x,
@@ -1600,6 +1603,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
   };
 
   const isDark = theme === 'dark';
+  const hasActiveManualCuts = splitMode === 'manual' && (customCuts[activeTab] || []).length > 0;
 
     return (
     <div className={`w-full h-screen ${isDark ? 'dark' : ''}`}>
@@ -1719,56 +1723,6 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         >
                           <span>Пополнить / Тарифы</span>
                           <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      {/* Menu Items matching Left Sidebar */}
-                      <div className="pt-0.5 space-y-0.5">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-2 py-1 block select-none">
-                          Навигация
-                        </span>
-
-                        <button
-                          onClick={() => {
-                            setIsProfileMenuOpen(false);
-                            if (isSidebarCollapsed) {
-                              setIsSidebarCollapsed(false);
-                              localStorage.setItem('blockcraft_sidebar_collapsed', 'false');
-                            }
-                            setIsHistoryOpen(true);
-                          }}
-                          className={`h-8 flex items-center px-2 gap-2.5 w-full rounded-md transition-colors cursor-pointer text-xs ${
-                            isDark ? 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100' : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900'
-                          }`}
-                        >
-                          <HistoryIcon className="w-4 h-4 shrink-0 text-zinc-400" />
-                          <span>История схем</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            setIsProfileMenuOpen(false);
-                            setIsSettingsModalOpen(true);
-                          }}
-                          className={`h-8 flex items-center px-2 gap-2.5 w-full rounded-md transition-colors cursor-pointer text-xs ${
-                            isDark ? 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100' : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900'
-                          }`}
-                        >
-                          <SettingsIcon className="w-4 h-4 shrink-0 text-zinc-400" />
-                          <span>Настройки</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            setIsProfileMenuOpen(false);
-                            setIsTipsModalOpen(true);
-                          }}
-                          className={`h-8 flex items-center px-2 gap-2.5 w-full rounded-md transition-colors cursor-pointer text-xs ${
-                            isDark ? 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100' : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900'
-                          }`}
-                        >
-                          <BookOpen className="w-4 h-4 shrink-0 text-zinc-400" />
-                          <span>Справка</span>
                         </button>
                       </div>
 
@@ -2345,7 +2299,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       }`}
                     >
                       <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                        {splitMode === 'auto' ? 'Деление: Авто' : splitMode === 'manual' ? 'Деление: Вручную' : 'Без деления'}
+                        {splitMode === 'auto' ? 'Авто' : splitMode === 'manual' ? 'Вручную' : 'Без деления'}
                       </span>
                       <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${isSplitMenuOpen ? 'rotate-180' : ''}`} />
                     </button>
@@ -2377,7 +2331,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                             {splitMode === 'auto' && <Check className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
                           </button>
 
-                          {/* Option 2: Manual / Scissors */}
+                          {/* Option 2: Manual */}
                           <button
                             onClick={() => {
                               setSplitMode('manual');
@@ -2393,7 +2347,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                             }`}
                           >
                             <div>
-                              <div className="font-medium">Вручную (Ножницы)</div>
+                              <div className="font-medium">Вручную</div>
                               <div className="text-[10px] text-zinc-400">Кликните на схему для разреза</div>
                             </div>
                             {splitMode === 'manual' && <Check className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
@@ -2445,41 +2399,85 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     )}
                   </div>
 
-                  {/* Minimal Style selector: "Стиль 1", "Стиль 2" ... */}
+                  {/* Minimal Style selector: "Стиль 1", "Стиль 2" ... with Lock when cuts exist */}
                   <div className="relative" ref={styleMenuRef}>
                     <button
-                      onClick={() => setIsStyleMenuOpen(!isStyleMenuOpen)}
-                      title="Выбрать стиль блок-схемы"
+                      onClick={() => {
+                        if (hasActiveManualCuts) {
+                          showToast('Смена стиля заблокирована: сбросьте ручные разрезы для изменения стиля');
+                        }
+                        setIsStyleMenuOpen(!isStyleMenuOpen);
+                      }}
+                      title={hasActiveManualCuts ? "Смена стиля заблокирована: активны ручные разрезы" : "Выбрать стиль блок-схемы"}
                       className={`h-7 px-2.5 flex items-center gap-1.5 text-xs font-medium rounded-lg border transition-all cursor-pointer ${
-                        isDark
-                          ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border-zinc-800 shadow-2xs'
-                          : 'bg-white hover:bg-zinc-50 text-zinc-800 border-zinc-200 shadow-2xs'
+                        hasActiveManualCuts
+                          ? isDark
+                            ? 'bg-zinc-900 text-amber-400 border-amber-500/40 shadow-2xs'
+                            : 'bg-amber-50 text-amber-700 border-amber-300 shadow-2xs'
+                          : isDark
+                            ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border-zinc-800 shadow-2xs'
+                            : 'bg-white hover:bg-zinc-50 text-zinc-800 border-zinc-200 shadow-2xs'
                       }`}
                     >
-                      <Sliders className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                      {hasActiveManualCuts ? (
+                        <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      ) : (
+                        <Sliders className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                      )}
                       <span className="font-semibold text-zinc-900 dark:text-zinc-100">
                         {getStyleShortName(diagramStyle)}
                       </span>
+                      {hasActiveManualCuts && (
+                        <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">
+                          Замок
+                        </span>
+                      )}
                       <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${isStyleMenuOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     {isStyleMenuOpen && (
-                      <div className={`absolute left-0 top-full mt-1 w-52 py-1 rounded-lg border shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100 ${
+                      <div className={`absolute left-0 top-full mt-1 w-60 py-1 rounded-lg border shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100 ${
                         isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-200' : 'bg-white border-zinc-200 text-zinc-800'
                       }`}>
+                        {hasActiveManualCuts && (
+                          <div className="p-2 mb-1 border-b border-amber-500/20 bg-amber-500/10 rounded-t-lg text-xs space-y-1.5">
+                            <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-semibold text-xs">
+                              <Lock className="w-3.5 h-3.5 shrink-0" />
+                              <span>Стиль заблокирован</span>
+                            </div>
+                            <p className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-tight">
+                              Ручные разрезы привязаны к геометрии текущего стиля.
+                            </p>
+                            <button
+                              onClick={() => {
+                                const nextCuts = { ...customCuts, [activeTab]: [] };
+                                setCustomCuts(nextCuts);
+                                localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(nextCuts));
+                                showToast('Разрезы сброшены. Стиль разблокирован!');
+                              }}
+                              className="w-full py-1 px-2 rounded bg-amber-500 hover:bg-amber-600 text-white font-medium text-[11px] text-center transition-colors cursor-pointer"
+                            >
+                              Сбросить разрезы и сменить стиль
+                            </button>
+                          </div>
+                        )}
                         <div className="max-h-60 overflow-y-auto px-1 py-0.5 space-y-0.5">
                           {DIAGRAM_STYLES.map((st, idx) => {
                             const isSelected = diagramStyle === st.id;
                             return (
                               <button
                                 key={st.id}
+                                disabled={hasActiveManualCuts}
                                 onClick={() => {
+                                  if (hasActiveManualCuts) return;
                                   setDiagramStyle(st.id);
                                   localStorage.setItem('blockcraft_diagram_style', st.id);
                                   setIsStyleMenuOpen(false);
                                   showToast(`Выбран Стиль ${idx + 1}`);
                                 }}
-                                className={`w-full px-2.5 py-1.5 rounded-md text-xs flex items-center justify-between text-left transition-colors cursor-pointer ${
+                                className={`w-full px-2.5 py-1.5 rounded-md text-xs flex items-center justify-between text-left transition-colors ${
+                                  hasActiveManualCuts ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+                                } ${
                                   isSelected
                                     ? isDark
                                       ? 'bg-zinc-800 text-zinc-100 font-semibold'
@@ -2513,9 +2511,13 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     )}
                   </div>
 
-                  {/* Random style button - Gray (neutral), not highlighted green */}
+                  {/* Random style button - Gray (neutral), disabled when cuts active */}
                   <button
                     onClick={() => {
+                      if (hasActiveManualCuts) {
+                        showToast('Смена стиля заблокирована: сначала сбросьте ручные разрезы');
+                        return;
+                      }
                       const otherStyles = DIAGRAM_STYLES.filter(s => s.id !== diagramStyle);
                       const random = otherStyles[Math.floor(Math.random() * otherStyles.length)] || DIAGRAM_STYLES[0];
                       setDiagramStyle(random.id);
@@ -2523,8 +2525,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       const styleIdx = DIAGRAM_STYLES.findIndex(s => s.id === random.id);
                       showToast(`Случайный стиль: Стиль ${styleIdx + 1}`);
                     }}
-                    title="Случайный стиль"
-                    className={`h-7 w-7 rounded-lg border flex items-center justify-center transition-colors cursor-pointer ${
+                    title={hasActiveManualCuts ? "Смена стиля заблокирована (активны ручные разрезы)" : "Случайный стиль"}
+                    className={`h-7 w-7 rounded-lg border flex items-center justify-center transition-colors ${
+                      hasActiveManualCuts ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+                    } ${
                       isDark
                         ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border-zinc-800 shadow-2xs'
                         : 'bg-white hover:bg-zinc-50 text-zinc-500 hover:text-zinc-800 border-zinc-200 shadow-2xs'
@@ -2672,7 +2676,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
           <div
             ref={canvasContainerRef}
             className={`flex-1 w-full h-full relative overflow-hidden select-none pb-16 md:pb-0 touch-none ${
-              isScissorsMode ? 'cursor-cell' : isPanning ? 'cursor-grabbing' : 'cursor-grab'
+              isPanning ? 'cursor-grabbing' : isScissorsMode ? 'cursor-crosshair' : 'cursor-grab'
             }`}
             style={{
               backgroundColor: isDark ? '#09090b' : '#fafafa',
@@ -2686,14 +2690,19 @@ const downloadDrawio = (title: string, fontFamily: string) => {
             onTouchEnd={handleCanvasTouchEnd}
             onTouchCancel={handleCanvasTouchEnd}
             onMouseDown={(e) => {
-              if (isScissorsMode) return;
               if (e.button === 0 || e.button === 1) {
                 setIsPanning(true);
                 startPanRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+                panStartMousePos.current = { x: e.clientX, y: e.clientY };
+                hasPannedFar.current = false;
               }
             }}
             onMouseMove={(e) => {
               if (isPanning) {
+                const dist = Math.hypot(e.clientX - panStartMousePos.current.x, e.clientY - panStartMousePos.current.y);
+                if (dist > 5) {
+                  hasPannedFar.current = true;
+                }
                 setPan({
                   x: e.clientX - startPanRef.current.x,
                   y: e.clientY - startPanRef.current.y,
@@ -2701,7 +2710,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
               }
             }}
             onMouseUp={() => setIsPanning(false)}
-            onMouseLeave={() => setIsPanning(false)}
+            onMouseLeave={() => {
+              setIsPanning(false);
+              setHoveredY(null);
+            }}
           >
             {/* Stray corner toggle button removed. Panel toggling is now in header and on split divider */}
               {isScissorsMode && splitMode === 'manual' && (
@@ -2757,8 +2769,11 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     height={activeGraphPage.height} 
                     viewBox={`0 0 ${activeGraphPage.width} ${activeGraphPage.height}`}
                     preserveAspectRatio="xMidYMid meet"
-                    className={`overflow-visible bg-white border border-zinc-300 dark:border-zinc-700/80 shadow-md p-8 rounded-sm my-4 select-none ${isScissorsMode ? 'cursor-cell' : ''}`}
+                    className={`overflow-visible bg-white border border-zinc-300 dark:border-zinc-700/80 shadow-md p-8 rounded-sm my-4 select-none ${isPanning ? 'cursor-grabbing' : isScissorsMode ? 'cursor-crosshair' : ''}`}
                     onClick={(e) => {
+                        if (hasPannedFar.current) {
+                            return;
+                        }
                         if (isScissorsMode && splitMode === 'manual') {
                             const rect = e.currentTarget.getBoundingClientRect();
                             const rawY = (e.clientY - rect.top) / scale;
@@ -2780,6 +2795,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                         }
                     }}
                     onMouseMove={(e) => {
+                        if (isPanning) {
+                            setHoveredY(null);
+                            return;
+                        }
                         if (!isScissorsMode || splitMode !== 'manual') return;
                         const rect = e.currentTarget.getBoundingClientRect();
                         const rawY = (e.clientY - rect.top) / scale;

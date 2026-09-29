@@ -1542,7 +1542,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                             allEdges.push({ points: [pt, {x: px, y: commonY}], ...extra, noArrow: true });
                         }
                     }
-                    inPts = falseEnds.map(pt => ({ ...pt, x: (pt as any).limitX || pt.x, y: commonY, from: { x: (pt as any).limitX || pt.x, y: commonY } }));
+                    inPts = falseEnds.map(pt => ({ ...pt, label: undefined, labelPos: undefined, x: (pt as any).limitX || pt.x, y: commonY, from: { x: (pt as any).limitX || pt.x, y: commonY } }));
                 } else if (!trueTerminates && falseTerminates) {
                     for (let pt of trueEnds) {
                         let extra = pt.label ? {label: pt.label, labelPos: pt.labelPos ? { ...pt.labelPos } : undefined} : {};
@@ -1556,7 +1556,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                             allEdges.push({ points: [pt, {x: px, y: commonY}], ...extra, noArrow: true });
                         }
                     }
-                    inPts = trueEnds.map(pt => ({ ...pt, x: (pt as any).limitX || pt.x, y: commonY, from: { x: (pt as any).limitX || pt.x, y: commonY } }));
+                    inPts = trueEnds.map(pt => ({ ...pt, label: undefined, labelPos: undefined, x: (pt as any).limitX || pt.x, y: commonY, from: { x: (pt as any).limitX || pt.x, y: commonY } }));
                 } else {
                     for (let pt of trueEnds) {
                          let extra = pt.label ? {label: pt.label, labelPos: pt.labelPos ? { ...pt.labelPos } : undefined} : {};
@@ -2180,33 +2180,52 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 .sort((a, b) => a - b);
 
             const sanitizedCuts: number[] = [];
-            for (let rawCut of sortedCuts) {
-                let targetCut = rawCut;
-                for (let box of nodeBoxes) {
-                    if (targetCut >= box.top - 8 && targetCut <= box.bottom + 8) {
-                        if (targetCut <= box.y) {
-                            const prevBox = [...nodeBoxes].reverse().find(b => b.bottom < box.top);
-                            targetCut = prevBox ? Math.round((prevBox.bottom + box.top) / 2) : Math.max(10, Math.round(box.top - 20));
-                        } else {
-                            const nextBox = nodeBoxes.find(b => b.top > box.bottom);
-                            targetCut = nextBox ? Math.round((box.bottom + nextBox.top) / 2) : Math.round(box.bottom + 20);
-                        }
-                        break;
-                    }
-                }
-                // Avoid exact collision with horizontal segments
-                allEdgesFinal.forEach(e => {
-                    if (e.segments) {
-                        e.segments.forEach(seg => {
-                            if (Math.abs(seg.startY - seg.endY) < 2 && Math.abs(seg.startY - targetCut) < 6) {
-                                targetCut += 12;
-                            }
-                        });
-                    }
-                });
+            if (nodeBoxes.length > 0) {
+                const minAllowY = nodeBoxes[0].bottom + 6;
+                const maxAllowY = nodeBoxes[nodeBoxes.length - 1].top - 6;
 
-                if (sanitizedCuts.length === 0 || Math.abs(targetCut - sanitizedCuts[sanitizedCuts.length - 1]) >= 40) {
-                    sanitizedCuts.push(targetCut);
+                for (let rawCut of sortedCuts) {
+                    let targetCut = rawCut;
+                    if (targetCut < minAllowY || targetCut > maxAllowY) {
+                        continue;
+                    }
+                    // Check if targetCut collides with any nodeBox
+                    const collidesWith = nodeBoxes.find(b => targetCut >= b.top - 6 && targetCut <= b.bottom + 6);
+                    if (collidesWith) {
+                        let bestGapY = -1;
+                        let minDistance = Infinity;
+                        for (let i = 0; i < nodeBoxes.length - 1; i++) {
+                            const b1 = nodeBoxes[i];
+                            const b2 = nodeBoxes[i + 1];
+                            if (b2.top > b1.bottom + 8) {
+                                const midY = Math.round((b1.bottom + b2.top) / 2);
+                                const dist = Math.abs(midY - targetCut);
+                                if (dist < minDistance) {
+                                    minDistance = dist;
+                                    bestGapY = midY;
+                                }
+                            }
+                        }
+                        if (bestGapY !== -1) {
+                            targetCut = bestGapY;
+                        }
+                    }
+
+                    // Avoid collision with horizontal segments
+                    allEdgesFinal.forEach(e => {
+                        if (e.segments) {
+                            e.segments.forEach(seg => {
+                                if (Math.abs(seg.startY - seg.endY) < 2 && Math.abs(seg.startY - targetCut) < 6) {
+                                    targetCut += 8;
+                                }
+                            });
+                        }
+                    });
+
+                    const collides = nodeBoxes.some(b => targetCut >= b.top - 4 && targetCut <= b.bottom + 4);
+                    if (!collides && (sanitizedCuts.length === 0 || Math.abs(targetCut - sanitizedCuts[sanitizedCuts.length - 1]) >= 30)) {
+                        sanitizedCuts.push(targetCut);
+                    }
                 }
             }
 
@@ -2389,6 +2408,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 let newSegments: any[] = [];
                 let eInS = false;
                 let hasJumpOut = false;
+                let edgeFromPage = -1;
                 
                 if (e.segments && e.segments.length > 0) {
                     let firstSeg = e.segments[0];
@@ -2405,6 +2425,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                     }
                     if (fromPage === -1) fromPage = startY < pageIntervals[0].yMin ? 0 : pageIntervals.length - 1;
                     if (toPage === -1) toPage = endY < pageIntervals[0].yMin ? 0 : pageIntervals.length - 1;
+                    edgeFromPage = fromPage;
 
                     if (fromPage === toPage) {
                         if (s === fromPage) {
@@ -2434,6 +2455,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                             let hasClipped = false;
                             for (let seg of e.segments) {
                                 if (hasClipped) break;
+                                if (seg.startY >= yMax) continue;
                                 let clipSy = seg.startY - yMin + SHIFT;
                                 let clipEy = seg.endY - yMin + SHIFT;
                                 if (seg.endY >= yMax) {
@@ -2453,6 +2475,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                     });
                                 }
                                 eInS = true;
+                                if (hasClipped) break;
                             }
                         } else if (fromPage < s && s < toPage) {
                             // Transit page passing downwards
@@ -2590,11 +2613,16 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                 }
                 
                 if (eInS && newSegments.length > 0) {
-                    let labelPos;
-                    if (e.labelPos && e.labelPos.y >= yMin && e.labelPos.y < yMax) {
+                    const isOrigin = (s === edgeFromPage);
+                    let labelPos: { x: number, y: number } | undefined = undefined;
+                    let finalLabel: string | undefined = undefined;
+                    // Labels (Да / Нет) stay strictly on their origin page where the condition block resides!
+                    // They must never transfer to next pages, jump circles, or subsequent transit segments.
+                    if (isOrigin && e.label && e.labelPos && e.labelPos.y >= yMin && e.labelPos.y < yMax) {
                          labelPos = { x: e.labelPos.x, y: e.labelPos.y - yMin + SHIFT };
+                         finalLabel = e.label;
                     }
-                    sEdges.push({ ...e, segments: newSegments, labelPos, noArrow: hasJumpOut ? false : e.noArrow });
+                    sEdges.push({ ...e, label: finalLabel, segments: newSegments, labelPos, noArrow: hasJumpOut ? false : e.noArrow });
                 }
             });
             
@@ -2689,13 +2717,16 @@ export function EdgePolyline({
     });
     
     let labelPoint = edge.labelPos ? edge.labelPos : null;
-    let labelStr = edge.label ? edge.label.toUpperCase() : '';
-    if (edge.label && edge.segments.length > 0 && !labelPoint) {
+    let labelStr = (edge.label && labelPoint) ? edge.label.toUpperCase() : '';
+    if (edge.label && edge.segments.length > 0 && !labelPoint && !edge.noArrow && !edge.id?.includes('_down_') && !edge.id?.includes('_up_') && !edge.id?.includes('jump_')) {
         let first = edge.segments[0];
         if (Math.abs(first.startX - first.endX) > 10) { 
             labelPoint = { x: first.startX + Math.sign(first.endX - first.startX) * 20, y: first.startY - 6 };
         } else {
             labelPoint = { x: first.startX + 12, y: first.startY + Math.sign(first.endY - first.startY) * 20 };
+        }
+        if (labelPoint) {
+            labelStr = edge.label.toUpperCase();
         }
     }
 
