@@ -1603,7 +1603,6 @@ const downloadDrawio = (title: string, fontFamily: string) => {
   };
 
   const isDark = theme === 'dark';
-  const hasActiveManualCuts = splitMode === 'manual' && (customCuts[activeTab] || []).length > 0;
 
     return (
     <div className={`w-full h-screen ${isDark ? 'dark' : ''}`}>
@@ -2399,85 +2398,41 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     )}
                   </div>
 
-                  {/* Minimal Style selector: "Стиль 1", "Стиль 2" ... with Lock when cuts exist */}
+                  {/* Minimal Style selector: "Стиль 1", "Стиль 2" ... */}
                   <div className="relative" ref={styleMenuRef}>
                     <button
-                      onClick={() => {
-                        if (hasActiveManualCuts) {
-                          showToast('Смена стиля заблокирована: сбросьте ручные разрезы для изменения стиля');
-                        }
-                        setIsStyleMenuOpen(!isStyleMenuOpen);
-                      }}
-                      title={hasActiveManualCuts ? "Смена стиля заблокирована: активны ручные разрезы" : "Выбрать стиль блок-схемы"}
+                      onClick={() => setIsStyleMenuOpen(!isStyleMenuOpen)}
+                      title="Выбрать стиль блок-схемы"
                       className={`h-7 px-2.5 flex items-center gap-1.5 text-xs font-medium rounded-lg border transition-all cursor-pointer ${
-                        hasActiveManualCuts
-                          ? isDark
-                            ? 'bg-zinc-900 text-amber-400 border-amber-500/40 shadow-2xs'
-                            : 'bg-amber-50 text-amber-700 border-amber-300 shadow-2xs'
-                          : isDark
-                            ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border-zinc-800 shadow-2xs'
-                            : 'bg-white hover:bg-zinc-50 text-zinc-800 border-zinc-200 shadow-2xs'
+                        isDark
+                          ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border-zinc-800 shadow-2xs'
+                          : 'bg-white hover:bg-zinc-50 text-zinc-800 border-zinc-200 shadow-2xs'
                       }`}
                     >
-                      {hasActiveManualCuts ? (
-                        <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      ) : (
-                        <Sliders className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                      )}
+                      <Sliders className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                       <span className="font-semibold text-zinc-900 dark:text-zinc-100">
                         {getStyleShortName(diagramStyle)}
                       </span>
-                      {hasActiveManualCuts && (
-                        <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">
-                          Замок
-                        </span>
-                      )}
                       <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${isStyleMenuOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     {isStyleMenuOpen && (
-                      <div className={`absolute left-0 top-full mt-1 w-60 py-1 rounded-lg border shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100 ${
+                      <div className={`absolute left-0 top-full mt-1 w-52 py-1 rounded-lg border shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100 ${
                         isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-200' : 'bg-white border-zinc-200 text-zinc-800'
                       }`}>
-                        {hasActiveManualCuts && (
-                          <div className="p-2 mb-1 border-b border-amber-500/20 bg-amber-500/10 rounded-t-lg text-xs space-y-1.5">
-                            <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-semibold text-xs">
-                              <Lock className="w-3.5 h-3.5 shrink-0" />
-                              <span>Стиль заблокирован</span>
-                            </div>
-                            <p className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-tight">
-                              Ручные разрезы привязаны к геометрии текущего стиля.
-                            </p>
-                            <button
-                              onClick={() => {
-                                const nextCuts = { ...customCuts, [activeTab]: [] };
-                                setCustomCuts(nextCuts);
-                                localStorage.setItem('blockcraft_custom_cuts', JSON.stringify(nextCuts));
-                                showToast('Разрезы сброшены. Стиль разблокирован!');
-                              }}
-                              className="w-full py-1 px-2 rounded bg-amber-500 hover:bg-amber-600 text-white font-medium text-[11px] text-center transition-colors cursor-pointer"
-                            >
-                              Сбросить разрезы и сменить стиль
-                            </button>
-                          </div>
-                        )}
                         <div className="max-h-60 overflow-y-auto px-1 py-0.5 space-y-0.5">
                           {DIAGRAM_STYLES.map((st, idx) => {
                             const isSelected = diagramStyle === st.id;
                             return (
                               <button
                                 key={st.id}
-                                disabled={hasActiveManualCuts}
                                 onClick={() => {
-                                  if (hasActiveManualCuts) return;
                                   setDiagramStyle(st.id);
                                   localStorage.setItem('blockcraft_diagram_style', st.id);
                                   setIsStyleMenuOpen(false);
                                   showToast(`Выбран Стиль ${idx + 1}`);
                                 }}
-                                className={`w-full px-2.5 py-1.5 rounded-md text-xs flex items-center justify-between text-left transition-colors ${
-                                  hasActiveManualCuts ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
-                                } ${
+                                className={`w-full px-2.5 py-1.5 rounded-md text-xs flex items-center justify-between text-left transition-colors cursor-pointer ${
                                   isSelected
                                     ? isDark
                                       ? 'bg-zinc-800 text-zinc-100 font-semibold'
@@ -2511,13 +2466,9 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     )}
                   </div>
 
-                  {/* Random style button - Gray (neutral), disabled when cuts active */}
+                  {/* Random style button - Gray (neutral), not highlighted green */}
                   <button
                     onClick={() => {
-                      if (hasActiveManualCuts) {
-                        showToast('Смена стиля заблокирована: сначала сбросьте ручные разрезы');
-                        return;
-                      }
                       const otherStyles = DIAGRAM_STYLES.filter(s => s.id !== diagramStyle);
                       const random = otherStyles[Math.floor(Math.random() * otherStyles.length)] || DIAGRAM_STYLES[0];
                       setDiagramStyle(random.id);
@@ -2525,10 +2476,8 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       const styleIdx = DIAGRAM_STYLES.findIndex(s => s.id === random.id);
                       showToast(`Случайный стиль: Стиль ${styleIdx + 1}`);
                     }}
-                    title={hasActiveManualCuts ? "Смена стиля заблокирована (активны ручные разрезы)" : "Случайный стиль"}
-                    className={`h-7 w-7 rounded-lg border flex items-center justify-center transition-colors ${
-                      hasActiveManualCuts ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
-                    } ${
+                    title="Случайный стиль"
+                    className={`h-7 w-7 rounded-lg border flex items-center justify-center transition-colors cursor-pointer ${
                       isDark
                         ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border-zinc-800 shadow-2xs'
                         : 'bg-white hover:bg-zinc-50 text-zinc-500 hover:text-zinc-800 border-zinc-200 shadow-2xs'
