@@ -1665,11 +1665,11 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       Мой профиль
                     </span>
 
-                    <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-semibold ${
-                      isDark ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-100 text-zinc-700'
-                    }`}>
-                      <CoinsIcon size={11} className="shrink-0" />
-                      <span>{userTokens !== null ? userTokens : '...'}</span>
+                    <div className="flex items-center gap-1.5 ml-1">
+                      <CoinsIcon size={13} className="shrink-0" />
+                      <span className="font-semibold text-xs tabular-nums text-zinc-900 dark:text-zinc-100">
+                        {userTokens !== null ? userTokens : '...'}
+                      </span>
                     </div>
 
                     <ChevronDown className={`w-3 h-3 text-zinc-400 transition-transform duration-150 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
