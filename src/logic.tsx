@@ -1479,7 +1479,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                     if (trueEnds.length === 0) trueTerminates = true;
                     tFinalY = tRes.finalY;
                     if (isSingleTerm && node.falseBlock.length === 0) {
-                        tFinalY = firstTrueY + getASTNodeHeight(node.trueBlock[0])/2;
+                        tFinalY = firstTrueY + getASTNodeHeight(node.trueBlock[0])/2 + Y_MARGIN;
                     }
                     localMax = Math.max(localMax, tFinalY);
                 } else {
@@ -1497,7 +1497,7 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                     if (falseEnds.length === 0) falseTerminates = true;
                     fFinalY = fRes.finalY;
                     if (isSingleTerm && node.trueBlock.length === 0) {
-                        fFinalY = firstFalseY + getASTNodeHeight(node.falseBlock[0])/2;
+                        fFinalY = firstFalseY + getASTNodeHeight(node.falseBlock[0])/2 + Y_MARGIN;
                     }
                     localMax = Math.max(localMax, fFinalY);
                 } else {
@@ -2176,21 +2176,11 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
 
             const sanitizedCuts: number[] = [];
             if (allNodes.length > 0 && sortedCuts.length > 0) {
-                // 1. Compute occupied vertical intervals by all nodes and horizontal merge segments
+                // 1. Compute occupied vertical intervals by all nodes
                 const rawIntervals = allNodes.map(n => {
                     const h = n.height || 64;
                     return { top: n.y - h / 2 - 4, bottom: n.y + h / 2 + 4 };
-                });
-                allEdgesFinal.forEach(e => {
-                    if (e.segments) {
-                        e.segments.forEach(seg => {
-                            if (Math.abs(seg.startY - seg.endY) < 1 && Math.abs(seg.startX - seg.endX) > 10) {
-                                rawIntervals.push({ top: seg.startY - 4, bottom: seg.startY + 4 });
-                            }
-                        });
-                    }
-                });
-                rawIntervals.sort((a, b) => a.top - b.top);
+                }).sort((a, b) => a.top - b.top);
 
                 const merged: { top: number, bottom: number }[] = [];
                 for (const intv of rawIntervals) {
@@ -2494,14 +2484,6 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                             let k = `${e.id}_down_${s}_to_${s+1}`;
                             let letter = jumpMap.get(k)!;
                             let hasClipped = false;
-
-                            const targetConvergenceX = lastSeg.endX;
-                            const hasTurnToConvergence = e.segments.some(seg => 
-                                Math.abs(seg.startY - seg.endY) < 1 && 
-                                Math.abs(seg.startX - seg.endX) > 10 && 
-                                Math.abs(seg.endX - targetConvergenceX) < 2
-                            );
-
                             for (let seg of e.segments) {
                                 if (hasClipped) break;
                                 if (seg.startY >= yMax) continue;
@@ -2509,41 +2491,11 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                                 let clipEy = seg.endY - yMin + SHIFT;
                                 if (seg.endY >= yMax) {
                                     clipEy = jumpOutY - 20;
-                                    let outCircleX = seg.endX;
-
-                                    if (hasTurnToConvergence && Math.abs(seg.endX - targetConvergenceX) > 5) {
-                                        if (Math.abs(clipSy - clipEy) > 0.1 || Math.abs(seg.startX - seg.endX) > 0.1) {
-                                            newSegments.push({
-                                                startX: seg.startX,
-                                                startY: clipSy,
-                                                endX: seg.startX,
-                                                endY: clipEy
-                                            });
-                                        }
-                                        newSegments.push({
-                                            startX: seg.startX,
-                                            startY: clipEy,
-                                            endX: targetConvergenceX,
-                                            endY: clipEy
-                                        });
-                                        outCircleX = targetConvergenceX;
-                                    } else {
-                                        if (Math.abs(clipSy - clipEy) > 0.1 || Math.abs(seg.startX - seg.endX) > 0.1) {
-                                            newSegments.push({
-                                                startX: seg.startX,
-                                                startY: clipSy,
-                                                endX: seg.endX,
-                                                endY: clipEy
-                                            });
-                                        }
-                                    }
-
                                     if (!sNodes.some(n => n.id === `jump_out_${k}`)) {
-                                        sNodes.push({ id: `jump_out_${k}`, type: 'circle', text: letter, x: outCircleX, y: jumpOutY, height: 40 });
+                                        sNodes.push({ id: `jump_out_${k}`, type: 'circle', text: letter, x: seg.endX, y: jumpOutY, height: 40 });
                                     }
                                     hasJumpOut = true;
                                     hasClipped = true;
-                                    break;
                                 }
                                 if (Math.abs(clipSy - clipEy) > 0.1 || Math.abs(seg.startX - seg.endX) > 0.1) {
                                     newSegments.push({
@@ -2563,20 +2515,11 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                             let letterIn = jumpMap.get(kIn)!;
                             let letterOut = jumpMap.get(kOut)!;
 
-                            const targetConvergenceX = lastSeg.endX;
-                            const hasTurnToConvergence = e.segments.some(seg => 
-                                Math.abs(seg.startY - seg.endY) < 1 && 
-                                Math.abs(seg.startX - seg.endX) > 10 && 
-                                Math.abs(seg.endX - targetConvergenceX) < 2
-                            );
-
-                            let busX = hasTurnToConvergence ? targetConvergenceX : firstSeg.endX;
-                            if (!hasTurnToConvergence) {
-                                for (let seg of e.segments) {
-                                    if (Math.abs(seg.startX - seg.endX) < 1 && Math.min(seg.startY, seg.endY) <= yMin && Math.max(seg.startY, seg.endY) >= yMax) {
-                                        busX = seg.startX;
-                                        break;
-                                    }
+                            let busX = firstSeg.endX;
+                            for (let seg of e.segments) {
+                                if (Math.abs(seg.startX - seg.endX) < 1 && Math.min(seg.startY, seg.endY) <= yMin && Math.max(seg.startY, seg.endY) >= yMax) {
+                                    busX = seg.startX;
+                                    break;
                                 }
                             }
 
@@ -2594,47 +2537,25 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                         } else if (s === toPage) {
                             let k = `${e.id}_down_${s-1}_to_${s}`;
                             let letter = jumpMap.get(k)!;
-
-                            const targetConvergenceX = lastSeg.endX;
-                            const hasTurnToConvergence = e.segments.some(seg => 
-                                Math.abs(seg.startY - seg.endY) < 1 && 
-                                Math.abs(seg.startX - seg.endX) > 10 && 
-                                Math.abs(seg.endX - targetConvergenceX) < 2
-                            );
-
-                            if (hasTurnToConvergence) {
-                                if (!sNodes.some(n => n.id === `jump_in_${k}`)) {
-                                    sNodes.push({ id: `jump_in_${k}`, type: 'circle', text: letter, x: targetConvergenceX, y: JUMP_IN_Y, height: 40 });
+                            for (let seg of e.segments) {
+                                if (seg.endY <= yMin) continue;
+                                let clipSy = seg.startY - yMin + SHIFT;
+                                let clipEy = seg.endY - yMin + SHIFT;
+                                if (seg.startY <= yMin) {
+                                    clipSy = JUMP_IN_Y + 20;
+                                    if (!sNodes.some(n => n.id === `jump_in_${k}`)) {
+                                        sNodes.push({ id: `jump_in_${k}`, type: 'circle', text: letter, x: seg.startX, y: JUMP_IN_Y, height: 40 });
+                                    }
                                 }
-                                let clipEy = lastSeg.endY - yMin + SHIFT;
-                                newSegments.push({
-                                    startX: targetConvergenceX,
-                                    startY: JUMP_IN_Y + 20,
-                                    endX: targetConvergenceX,
-                                    endY: clipEy
-                                });
+                                if (Math.abs(clipSy - clipEy) > 0.1 || Math.abs(seg.startX - seg.endX) > 0.1) {
+                                    newSegments.push({
+                                        startX: seg.startX,
+                                        startY: clipSy,
+                                        endX: seg.endX,
+                                        endY: clipEy
+                                    });
+                                }
                                 eInS = true;
-                            } else {
-                                for (let seg of e.segments) {
-                                    if (seg.endY <= yMin) continue;
-                                    let clipSy = seg.startY - yMin + SHIFT;
-                                    let clipEy = seg.endY - yMin + SHIFT;
-                                    if (seg.startY <= yMin) {
-                                        clipSy = JUMP_IN_Y + 20;
-                                        if (!sNodes.some(n => n.id === `jump_in_${k}`)) {
-                                            sNodes.push({ id: `jump_in_${k}`, type: 'circle', text: letter, x: seg.startX, y: JUMP_IN_Y, height: 40 });
-                                        }
-                                    }
-                                    if (Math.abs(clipSy - clipEy) > 0.1 || Math.abs(seg.startX - seg.endX) > 0.1) {
-                                        newSegments.push({
-                                            startX: seg.startX,
-                                            startY: clipSy,
-                                            endX: seg.endX,
-                                            endY: clipEy
-                                        });
-                                    }
-                                    eInS = true;
-                                }
                             }
                         }
                     } else { // Upward transition (fromPage > toPage)
