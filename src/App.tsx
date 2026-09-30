@@ -1665,10 +1665,10 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       Мой профиль
                     </span>
 
-                    <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-semibold ${
-                      isDark ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-100 text-zinc-700'
+                    <div className={`flex items-center gap-1 font-mono text-xs font-semibold ${
+                      isDark ? 'text-emerald-400' : 'text-emerald-600'
                     }`}>
-                      <CoinsIcon size={11} className="shrink-0" />
+                      <CoinsIcon size={13} className="shrink-0" />
                       <span>{userTokens !== null ? userTokens : '...'}</span>
                     </div>
 
