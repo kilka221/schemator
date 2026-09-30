@@ -9,9 +9,11 @@ interface CoinsIconProps extends React.SVGProps<SVGSVGElement> {
 export const CoinsIcon: React.FC<CoinsIconProps> = ({ 
   size = 16, 
   className = '', 
-  transparent = true,
+  transparent = false,
   ...props 
 }) => {
+  const bgFill = transparent ? 'transparent' : '#09090b';
+
   return (
     <svg
       viewBox="0 0 100 100"
@@ -22,6 +24,11 @@ export const CoinsIcon: React.FC<CoinsIconProps> = ({
       fill="none"
       {...props}
     >
+      {/* Coin Base / Disk */}
+      {!transparent && (
+        <circle cx="50" cy="50" r="37.5" fill={bgFill} />
+      )}
+
       {/* Outer Emerald Ring */}
       <circle
         cx="50"
@@ -53,6 +60,12 @@ export const CoinsIcon: React.FC<CoinsIconProps> = ({
         <polygon
           points="26,50 50,74 50,61 39,50"
           fill="#10E374"
+        />
+
+        {/* Center Diamond Cutout */}
+        <polygon
+          points="50,39 61,50 50,61 39,50"
+          fill={transparent ? 'transparent' : bgFill}
         />
       </g>
     </svg>
