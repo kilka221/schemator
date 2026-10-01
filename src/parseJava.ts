@@ -1,4 +1,4 @@
-import { mathify, cleanIoArgs, consolidateBlocks, isSubprogramCall, formatRangeToGost } from './mathify';
+import { mathify, cleanIoArgs, consolidateBlocks, isSubprogramCall, extractSubprogramCall, formatRangeToGost } from './mathify';
 import { ASTNode } from './logic';
 
 export function cleanJavaParams(paramsStr: string): string {
@@ -183,8 +183,8 @@ export function parseJavaSourceWhole(code: string) {
         // 4. Subprogram calls
         else {
             let clean = cleanJavaTypesFromStatement(text).replace(/;$/, '').trim();
-            let callMatch = clean.match(/^([a-zA-Z0-9_.]+)\s*\((.*)\)$/);
-            if (callMatch && isSubprogramCall(callMatch[1], userDeclaredFunctions)) {
+            let subCall = extractSubprogramCall(clean);
+            if (subCall && (userDeclaredFunctions.has(subCall.funcName) || isSubprogramCall(subCall.funcName, userDeclaredFunctions))) {
                 kind = 'subprogram';
                 displayText = clean;
             } else {

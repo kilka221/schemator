@@ -251,10 +251,96 @@ export function consolidateBlocks(nodes: any[]): any[] {
     return res;
 }
 
+export function extractSubprogramCall(text: string): { prefix: string; funcName: string; args: string } | null {
+    if (!text || typeof text !== 'string') return null;
+    let trimmed = text.trim().replace(/;$/, '').trim();
+    if (!trimmed) return null;
+
+    // Reject compound assignments immediately: +=, -=, *=, /=, %=, //=, **=, &=, |=, ^=, <<=, >>=, :=
+    if (/(?:\+|-|\*|\/|%|\/\/|\*\*|&|\||\^|<<|>>|:)=/.test(trimmed)) {
+        return null;
+    }
+    // Reject equality and comparisons: ==, !=, <=, >=, ===, !==
+    if (/[=!<>]=/.test(trimmed)) {
+        return null;
+    }
+
+    let prefix = '';
+    let callExpr = trimmed;
+
+    // Check for simple assignment: target = callExpr
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx !== -1) {
+        const beforeEq = trimmed.substring(0, eqIdx).trim();
+        const afterEq = trimmed.substring(eqIdx + 1).trim();
+
+        // Must not contain arithmetic or bitwise operators on the left side
+        if (/[+\-*/%&|^~]/.test(beforeEq)) {
+            return null;
+        }
+        if (!beforeEq) return null;
+
+        prefix = beforeEq + ' = ';
+        callExpr = afterEq;
+    }
+
+    // callExpr must strictly start with a valid identifier or chained identifier
+    const funcMatch = callExpr.match(/^([a-zA-Z_][a-zA-Z0-9_]*(?:(?:\.|::|->)[a-zA-Z_][a-zA-Z0-9_]*)*)\s*\(/);
+    if (!funcMatch) {
+        return null;
+    }
+
+    const funcName = funcMatch[1];
+    const parenStartIdx = callExpr.indexOf('(', funcName.length);
+    if (parenStartIdx === -1) return null;
+
+    let depth = 0;
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+    let inBacktick = false;
+    let closingParenIdx = -1;
+
+    for (let i = parenStartIdx; i < callExpr.length; i++) {
+        const ch = callExpr[i];
+        const prev = i > 0 ? callExpr[i - 1] : '';
+
+        if (ch === "'" && prev !== '\\' && !inDoubleQuote && !inBacktick) {
+            inSingleQuote = !inSingleQuote;
+        } else if (ch === '"' && prev !== '\\' && !inSingleQuote && !inBacktick) {
+            inDoubleQuote = !inDoubleQuote;
+        } else if (ch === '`' && prev !== '\\' && !inSingleQuote && !inDoubleQuote) {
+            inBacktick = !inBacktick;
+        } else if (!inSingleQuote && !inDoubleQuote && !inBacktick) {
+            if (ch === '(') depth++;
+            else if (ch === ')') {
+                depth--;
+                if (depth === 0) {
+                    closingParenIdx = i;
+                    break;
+                }
+            }
+        }
+    }
+
+    // The closing parenthesis MUST be the very end of the expression
+    if (closingParenIdx === -1 || callExpr.substring(closingParenIdx + 1).trim() !== '') {
+        return null;
+    }
+
+    const args = callExpr.substring(parenStartIdx + 1, closingParenIdx).trim();
+    return { prefix, funcName, args };
+}
+
 export function isSubprogramCall(funcName: string, userDeclaredFunctions?: Set<string>): boolean {
+    if (!funcName || typeof funcName !== 'string') return false;
     let trimmedName = funcName.trim();
-    let hasDot = trimmedName.includes('.');
-    
+    if (!trimmedName) return false;
+
+    // Must be a valid identifier or chain of identifiers
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*(?:(?:\.|::|->)[a-zA-Z_][a-zA-Z0-9_]*)*$/.test(trimmedName)) {
+        return false;
+    }
+
     let name = trimmedName;
     if (name.includes('::')) {
         name = name.split('::').pop() || name;
@@ -266,34 +352,57 @@ export function isSubprogramCall(funcName: string, userDeclaredFunctions?: Set<s
         name = name.split('->').pop() || name;
     }
     name = name.trim();
+    if (!name || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+        return false;
+    }
 
-    // Builtins, types, and mathematical operations that should be process of variable assignment
+    // Builtins, types, and mathematical operations that should be process or IO
     const NOT_SUBPROGRAMS = new Set([
-        'int', 'float', 'str', 'bool', 'list', 'dict', 'set', 'tuple', 'len', 'range', 
-        'abs', 'round', 'min', 'max', 'sum', 'any', 'all', 'super', 'object', 'type', 'id', 
-        'zip', 'enumerate', 'map', 'filter', 'sorted', 'chr', 'ord', 'hex', 'oct', 'bin', 
-        'pow', 'sqrt', 'sin', 'cos', 'tan', 'log', 'log10', 'exp', 'double', 'char', 'string',
-        'vector', 'fabs', 'ceil', 'floor', 'size', 'length', 'push_back', 'pop_back', 'insert',
-        'erase', 'begin', 'end', 'clear', 'empty', 'print', 'input'
+        'int', 'float', 'str', 'bool', 'list', 'dict', 'set', 'tuple', 'frozenset', 'bytes', 'bytearray',
+        'char', 'double', 'long', 'short', 'string', 'void', 'auto', 'complex',
+        'len', 'range', 'enumerate', 'zip', 'map', 'filter', 'sorted', 'reversed', 'slice',
+        'abs', 'round', 'min', 'max', 'sum', 'any', 'all', 'pow', 'divmod',
+        'chr', 'ord', 'hex', 'oct', 'bin', 'hash', 'id', 'type', 'repr', 'ascii', 'format',
+        'iter', 'next', 'isinstance', 'issubclass', 'callable', 'hasattr', 'getattr', 'setattr', 'delattr',
+        'super', 'object', 'vars', 'dir', 'help', 'eval', 'exec', 'compile',
+        'sqrt', 'cbrt', 'hypot', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
+        'sinh', 'cosh', 'tanh', 'exp', 'log', 'log2', 'log10', 'fabs', 'ceil', 'floor', 'trunc',
+        'degrees', 'radians', 'factorial', 'gcd', 'lcm', 'comb', 'perm', 'isclose', 'isfinite', 'isinf', 'isnan',
+        'print', 'input', 'open', 'close', 'read', 'write', 'readline', 'readlines', 'flush',
+        'cin', 'cout', 'scanf', 'printf', 'getline',
+        'random', 'randint', 'randrange', 'uniform', 'choice', 'choices', 'sample', 'shuffle', 'seed', 'time', 'sleep',
+        'vector', 'array', 'deque', 'stack', 'queue', 'pair', 'size', 'length', 'empty', 'clear',
+        'push_back', 'pop_back', 'push_front', 'pop_front', 'emplace_back', 'insert', 'erase',
+        'find', 'count', 'begin', 'end', 'rbegin', 'rend', 'front', 'back', 'top', 'at', 'data',
+        'resize', 'reserve', 'capacity', 'swap', 'c_str', 'substr', 'stoi', 'stof', 'stod', 'stol', 'to_string',
+        'make_pair', 'make_tuple', 'tie', 'move', 'forward',
+        'ToString', 'Parse', 'TryParse', 'Equals', 'GetHashCode', 'GetType', 'CompareTo',
+        'Contains', 'IndexOf', 'LastIndexOf', 'Substring', 'Replace', 'Trim', 'ToLower',
+        'ToUpper', 'StartsWith', 'EndsWith', 'Split', 'Join', 'Length', 'Count',
+        'Add', 'Remove', 'RemoveAt', 'Clear', 'Insert', 'ToArray', 'ToList',
+        'Integer', 'Double', 'Float', 'Boolean', 'Long', 'Short', 'Byte', 'Character', 'String',
+        'valueOf', 'parseInt', 'parseDouble', 'parseFloat', 'parseLong',
+        'charAt', 'length', 'substring', 'indexOf', 'lastIndexOf', 'equals', 'equalsIgnoreCase',
+        'compareTo', 'toLowerCase', 'toUpperCase', 'trim', 'replace', 'replaceAll',
+        'split', 'startsWith', 'endsWith', 'contains', 'isEmpty', 'isBlank'
     ]);
 
     const BUILTIN_PYTHON_METHODS = new Set([
         'append', 'extend', 'insert', 'remove', 'pop', 'clear', 'index', 'count', 'sort', 'reverse', 'copy',
         'get', 'items', 'keys', 'values', 'update', 'setdefault',
-        'split', 'join', 'strip', 'lstrip', 'rstrip', 'replace', 'find', 'rfind', 'startswith', 'endswith', 'lower', 'upper', 'title', 'format', 'isdigit', 'isalpha', 'isalnum',
-        'add', 'discard', 'union', 'intersection', 'difference',
-        'write', 'read', 'readline', 'readlines', 'close', 'open'
+        'split', 'join', 'strip', 'lstrip', 'rstrip', 'replace', 'find', 'rfind', 'startswith', 'endswith',
+        'lower', 'upper', 'title', 'capitalize', 'swapcase', 'format', 'format_map',
+        'isdigit', 'isalpha', 'isalnum', 'isnumeric', 'isspace', 'islower', 'isupper', 'istitle',
+        'add', 'discard', 'union', 'intersection', 'difference', 'symmetric_difference',
+        'issubset', 'issuperset', 'isdisjoint',
+        'write', 'read', 'readline', 'readlines', 'close', 'open', 'seek', 'tell'
     ]);
 
     if (NOT_SUBPROGRAMS.has(name) || BUILTIN_PYTHON_METHODS.has(name)) {
         return false;
     }
 
-    if (userDeclaredFunctions && userDeclaredFunctions.has(name)) {
-        return true;
-    }
-
-    if (hasDot) {
+    if (userDeclaredFunctions && (userDeclaredFunctions.has(name) || userDeclaredFunctions.has(trimmedName))) {
         return true;
     }
 

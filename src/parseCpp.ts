@@ -1,4 +1,4 @@
-import { mathify, cleanIoArgs, consolidateBlocks, isSubprogramCall, formatRangeToGost } from './mathify';
+import { mathify, cleanIoArgs, consolidateBlocks, isSubprogramCall, extractSubprogramCall, formatRangeToGost } from './mathify';
 import { ASTNode } from './logic';
 
 export function cleanCppParams(paramsStr: string): string {
@@ -456,10 +456,9 @@ export function parseCppSourceWhole(code: string) {
             let cleanedStmt = cleanCppTypesFromStatement(text);
             
             // Check if this statement is a subprogram call e.g. foo(a, b); or res = foo(a, b);
-            let rightSide = cleanedStmt.replace(/^[a-zA-Z0-9_.,\s]+\s*=\s*/, '').trim();
-            let callMatch = rightSide.match(/^([a-zA-Z0-9_.:~>-]+)\s*\((.*)\)$/);
-            if (callMatch) {
-                let funcName = callMatch[1];
+            let subCall = extractSubprogramCall(cleanedStmt);
+            if (subCall) {
+                let funcName = subCall.funcName;
                 if (userDeclaredFunctions.has(funcName) || isSubprogramCall(funcName, userDeclaredFunctions)) {
                     kind = 'subprogram';
                 }

@@ -11,7 +11,7 @@ import 'prismjs/components/prism-java';
 import { parseCppSourceWhole } from './parseCpp';
 import { parseCsharpSourceWhole } from './parseCsharp';
 import { parseJavaSourceWhole } from './parseJava';
-import { mathify, cleanIoArgs, consolidateBlocks, isSubprogramCall, formatRangeToGost } from './mathify';
+import { mathify, cleanIoArgs, consolidateBlocks, isSubprogramCall, extractSubprogramCall, formatRangeToGost } from './mathify';
 import { translatePythonLine } from './translate';
 import { DiagramStyleConfig, getDiagramStyle } from './diagramStyles';
 
@@ -1010,35 +1010,26 @@ export function parsePythonSourceWhole(code: string) {
                             } else {
                                 displayText = mathify(translatedRightObj);
                             }
-                        } else if (/^[^=()]+\s*\(.*?\)$/.test(text) || /^[^=]+\s*=\s*[^=()]+\s*\(.*?\)$/.test(text)) {
-                            let matchArg = text.match(/^([^=]+=\s*)?([^=()]+)\s*\((.*?)\)$/);
-                            let prefix = '';
-                            let funcName = '';
-                            let args = '';
-                            if (matchArg) {
-                                prefix = matchArg[1] || '';
-                                if (prefix) {
-                                    let colonIdx = prefix.indexOf(':');
-                                    if (colonIdx !== -1) {
-                                        prefix = prefix.substring(0, colonIdx).trim() + ' = ';
-                                    }
+                        } else if (extractSubprogramCall(text)) {
+                            let subCall = extractSubprogramCall(text)!;
+                            let prefix = subCall.prefix;
+                            if (prefix) {
+                                let colonIdx = prefix.indexOf(':');
+                                if (colonIdx !== -1) {
+                                    prefix = prefix.substring(0, colonIdx).trim() + ' = ';
                                 }
-                                funcName = matchArg[2].trim();
-                                args = matchArg[3];
                             }
+                            let funcName = subCall.funcName;
+                            let args = subCall.args;
                             
-                            if (matchArg && isSubprogramCall(funcName, userDeclaredFunctions)) {
+                            if (isSubprogramCall(funcName, userDeclaredFunctions)) {
                                 kind = 'subprogram';
                                 let cleanedArgs = cleanIoArgs(args);
                                 displayText = mathify(`${prefix}${funcName}(${cleanedArgs})`);
                             } else {
                                 kind = 'process';
-                                if (matchArg) {
-                                    let cleanedArgs = cleanIoArgs(args);
-                                    displayText = mathify(`${prefix}${funcName}(${cleanedArgs})`);
-                                        } else {
-                                    displayText = mathify(text);
-                                }
+                                let cleanedArgs = cleanIoArgs(args);
+                                displayText = mathify(`${prefix}${funcName}(${cleanedArgs})`);
                             }
                         } else if (textContainsEq) {
                             let left = leftSide;
