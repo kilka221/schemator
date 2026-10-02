@@ -1,6 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import dns from 'dns';
+
+// Fix for Node.js trying unreachable IPv6 routes in cloud environments (e.g. Yandex Cloud)
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {}
 import { 
   getYdbUser, 
   upsertYdbUser, 
@@ -357,92 +363,119 @@ apiRouter.post('/bug-report', async (req, res) => {
 
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (botToken && chatId) {
-    try {
-      const escapeHtml = (str: string) => (str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+  const apiBase = process.env.TELEGRAM_API_BASE || 'https://api.telegram.org';
 
-      const safeDesc = escapeHtml(description || 'Без описания');
-      const safeContact = escapeHtml(contact || 'Анонимно');
-      const safeLang = escapeHtml(language || 'не указан');
-      const safeStyle = escapeHtml(style || 'стандарт');
-      const safeCode = escapeHtml((code || '').substring(0, 1200));
+  if (!botToken || !chatId) {
+    console.warn('[Bug Report Telegram]: Missing credentials. botToken present?', Boolean(botToken), 'chatId present?', Boolean(chatId));
+    return res.json({ 
+      success: true, 
+      telegramStatus: 'skipped_no_credentials',
+      details: 'TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing in environment variables'
+    });
+  }
 
-      const tgHtml = `🪲 <b>Новый баг-репорт Схематор</b>\n\n` +
-        `👤 <b>Контакт:</b> ${safeContact}\n` +
-        `⚙️ <b>Язык:</b> <code>${safeLang}</code> | <b>Стиль:</b> <code>${safeStyle}</code>\n\n` +
-        `📝 <b>Описание:</b>\n${safeDesc}\n\n` +
-        (safeCode ? `💻 <b>Код:</b>\n<pre>${safeCode}</pre>` : '');
+  try {
+    const escapeHtml = (str: string) => (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
 
-      const plainText = `🪲 Новый баг-репорт Схематор\n\n` +
-        `Контакт: ${contact || 'Анонимно'}\n` +
-        `Язык: ${language || 'не указан'} | Стиль: ${style || 'стандарт'}\n\n` +
-        `Описание:\n${description || 'Без описания'}\n\n` +
-        (code ? `Код:\n${code.substring(0, 1000)}` : '');
+    const safeDesc = escapeHtml(description || 'Без описания');
+    const safeContact = escapeHtml(contact || 'Анонимно');
+    const safeLang = escapeHtml(language || 'не указан');
+    const safeStyle = escapeHtml(style || 'стандарт');
+    const safeCode = escapeHtml((code || '').substring(0, 1200));
 
-      let sentPhotoSuccess = false;
+    const tgHtml = `🪲 <b>Новый баг-репорт Схематор</b>\n\n` +
+      `👤 <b>Контакт:</b> ${safeContact}\n` +
+      `⚙️ <b>Язык:</b> <code>${safeLang}</code> | <b>Стиль:</b> <code>${safeStyle}</code>\n\n` +
+      `📝 <b>Описание:</b>\n${safeDesc}\n\n` +
+      (safeCode ? `💻 <b>Код:</b>\n<pre>${safeCode}</pre>` : '');
 
-      if (typeof screenshot === 'string' && screenshot.startsWith('data:image/')) {
-        try {
-          const match = screenshot.match(/^data:image\/(\w+);base64,(.+)$/);
-          if (match) {
-            const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
-            const buffer = Buffer.from(match[2], 'base64');
-            const blob = new Blob([buffer], { type: `image/${ext}` });
-            const formData = new FormData();
-            formData.append('chat_id', chatId);
-            formData.append('photo', blob, `screenshot.${ext}`);
-            // Telegram caption max is 1024 characters
-            const caption = tgHtml.length > 1000 ? tgHtml.substring(0, 990) + '...' : tgHtml;
-            formData.append('caption', caption);
-            formData.append('parse_mode', 'HTML');
+    const plainText = `🪲 Новый баг-репорт Схематор\n\n` +
+      `Контакт: ${contact || 'Анонимно'}\n` +
+      `Язык: ${language || 'не указан'} | Стиль: ${style || 'стандарт'}\n\n` +
+      `Описание:\n${description || 'Без описания'}\n\n` +
+      (code ? `Код:\n${code.substring(0, 1000)}` : '');
 
-            const photoRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-              method: 'POST',
-              body: formData
-            });
+    let sentPhotoSuccess = false;
 
-            if (photoRes.ok) {
-              sentPhotoSuccess = true;
-            } else {
-              const errBody = await photoRes.text();
-              console.warn('[Telegram sendPhoto failed, fallback to message]:', errBody);
-            }
-          }
-        } catch (photoErr: any) {
-          console.warn('[Telegram photo sending error]:', photoErr?.message);
-        }
-      }
+    if (typeof screenshot === 'string' && screenshot.startsWith('data:image/')) {
+      try {
+        const match = screenshot.match(/^data:image\/(\w+);base64,(.+)$/);
+        if (match) {
+          const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+          const buffer = Buffer.from(match[2], 'base64');
+          const blob = new Blob([buffer], { type: `image/${ext}` });
+          const formData = new FormData();
+          formData.append('chat_id', chatId);
+          formData.append('photo', blob, `screenshot.${ext}`);
+          // Telegram caption max is 1024 characters
+          const caption = tgHtml.length > 1000 ? tgHtml.substring(0, 990) + '...' : tgHtml;
+          formData.append('caption', caption);
+          formData.append('parse_mode', 'HTML');
 
-      if (!sentPhotoSuccess) {
-        // Try HTML mode first
-        const msgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: tgHtml,
-            parse_mode: 'HTML'
-          })
-        });
-
-        // Fallback to plain text if HTML was somehow rejected
-        if (!msgRes.ok) {
-          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          const photoRes = await fetch(`${apiBase}/bot${botToken}/sendPhoto`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text: plainText
-            })
+            body: formData,
+            signal: AbortSignal.timeout(6000)
           });
+
+          if (photoRes.ok) {
+            sentPhotoSuccess = true;
+            return res.json({ success: true, telegramStatus: 'delivered_with_photo' });
+          } else {
+            const errBody = await photoRes.text();
+            console.warn('[Telegram sendPhoto failed, fallback to message]:', errBody);
+          }
         }
+      } catch (photoErr: any) {
+        console.warn('[Telegram photo sending error]:', photoErr?.message);
       }
-    } catch (tgErr: any) {
-      console.warn('[Telegram Forwarding Warning]:', tgErr?.message);
     }
+
+    if (!sentPhotoSuccess) {
+      // Try HTML mode first
+      const msgRes = await fetch(`${apiBase}/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: tgHtml,
+          parse_mode: 'HTML'
+        }),
+        signal: AbortSignal.timeout(5000)
+      });
+
+      if (msgRes.ok) {
+        return res.json({ success: true, telegramStatus: 'delivered_message' });
+      }
+
+      const errBody = await msgRes.text();
+      console.warn('[Telegram HTML message failed, trying plain text]:', errBody);
+
+      // Fallback to plain text if HTML was somehow rejected
+      const plainRes = await fetch(`${apiBase}/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: plainText
+        }),
+        signal: AbortSignal.timeout(5000)
+      });
+
+      if (plainRes.ok) {
+        return res.json({ success: true, telegramStatus: 'delivered_plain_text' });
+      }
+
+      const plainErr = await plainRes.text();
+      console.error('[Telegram fatal rejection]:', plainErr);
+      return res.json({ success: true, telegramStatus: 'telegram_api_rejected', details: plainErr });
+    }
+  } catch (tgErr: any) {
+    console.warn('[Telegram Forwarding Warning]:', tgErr?.message);
+    return res.json({ success: true, telegramStatus: 'network_error', details: tgErr?.message });
   }
 
   res.json({ success: true, message: 'Отчет об ошибке успешно получен' });

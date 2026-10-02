@@ -172,13 +172,24 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
 
       // Пробуем отправить на бэкенд
       try {
-        await fetch('/api/bug-report', {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 7000);
+
+        const response = await fetch('/api/bug-report', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          signal: controller.signal
         });
-      } catch {
-        // Игнорируем сетевые сбои бэкенда, чтобы пользователь всегда видел подтверждение
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[BugReport Status]:', data);
+        }
+      } catch (err: any) {
+        console.warn('[BugReport submit warning]:', err?.message);
       }
 
       setIsSubmitted(true);
