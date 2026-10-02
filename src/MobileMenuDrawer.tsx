@@ -50,6 +50,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
   onOpenSettings,
   onOpenHistory,
   onOpenLegal,
+  onOpenBugReport,
   isDark,
   onToggleTheme,
 }) => {
@@ -171,20 +172,6 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
 
           <button
             onClick={() => {
-              onOpenTariff();
-              onClose();
-            }}
-            className="h-10 px-3 rounded-xl flex items-center justify-between text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2.5">
-              <CoinsIcon size={16} className="w-4 h-4" />
-              <span>Тарифы и коины</span>
-            </div>
-            <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />
-          </button>
-
-          <button
-            onClick={() => {
               onOpenTips();
               onClose();
             }}
@@ -233,11 +220,12 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
         {/* Сообщить об ошибке */}
         <div className="px-3 py-2">
           <button
+            type="button"
             onClick={() => {
-              onOpenBugReport?.();
               onClose();
+              onOpenBugReport?.();
             }}
-            className="h-9 px-2.5 w-full rounded-lg flex items-center gap-2.5 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors text-xs font-medium cursor-pointer"
+            className="h-9 px-2.5 w-full rounded-lg flex items-center gap-2.5 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors text-xs font-medium cursor-pointer active:scale-[0.99]"
           >
             <Bug className="w-4 h-4 shrink-0 text-red-500 dark:text-red-400" />
             <span>Сообщить об ошибке</span>

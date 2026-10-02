@@ -213,12 +213,12 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={handleResetAndClose}
       onPaste={handlePaste}
     >
       <div 
-        className={`w-full max-w-lg rounded-md border shadow-xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150 transition-colors ${
+        className={`w-full max-w-lg rounded-xl border shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150 transition-colors max-h-[92vh] ${
           isDark 
             ? 'bg-zinc-900 text-zinc-100 border-zinc-800' 
             : 'bg-white text-zinc-900 border-zinc-200'
