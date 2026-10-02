@@ -359,15 +359,28 @@ apiRouter.post('/bug-report', async (req, res) => {
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (botToken && chatId) {
     try {
-      const safeDesc = (description || 'Без описания').replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1');
-      const safeContact = (contact || 'Анонимно').replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1');
-      const safeCode = (code || '').substring(0, 1500);
+      const escapeHtml = (str: string) => (str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 
-      const tgText = `🪲 *Новый баг-репорт Схематор*\n\n` +
-        `👤 *Контакт:* ${safeContact}\n` +
-        `⚙️ *Язык:* \`${language || 'не указан'}\` | *Стиль:* \`${style || 'стандарт'}\`\n\n` +
-        `📝 *Описание:*\n${safeDesc}\n\n` +
-        (safeCode ? `💻 *Код:*\n\`\`\`\n${safeCode}\n\`\`\`` : '');
+      const safeDesc = escapeHtml(description || 'Без описания');
+      const safeContact = escapeHtml(contact || 'Анонимно');
+      const safeLang = escapeHtml(language || 'не указан');
+      const safeStyle = escapeHtml(style || 'стандарт');
+      const safeCode = escapeHtml((code || '').substring(0, 1200));
+
+      const tgHtml = `🪲 <b>Новый баг-репорт Схематор</b>\n\n` +
+        `👤 <b>Контакт:</b> ${safeContact}\n` +
+        `⚙️ <b>Язык:</b> <code>${safeLang}</code> | <b>Стиль:</b> <code>${safeStyle}</code>\n\n` +
+        `📝 <b>Описание:</b>\n${safeDesc}\n\n` +
+        (safeCode ? `💻 <b>Код:</b>\n<pre>${safeCode}</pre>` : '');
+
+      const plainText = `🪲 Новый баг-репорт Схематор\n\n` +
+        `Контакт: ${contact || 'Анонимно'}\n` +
+        `Язык: ${language || 'не указан'} | Стиль: ${style || 'стандарт'}\n\n` +
+        `Описание:\n${description || 'Без описания'}\n\n` +
+        (code ? `Код:\n${code.substring(0, 1000)}` : '');
 
       let sentPhotoSuccess = false;
 
@@ -381,10 +394,10 @@ apiRouter.post('/bug-report', async (req, res) => {
             const formData = new FormData();
             formData.append('chat_id', chatId);
             formData.append('photo', blob, `screenshot.${ext}`);
-            // Telegram sendPhoto caption has a 1024 char limit
-            const caption = tgText.length > 1000 ? tgText.substring(0, 990) + '...' : tgText;
+            // Telegram caption max is 1024 characters
+            const caption = tgHtml.length > 1000 ? tgHtml.substring(0, 990) + '...' : tgHtml;
             formData.append('caption', caption);
-            formData.append('parse_mode', 'MarkdownV2');
+            formData.append('parse_mode', 'HTML');
 
             const photoRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
               method: 'POST',
@@ -404,15 +417,28 @@ apiRouter.post('/bug-report', async (req, res) => {
       }
 
       if (!sentPhotoSuccess) {
-        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        // Try HTML mode first
+        const msgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: chatId,
-            text: tgText,
-            parse_mode: 'MarkdownV2'
+            text: tgHtml,
+            parse_mode: 'HTML'
           })
         });
+
+        // Fallback to plain text if HTML was somehow rejected
+        if (!msgRes.ok) {
+          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: plainText
+            })
+          });
+        }
       }
     } catch (tgErr: any) {
       console.warn('[Telegram Forwarding Warning]:', tgErr?.message);
