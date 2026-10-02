@@ -49,7 +49,8 @@ app.use(cors({
   origin: ['https://schemator.ru', 'http://localhost:5173', 'http://localhost:3000'],
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // API Router
 const apiRouter = express.Router();
@@ -340,6 +341,86 @@ apiRouter.post('/diagrams/delete', optionalAuth, async (req: AuthenticatedReques
 apiRouter.post('/payments/robokassa/init', optionalAuth, handleRobokassaInit);
 apiRouter.post('/payments/robokassa/result', handleRobokassaResult);
 apiRouter.get('/payments/robokassa/result', handleRobokassaResult);
+
+// Bug Report Endpoint (with automatic Telegram Bot forwarding if configured)
+apiRouter.post('/bug-report', async (req, res) => {
+  const { description, contact, language, style, code, screenshot, timestamp } = req.body;
+  console.log('[Bug Report Received]:', {
+    contact,
+    language,
+    style,
+    hasScreenshot: Boolean(screenshot),
+    description: description ? description.substring(0, 100) : '',
+    codeLength: code ? code.length : 0,
+    timestamp: timestamp || new Date().toISOString()
+  });
+
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (botToken && chatId) {
+    try {
+      const safeDesc = (description || 'Без описания').replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1');
+      const safeContact = (contact || 'Анонимно').replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1');
+      const safeCode = (code || '').substring(0, 1500);
+
+      const tgText = `🪲 *Новый баг-репорт Схематор*\n\n` +
+        `👤 *Контакт:* ${safeContact}\n` +
+        `⚙️ *Язык:* \`${language || 'не указан'}\` | *Стиль:* \`${style || 'стандарт'}\`\n\n` +
+        `📝 *Описание:*\n${safeDesc}\n\n` +
+        (safeCode ? `💻 *Код:*\n\`\`\`\n${safeCode}\n\`\`\`` : '');
+
+      let sentPhotoSuccess = false;
+
+      if (typeof screenshot === 'string' && screenshot.startsWith('data:image/')) {
+        try {
+          const match = screenshot.match(/^data:image\/(\w+);base64,(.+)$/);
+          if (match) {
+            const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+            const buffer = Buffer.from(match[2], 'base64');
+            const blob = new Blob([buffer], { type: `image/${ext}` });
+            const formData = new FormData();
+            formData.append('chat_id', chatId);
+            formData.append('photo', blob, `screenshot.${ext}`);
+            // Telegram sendPhoto caption has a 1024 char limit
+            const caption = tgText.length > 1000 ? tgText.substring(0, 990) + '...' : tgText;
+            formData.append('caption', caption);
+            formData.append('parse_mode', 'MarkdownV2');
+
+            const photoRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+              method: 'POST',
+              body: formData
+            });
+
+            if (photoRes.ok) {
+              sentPhotoSuccess = true;
+            } else {
+              const errBody = await photoRes.text();
+              console.warn('[Telegram sendPhoto failed, fallback to message]:', errBody);
+            }
+          }
+        } catch (photoErr: any) {
+          console.warn('[Telegram photo sending error]:', photoErr?.message);
+        }
+      }
+
+      if (!sentPhotoSuccess) {
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: tgText,
+            parse_mode: 'MarkdownV2'
+          })
+        });
+      }
+    } catch (tgErr: any) {
+      console.warn('[Telegram Forwarding Warning]:', tgErr?.message);
+    }
+  }
+
+  res.json({ success: true, message: 'Отчет об ошибке успешно получен' });
+});
 
 // Mount API router under both /api and root (for flexible serverless routing on Vercel and Node)
 app.use('/api', apiRouter);

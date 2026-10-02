@@ -52,7 +52,8 @@ import {
   Copy,
   User,
   Maximize2,
-  Lock
+  Lock,
+  Bug
 } from 'lucide-react';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
@@ -80,6 +81,7 @@ import { TipsModal } from './TipsModal';
 import { SchematorLogo } from './SchematorLogo';
 import { PresetsModal, CodeTemplate } from './PresetsModal';
 import { SettingsModal } from './SettingsModal';
+import { BugReportModal } from './BugReportModal';
 import { MobileCodeSheet } from './MobileCodeSheet';
 import { MobileExportSheet } from './MobileExportSheet';
 import { MobileMenuDrawer } from './MobileMenuDrawer';
@@ -159,6 +161,7 @@ export default function App() {
   const [isTipsModalOpen, setIsTipsModalOpen] = useState(false);
   const [isPresetsModalOpen, setIsPresetsModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isBugReportModalOpen, setIsBugReportModalOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [activeNav, setActiveNav] = useState<'home' | 'presets' | 'docs' | 'history' | 'settings'>('home');
   const canvasContainerRef = React.useRef<HTMLDivElement>(null);
@@ -1950,6 +1953,28 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 )}
               </div>
 
+              {/* Разделитель */}
+              <div className="w-full h-px my-1 bg-zinc-200 dark:bg-zinc-800 shrink-0" />
+
+              {/* Сообщить об ошибке (красный, с жуком) */}
+              <button
+                onClick={() => setIsBugReportModalOpen(true)}
+                title={isSidebarCollapsed ? "Сообщить об ошибке" : undefined}
+                className="h-8 flex items-center px-2.5 gap-2.5 w-full rounded-md text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer relative group overflow-hidden shrink-0"
+              >
+                <Bug className="w-3.5 h-3.5 shrink-0" />
+                <span className={`text-[11px] font-medium whitespace-nowrap overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  isSidebarCollapsed ? 'max-w-0 opacity-0 -translate-x-2 pointer-events-none' : 'max-w-40 opacity-100 translate-x-0'
+                }`}>
+                  Сообщить об ошибке
+                </span>
+                {isSidebarCollapsed && (
+                  <span className="pointer-events-none absolute left-full ml-2.5 z-50 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[11px] font-medium rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-md select-none">
+                    Сообщить об ошибке
+                  </span>
+                )}
+              </button>
+
               {/* Bottom: Legal Links */}
               <div className="flex flex-col gap-1 pt-2 shrink-0 border-t border-zinc-200 dark:border-zinc-800/80">
                 <button
@@ -3348,6 +3373,17 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         onNotify={showToast}
       />
 
+      {/* Bug Report Modal */}
+      <BugReportModal
+        isOpen={isBugReportModalOpen}
+        onClose={() => setIsBugReportModalOpen(false)}
+        currentCode={code}
+        currentLanguage={language}
+        currentStyle={diagramStyle}
+        theme={theme}
+        userEmail={user?.email || undefined}
+      />
+
       {/* Mobile Bottom Navigation Bar */}
       <MobileBottomNav
         onOpenCode={() => setIsMobileCodeOpen(true)}
@@ -3431,6 +3467,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         onOpenHistory={() => setIsMobileHistoryOpen(true)}
         onOpenLegal={(doc) => setLegalModalDoc(doc)}
+        onOpenBugReport={() => setIsBugReportModalOpen(true)}
         isDark={isDark}
       />
 

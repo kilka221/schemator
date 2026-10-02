@@ -12,7 +12,8 @@ import {
   LogIn, 
   LogOut, 
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Bug
 } from 'lucide-react';
 import { SchematorLogo } from './SchematorLogo';
 import { CoinsIcon } from './CoinsIcon';
@@ -31,6 +32,7 @@ interface MobileMenuDrawerProps {
   onOpenSettings: () => void;
   onOpenHistory: () => void;
   onOpenLegal: (doc: LegalDocType) => void;
+  onOpenBugReport?: () => void;
   isDark: boolean;
   onToggleTheme?: () => void;
 }
@@ -225,8 +227,25 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
           )}
         </div>
 
+        {/* Soft Divider */}
+        <div className="w-full h-px bg-zinc-200 dark:bg-zinc-800 shrink-0" />
+
+        {/* Сообщить об ошибке */}
+        <div className="px-3 py-2">
+          <button
+            onClick={() => {
+              onOpenBugReport?.();
+              onClose();
+            }}
+            className="h-9 px-2.5 w-full rounded-lg flex items-center gap-2.5 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors text-xs font-medium cursor-pointer"
+          >
+            <Bug className="w-4 h-4 shrink-0 text-red-500 dark:text-red-400" />
+            <span>Сообщить об ошибке</span>
+          </button>
+        </div>
+
         {/* Bottom Legal Links */}
-        <div className="p-3 border-t border-zinc-200 dark:border-zinc-800 flex flex-col gap-1 text-[11px] text-zinc-400">
+        <div className="p-3 pt-1 border-t border-zinc-200 dark:border-zinc-800 flex flex-col gap-1 text-[11px] text-zinc-400">
           <button
             onClick={() => {
               onOpenLegal('privacy');
