@@ -112,3 +112,85 @@ export async function sendVerificationEmail(toEmail: string, verificationCode: s
     return { success: true, sentViaSmtp: false };
   }
 }
+
+export async function sendBugReportEmail(data: {
+  description: string;
+  contact?: string;
+  language?: string;
+  style?: string;
+  code?: string;
+  screenshot?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const mailTransporter = getTransporter();
+  const sender = (process.env.SMTP_USER || process.env.YANDEX_SMTP_USER || 'kuznetsov44aximka@yandex.ru').trim();
+  const targetRecipients = (process.env.ADMIN_EMAIL || process.env.SMTP_USER || process.env.YANDEX_SMTP_USER || 'kuznetsov44aximka@yandex.ru').trim();
+
+  if (!mailTransporter || !sender) {
+    console.warn('[Mailer BugReport]: Transporter or sender not available');
+    return { success: false, error: 'No mail transporter configured' };
+  }
+
+  const { description, contact, language, style, code, screenshot } = data;
+
+  const escapeHtml = (str: string) => (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const attachments: Array<{ filename: string; content: Buffer; cid?: string }> = [];
+
+  let screenshotHtml = '';
+  if (screenshot && screenshot.startsWith('data:image/')) {
+    const match = screenshot.match(/^data:image\/(\w+);base64,(.+)$/);
+    if (match) {
+      const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+      const buffer = Buffer.from(match[2], 'base64');
+      attachments.push({
+        filename: `screenshot.${ext}`,
+        content: buffer,
+        cid: 'screenshot_img'
+      });
+      screenshotHtml = `
+        <div style="margin-top: 16px;">
+          <p style="font-weight: bold; margin-bottom: 8px;">Скриншот ошибки:</p>
+          <img src="cid:screenshot_img" style="max-width: 100%; border-radius: 8px; border: 1px solid #e4e4e7;" alt="Скриншот" />
+        </div>
+      `;
+    }
+  }
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #18181b;">
+      <h2 style="color: #059669; border-bottom: 2px solid #059669; padding-bottom: 8px;">🪲 Новый баг-репорт Схематор</h2>
+      <p><strong>Контакт:</strong> ${escapeHtml(contact || 'Не указан')}</p>
+      <p><strong>Язык:</strong> <code>${escapeHtml(language || 'не указан')}</code> | <strong>Стиль:</strong> <code>${escapeHtml(style || 'стандарт')}</code></p>
+      <div style="background: #f4f4f5; padding: 12px; border-radius: 8px; margin: 16px 0;">
+        <p style="margin: 0; font-weight: bold;">Описание проблемы:</p>
+        <p style="margin: 8px 0 0 0; white-space: pre-wrap;">${escapeHtml(description)}</p>
+      </div>
+      ${screenshotHtml}
+      ${code ? `
+        <div style="margin-top: 16px;">
+          <p style="font-weight: bold; margin-bottom: 8px;">Исходный код:</p>
+          <pre style="background: #18181b; color: #e4e4e7; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px;">${escapeHtml(code.substring(0, 3000))}</pre>
+        </div>
+      ` : ''}
+    </div>
+  `;
+
+  try {
+    await mailTransporter.sendMail({
+      from: `"Схематор Ошибки" <${sender}>`,
+      to: targetRecipients,
+      subject: `🪲 Баг-репорт Схематор: ${description.substring(0, 50)}`,
+      html,
+      attachments
+    });
+    console.log('[Mailer BugReport]: Sent email successfully to', targetRecipients);
+    return { success: true };
+  } catch (err: any) {
+    console.error('[Mailer BugReport Error]:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
