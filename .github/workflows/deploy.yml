@@ -64,3 +64,7 @@ jobs:
             YANDEX_CLIENT_ID=${{ secrets.YANDEX_CLIENT_ID }}
             TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
             TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
+            ROBOKASSA_MERCHANT_LOGIN=${{ secrets.ROBOKASSA_MERCHANT_LOGIN }}
+            ROBOKASSA_PASSWORD_1=${{ secrets.ROBOKASSA_PASSWORD_1 }}
+            ROBOKASSA_PASSWORD_2=${{ secrets.ROBOKASSA_PASSWORD_2 }}
+            ROBOKASSA_IS_TEST=${{ secrets.ROBOKASSA_IS_TEST }}

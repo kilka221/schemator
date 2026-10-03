@@ -29,46 +29,48 @@ export interface TariffItem {
 export const TARIFFS: TariffItem[] = [
   {
     id: 'lab',
-    title: '«Сдать лабы»',
-    coins: 10,
-    priceRub: 99,
-    pricePerCoin: '9.9 ₽ / схема',
-    timeSaved: 'Экономит ~8–10 ч черчения',
-    description: 'Быстрый старт для закрытия текущих лабораторных работ.',
+    title: '«Сдать лабу»',
+    coins: 5,
+    priceRub: 149,
+    pricePerCoin: '29.8 ₽ / схема',
+    timeSaved: 'Экономит ~5–8 ч черчения',
+    description: 'Быстрый старт для закрытия текущей лабораторной работы.',
     features: [
-      '~10 лабораторок',
-      'Экспорт в PNG и SVG',
+      '5 генераций блок-схем',
+      'Экспорт в PNG и SVG без водяных знаков',
     ],
   },
   {
     id: 'semester',
     title: '«Семестр»',
-    badge: 'ХИТ • СКИДКА 16%',
+    badge: 'ХИТ • ВЫГОДА 62%',
     isPopular: true,
-    coins: 30,
-    priceRub: 249,
-    originalPriceRub: 297,
-    discountPercent: 16,
-    pricePerCoin: '8.3 ₽ / схема',
+    coins: 35,
+    priceRub: 399,
+    originalPriceRub: 1043,
+    discountPercent: 62,
+    pricePerCoin: '11.4 ₽ / схема',
     timeSaved: 'Экономит ~25+ ч сна',
     description: 'Оптимальный запас на весь семестр по нескольким предметам.',
     features: [
-      '~30 лабораторок (хватит почти на весь семестр)',
+      '35 генераций блок-схем на весь семестр',
+      'Экспорт в PNG и SVG без водяных знаков',
     ],
   },
   {
     id: 'diploma',
     title: '«Курсач / Диплом»',
-    badge: 'МАКСИМУМ • СКИДКА 20%',
+    badge: 'МАКСИМУМ • ВЫГОДА 63%',
     coins: 50,
-    priceRub: 399,
-    originalPriceRub: 495,
-    discountPercent: 20,
-    pricePerCoin: '7.98 ₽ / схема',
+    priceRub: 549,
+    originalPriceRub: 1490,
+    discountPercent: 63,
+    pricePerCoin: '10.98 ₽ / схема',
     timeSaved: 'Экономит ~45+ ч рутины',
     description: 'Для объемных проектов с десятками функций или на двоих.',
     features: [
-      '~50 лабораторок по минимальной суммарной цене',
+      '50 генераций блок-схем по лучшей цене',
+      'Экспорт в PNG и SVG без водяных знаков',
     ],
   },
 ];
@@ -106,7 +108,7 @@ export const TariffModal: React.FC<TariffModalProps> = ({
       return;
     }
 
-    const packageId = tariff.id === 'lab' ? '10_coins' : tariff.id === 'semester' ? '30_coins' : '50_coins';
+    const packageId = tariff.id === 'lab' ? '5_coins' : tariff.id === 'semester' ? '35_coins' : '50_coins';
     
     try {
       onNotify?.(`Подготовка платежа ${tariff.priceRub} ₽ через Robokassa...`);
@@ -115,7 +117,7 @@ export const TariffModal: React.FC<TariffModalProps> = ({
       if (res && res.success && res.paymentUrl) {
         window.location.href = res.paymentUrl;
       } else if (res && res.notConfigured) {
-        onNotify?.(res.message || 'Оплата временно настраивается. Ожидаем одобрения Роскомнадзора.');
+        onNotify?.(res.message || 'Оплата временно настраивается в Робокассе.');
       } else {
         onNotify?.(res?.error || 'Сервис оплаты временно недоступен. Попробуйте позже.');
       }

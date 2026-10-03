@@ -4,20 +4,31 @@ import { addYdbUserTokens, getYdbUser } from './ydb.js';
 
 // Robokassa Tariffs Configuration
 export const ROBOKASSA_PACKAGES: Record<string, { price: number; tokens: number; description: string }> = {
-  '10_coins': {
-    price: 99,
-    tokens: 10,
-    description: '10 Coins — Генерация 10 блок-схем в Схематор',
+  '5_coins': {
+    price: 149,
+    tokens: 5,
+    description: '5 Coins — Тариф «Сдать лабу» в Схематор',
   },
-  '30_coins': {
-    price: 249,
-    tokens: 30,
-    description: '30 Coins — Генерация 30 блок-схем в Схематор',
+  '35_coins': {
+    price: 399,
+    tokens: 35,
+    description: '35 Coins — Тариф «Семестр» в Схематор',
   },
   '50_coins': {
-    price: 399,
+    price: 549,
     tokens: 50,
-    description: '50 Coins — Генерация 50 блок-схем в Схематор',
+    description: '50 Coins — Тариф «Курсач / Диплом» в Схематор',
+  },
+  // Backward compatibility alias keys:
+  '10_coins': {
+    price: 149,
+    tokens: 5,
+    description: '5 Coins — Тариф «Сдать лабу» в Схематор',
+  },
+  '30_coins': {
+    price: 399,
+    tokens: 35,
+    description: '35 Coins — Тариф «Семестр» в Схематор',
   },
 };
 
