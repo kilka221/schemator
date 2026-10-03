@@ -13,6 +13,7 @@ interface MobileBottomNavProps {
   lineCount: number;
   hasDiagram: boolean;
   schemaCost?: number;
+  hasCode?: boolean;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -25,6 +26,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   lineCount,
   hasDiagram,
   schemaCost,
+  hasCode,
 }) => {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 px-2 py-1.5 pb-[max(8px,env(safe-area-inset-bottom))] shadow-lg select-none">
@@ -67,7 +69,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <span className="text-[10px] font-bold leading-none tracking-tight">
             {isGenerating ? '...' : 'Создать'}
           </span>
-          {!isGenerating && schemaCost !== undefined && (
+          {!isGenerating && schemaCost !== undefined && hasCode && (
             <span className="inline-flex items-center gap-0.5 text-[9px] font-normal text-emerald-100/90 mt-0.5">
               <span>{formatSchemaCountRu(schemaCost)}</span>
               <CoinsIcon size={9} className="w-2.5 h-2.5 shrink-0" />

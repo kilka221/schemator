@@ -2252,7 +2252,11 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     onClick={handleGenerateClick}
                     disabled={isGenerating}
                     className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-medium text-xs h-7 px-3 rounded-md shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                    title={`Стоимость: ${formatSchemaCountRu(schemaCost)} (каждые 70 операторов: +1 схема)`}
+                    title={
+                      code.trim().length > 0 && operatorCount > 0
+                        ? `Стоимость: ${formatSchemaCountRu(schemaCost)} (каждые 70 операторов: +1 схема)`
+                        : "Вставьте код для создания схемы"
+                    }
                   >
                     <Play className="w-3 h-3 fill-current shrink-0" />
                     <span>
@@ -2261,11 +2265,13 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                       ) : (
                         <span className="inline-flex items-center gap-1">
                           <span>Создать схему</span>
-                          <span className="font-normal text-emerald-100/90 inline-flex items-center gap-0.5">
-                            <span>({formatSchemaCountRu(schemaCost)}</span>
-                            <CoinsIcon size={11} className="w-3 h-3 inline shrink-0" />
-                            <span>)</span>
-                          </span>
+                          {code.trim().length > 0 && operatorCount > 0 && (
+                            <span className="font-normal text-emerald-100/90 inline-flex items-center gap-0.5">
+                              <span>({formatSchemaCountRu(schemaCost)}</span>
+                              <CoinsIcon size={11} className="w-3 h-3 inline shrink-0" />
+                              <span>)</span>
+                            </span>
+                          )}
                         </span>
                       )}
                     </span>
@@ -3425,6 +3431,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         lineCount={code.split('\n').length}
         hasDiagram={graphs.length > 0}
         schemaCost={schemaCost}
+        hasCode={code.trim().length > 0 && operatorCount > 0}
       />
 
       {/* Mobile Code Editor Sheet */}

@@ -275,7 +275,7 @@ export const MobileCodeSheet: React.FC<MobileCodeSheetProps> = ({
         >
           <Play className="w-4 h-4 fill-current shrink-0" />
           <span>{isGenerating ? 'Создание схемы...' : 'Создать схему'}</span>
-          {!isGenerating && schemaCost !== undefined && (
+          {!isGenerating && schemaCost !== undefined && code.trim().length > 0 && (
             <span className="font-normal text-emerald-100/90 inline-flex items-center gap-0.5 ml-0.5">
               <span>({formatSchemaCountRu(schemaCost)}</span>
               <CoinsIcon size={12} className="w-3 h-3 inline shrink-0" />
