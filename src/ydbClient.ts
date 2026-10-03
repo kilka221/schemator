@@ -84,11 +84,11 @@ export async function getYdbUserTokens(uid: string, email?: string | null): Prom
   return null;
 }
 
-export async function decrementYdbUserToken(uid: string, email?: string | null): Promise<number> {
+export async function decrementYdbUserToken(uid: string, email?: string | null, count: number = 1): Promise<number> {
   const data = await safeFetchJson('/api/users/decrement-token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ uid, email }),
+    body: JSON.stringify({ uid, email, count }),
   });
   if (typeof data?.tokens === 'number') {
     return data.tokens;

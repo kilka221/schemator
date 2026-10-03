@@ -6,6 +6,8 @@ import { PythonIcon } from './PythonIcon';
 import { CppIcon } from './CppIcon';
 import { CsharpIcon } from './CsharpIcon';
 import { JavaIcon } from './JavaIcon';
+import { CoinsIcon } from './CoinsIcon';
+import { formatSchemaCountRu } from './utils/significantLines';
 
 interface MobileCodeSheetProps {
   isOpen: boolean;
@@ -19,6 +21,8 @@ interface MobileCodeSheetProps {
   onOpenPresets: () => void;
   isDark: boolean;
   onClear?: () => void;
+  schemaCost?: number;
+  significantLines?: number;
 }
 
 const formatLinesRu = (n: number) => {
@@ -91,6 +95,8 @@ export const MobileCodeSheet: React.FC<MobileCodeSheetProps> = ({
   onOpenPresets,
   isDark,
   onClear,
+  schemaCost,
+  significantLines,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -263,13 +269,17 @@ export const MobileCodeSheet: React.FC<MobileCodeSheetProps> = ({
           type="button"
           onClick={handleGenerateAndClose}
           disabled={isGenerating}
-          className="w-full h-11 px-4 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          className="w-full h-11 px-4 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
         >
-          <Play className="w-4 h-4 fill-current" />
-          <span>{isGenerating ? 'Создание схемы...' : 'Создать блок-схему'}</span>
-          <span className="text-xs font-normal text-emerald-100 ml-1">
-            ({formatLinesRu(lineCount)})
-          </span>
+          <Play className="w-4 h-4 fill-current shrink-0" />
+          <span>{isGenerating ? 'Создание схемы...' : 'Создать схему'}</span>
+          {!isGenerating && schemaCost !== undefined && (
+            <span className="font-normal text-emerald-100/90 inline-flex items-center gap-0.5 ml-0.5">
+              <span>({formatSchemaCountRu(schemaCost)}</span>
+              <CoinsIcon size={12} className="w-3 h-3 inline shrink-0" />
+              <span>)</span>
+            </span>
+          )}
         </button>
       </div>
     </div>

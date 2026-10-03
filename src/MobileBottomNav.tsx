@@ -1,5 +1,7 @@
 import React from 'react';
 import { Code, Play, Download, Layers, Menu, Sparkles } from 'lucide-react';
+import { CoinsIcon } from './CoinsIcon';
+import { formatSchemaCountRu } from './utils/significantLines';
 
 interface MobileBottomNavProps {
   onOpenCode: () => void;
@@ -10,6 +12,7 @@ interface MobileBottomNavProps {
   onOpenMenu: () => void;
   lineCount: number;
   hasDiagram: boolean;
+  schemaCost?: number;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -21,6 +24,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onOpenMenu,
   lineCount,
   hasDiagram,
+  schemaCost,
 }) => {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 px-2 py-1.5 pb-[max(8px,env(safe-area-inset-bottom))] shadow-lg select-none">
@@ -57,12 +61,18 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           type="button"
           onClick={onGenerate}
           disabled={isGenerating}
-          className="flex-1 -mt-4 py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white shadow-md shadow-emerald-600/30 transition-all cursor-pointer disabled:opacity-50"
+          className="flex-1 -mt-4 py-2 px-1 flex flex-col items-center justify-center gap-0.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white shadow-md shadow-emerald-600/30 transition-all cursor-pointer disabled:opacity-50"
         >
           <Play className="w-5 h-5 fill-current" />
           <span className="text-[10px] font-bold leading-none tracking-tight">
             {isGenerating ? '...' : 'Создать'}
           </span>
+          {!isGenerating && schemaCost !== undefined && (
+            <span className="inline-flex items-center gap-0.5 text-[9px] font-normal text-emerald-100/90 mt-0.5">
+              <span>{formatSchemaCountRu(schemaCost)}</span>
+              <CoinsIcon size={9} className="w-2.5 h-2.5 shrink-0" />
+            </span>
+          )}
         </button>
 
         {/* Кнопка "Экспорт" */}

@@ -252,6 +252,7 @@ apiRouter.post('/users/decrement-token', optionalAuth, async (req: Authenticated
   try {
     const uid = req.body.uid || req.body.id;
     const email = req.body.email;
+    const count = parseInt(String(req.body.count || 1), 10) || 1;
     if (!uid) return res.status(400).json({ success: false, error: 'uid is required' });
 
     // Security: If session token is present, ensure caller cannot decrement someone else's tokens
@@ -260,7 +261,7 @@ apiRouter.post('/users/decrement-token', optionalAuth, async (req: Authenticated
     }
 
     try {
-      const newBalance = await decrementYdbToken(uid, email);
+      const newBalance = await decrementYdbToken(uid, email, count);
       return res.json({ success: true, tokens: newBalance });
     } catch (ydbErr: any) {
       console.warn('decrementToken fallback:', ydbErr?.message);
@@ -275,6 +276,7 @@ apiRouter.post('/users/decrement-token', optionalAuth, async (req: Authenticated
 apiRouter.post('/tokens/spend', optionalAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const uid = req.body.uid || req.body.id;
+    const count = parseInt(String(req.body.count || 1), 10) || 1;
     if (!uid) return res.status(400).json({ success: false, error: 'uid is required' });
 
     if (req.user && req.user.uid !== uid) {
@@ -282,7 +284,7 @@ apiRouter.post('/tokens/spend', optionalAuth, async (req: AuthenticatedRequest, 
     }
 
     try {
-      const newBalance = await decrementYdbToken(uid);
+      const newBalance = await decrementYdbToken(uid, undefined, count);
       return res.json({ success: true, tokens: newBalance });
     } catch (ydbErr: any) {
       console.warn('spendToken fallback:', ydbErr?.message);

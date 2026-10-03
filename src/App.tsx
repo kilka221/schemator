@@ -86,6 +86,7 @@ import { MobileCodeSheet } from './MobileCodeSheet';
 import { MobileExportSheet } from './MobileExportSheet';
 import { MobileMenuDrawer } from './MobileMenuDrawer';
 import { MobileBottomNav } from './MobileBottomNav';
+import { countSignificantLines, calculateSchemaCost, formatSchemaCountRu } from './utils/significantLines';
 
 export interface AppUserProfile {
   uid: string;
@@ -180,6 +181,15 @@ export default function App() {
     return saved;
   });
   const [lastGeneratedLanguage, setLastGeneratedLanguage] = useState("python");
+
+  const significantLines = useMemo(() => {
+    return countSignificantLines(code, language);
+  }, [code, language]);
+
+  const schemaCost = useMemo(() => {
+    return calculateSchemaCost(significantLines);
+  }, [significantLines]);
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [previousBackup, setPreviousBackup] = useState<{
     code: string;
@@ -817,8 +827,10 @@ export default function App() {
           return;
       }
 
-      if (userTokens !== null && userTokens <= 0) {
-          showToast('У вас закончились схемы. Пополните баланс для продолжения');
+      const cost = calculateSchemaCost(countSignificantLines(code, language));
+
+      if (userTokens !== null && userTokens < cost) {
+          showToast(`Для создания этой схемы требуется ${formatSchemaCountRu(cost)}. На вашем балансе: ${formatSchemaCountRu(userTokens)}`);
           setIsTariffModalOpen(true);
           return;
       }
@@ -845,7 +857,7 @@ export default function App() {
           localStorage.setItem('blockcraft_code_persist', code);
 
           // Decrement token in Yandex Database (YDB) in the background
-          decrementYdbUserToken(currentUser.uid, currentUser.email).then(nextCount => {
+          decrementYdbUserToken(currentUser.uid, currentUser.email, cost).then(nextCount => {
             if (typeof nextCount === 'number') {
               setUserTokens(nextCount);
               localStorage.setItem('blockcraft_yandex_user', JSON.stringify({ ...currentUser, tokens: nextCount }));
@@ -2228,17 +2240,35 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                 <div className={`h-10 px-3 border-t flex items-center justify-between text-xs shrink-0 ${
                   isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-400' : 'bg-zinc-50/90 border-zinc-200 text-zinc-600'
                 }`}>
-                  <div className="flex items-center text-xs text-zinc-500 dark:text-zinc-400 select-none">
+                  <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 select-none">
                     <span>{formatLinesRu(code.split('\n').length)}</span>
+                    <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                    <span title="Значимые строки (без пустых строк и комментариев)">
+                      {significantLines} знач.
+                    </span>
                   </div>
 
                   <button
                     onClick={handleGenerateClick}
                     disabled={isGenerating}
-                    className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-medium text-xs h-7 px-3 rounded-md shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-medium text-xs h-7 px-3 rounded-md shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    title={`Стоимость: ${formatSchemaCountRu(schemaCost)} (каждые 80 значимых строк: +1 схема)`}
                   >
-                    <Play className="w-3 h-3 fill-current" />
-                    <span>{isGenerating ? "Генерация..." : "Создать схему"}</span>
+                    <Play className="w-3 h-3 fill-current shrink-0" />
+                    <span>
+                      {isGenerating ? (
+                        "Генерация..."
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <span>Создать схему</span>
+                          <span className="font-normal text-emerald-100/90 inline-flex items-center gap-0.5">
+                            <span>({formatSchemaCountRu(schemaCost)}</span>
+                            <CoinsIcon size={11} className="w-3 h-3 inline shrink-0" />
+                            <span>)</span>
+                          </span>
+                        </span>
+                      )}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -3394,6 +3424,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         onOpenMenu={() => setIsMobileMenuOpen(true)}
         lineCount={code.split('\n').length}
         hasDiagram={graphs.length > 0}
+        schemaCost={schemaCost}
       />
 
       {/* Mobile Code Editor Sheet */}
@@ -3418,6 +3449,8 @@ const downloadDrawio = (title: string, fontFamily: string) => {
           setIsPresetsModalOpen(true);
         }}
         isDark={isDark}
+        schemaCost={schemaCost}
+        significantLines={significantLines}
       />
 
       {/* Mobile Export Sheet */}

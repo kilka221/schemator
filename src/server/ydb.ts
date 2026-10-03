@@ -467,14 +467,15 @@ function localAddUserTokens(userId: string, tokensToAdd: number, email?: string)
   return updated;
 }
 
-function localDecrementToken(userId: string, email?: string): number {
+function localDecrementToken(userId: string, email?: string, count: number = 1): number {
   loadLocalStore();
   const user = localGetUser(userId, email);
   if (!user) {
     return 0;
   }
   const current = typeof user.tokens === 'number' ? user.tokens : 1;
-  const updated = Math.max(0, current - 1);
+  const decrementBy = Math.max(1, Math.floor(count));
+  const updated = Math.max(0, current - decrementBy);
   user.tokens = updated;
   memoryStore.users[user.userId] = user;
   persistLocalStore();
@@ -779,7 +780,8 @@ export async function upsertYdbUser(userId: string, email: string, displayName: 
   );
 }
 
-export async function decrementYdbToken(userId: string, email?: string): Promise<number> {
+export async function decrementYdbToken(userId: string, email?: string, count: number = 1): Promise<number> {
+  const decrementBy = Math.max(1, Math.floor(count));
   return await executeYdbOrFallback(
     async (driverInstance) => {
       return await driverInstance.tableClient.withSession(async (session: any) => {
@@ -788,7 +790,7 @@ export async function decrementYdbToken(userId: string, email?: string): Promise
           return 0;
         }
         const currentTokens = toJsNumber(user.tokens, 1);
-        const newTokens = Math.max(0, currentTokens - 1);
+        const newTokens = Math.max(0, currentTokens - decrementBy);
 
         const updateQuery = `
           DECLARE $userId AS Utf8;
@@ -804,7 +806,7 @@ export async function decrementYdbToken(userId: string, email?: string): Promise
         return newTokens;
       });
     },
-    () => localDecrementToken(userId, email)
+    () => localDecrementToken(userId, email, decrementBy)
   );
 }
 
