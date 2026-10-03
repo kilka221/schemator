@@ -332,11 +332,11 @@ export const LegalModal: React.FC<LegalModalProps> = ({
             </div>
           ) : (
             <div className="space-y-5">
-              <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-900/50 rounded-xl text-emerald-950 dark:text-emerald-200">
-                <p className="font-bold text-xs mb-1">
+              <div className="p-3 bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800 rounded-md text-zinc-800 dark:text-zinc-200">
+                <p className="font-bold text-xs mb-0.5">
                   ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ (ПУБЛИЧНАЯ ОФЕРТА) СЕРВИСА СХЕМАТОР
                 </p>
-                <p className="text-[11px] text-emerald-800 dark:text-emerald-300">
+                <p className="text-[11px] text-zinc-500">
                   Редакция от 03.10.2026 • Публичная оферта в соответствии со статьями 435 и 437 Гражданского кодекса Российской Федерации.
                 </p>
               </div>
