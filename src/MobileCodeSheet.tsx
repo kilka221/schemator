@@ -7,7 +7,7 @@ import { CppIcon } from './CppIcon';
 import { CsharpIcon } from './CsharpIcon';
 import { JavaIcon } from './JavaIcon';
 import { CoinsIcon } from './CoinsIcon';
-import { formatSchemaCountRu } from './utils/significantLines';
+import { formatSchemaCountRu, formatOperatorsRu } from './utils/significantLines';
 
 interface MobileCodeSheetProps {
   isOpen: boolean;
@@ -22,6 +22,7 @@ interface MobileCodeSheetProps {
   isDark: boolean;
   onClear?: () => void;
   schemaCost?: number;
+  operatorCount?: number;
   significantLines?: number;
 }
 
@@ -96,6 +97,7 @@ export const MobileCodeSheet: React.FC<MobileCodeSheetProps> = ({
   isDark,
   onClear,
   schemaCost,
+  operatorCount,
   significantLines,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);

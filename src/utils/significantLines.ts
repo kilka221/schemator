@@ -1,155 +1,281 @@
 /**
- * Calculates the number of significant lines of code (ignoring empty lines and comments)
+ * Accurately counts operators (statements) in source code for all supported languages:
+ * C++, C#, Java, and Python.
+ * 
+ * Takes into account:
+ * - Semicolon-terminated statements (assignments, calls, declarations, returns)
+ * - Control flow operators (if, else, for, while, do, switch, case, default, try, catch, finally, with, match)
+ * - Function and class definitions
+ * - Single-line statement separators (semicolons on the same line)
+ * - Properly ignores comments (single-line & multi-line), string literals, and bracket nesting.
  */
-export function countSignificantLines(code: string, language?: string): number {
-  if (!code || !code.trim()) return 0;
 
-  const lines = code.split(/\r?\n/);
+export const OPERATORS_PER_SCHEMA = 70;
+
+function stripCommentsAndStringsCStyle(code: string): string {
+  let result = '';
+  let i = 0;
+  const len = code.length;
+
+  while (i < len) {
+    // Single-line comment //
+    if (code[i] === '/' && code[i + 1] === '/') {
+      i += 2;
+      while (i < len && code[i] !== '\n') i++;
+      result += '\n';
+      continue;
+    }
+    // Multi-line comment /* ... */
+    if (code[i] === '/' && code[i + 1] === '*') {
+      i += 2;
+      while (i < len && !(code[i] === '*' && code[i + 1] === '/')) {
+        if (code[i] === '\n') result += '\n';
+        i++;
+      }
+      i += 2;
+      result += ' ';
+      continue;
+    }
+    // String literal "..."
+    if (code[i] === '"') {
+      i++;
+      while (i < len && code[i] !== '"') {
+        if (code[i] === '\\') i++; // Skip escape
+        i++;
+      }
+      i++;
+      result += ' "" ';
+      continue;
+    }
+    // Char literal '...'
+    if (code[i] === "'") {
+      i++;
+      while (i < len && code[i] !== "'") {
+        if (code[i] === '\\') i++;
+        i++;
+      }
+      i++;
+      result += " '' ";
+      continue;
+    }
+    result += code[i];
+    i++;
+  }
+  return result;
+}
+
+function countOperatorsCStyle(code: string): number {
+  const clean = stripCommentsAndStringsCStyle(code);
   let count = 0;
-  let inBlockComment = false;
-  let blockCommentType: 'slash_star' | 'triple_double' | 'triple_single' | 'html' | 'brace' | null = null;
+  let parenDepth = 0;
 
-  const lang = (language || '').toLowerCase().trim();
-  const isPythonOrRuby = ['python', 'py', 'ruby', 'rb', 'bash', 'sh', 'shell', 'yaml', 'yml', 'r'].includes(lang);
-  const isPascal = ['pascal', 'delphi'].includes(lang);
+  // Preprocessor directives (e.g. #include, #define)
+  const lines = clean.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('#')) {
+      count++;
+    }
+  }
+
+  // Count semicolons outside parentheses (ignores for (int i=0; i<n; i++))
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i];
+    if (ch === '(') parenDepth++;
+    else if (ch === ')') {
+      if (parenDepth > 0) parenDepth--;
+    } else if (ch === ';') {
+      if (parenDepth === 0) {
+        count++;
+      }
+    }
+  }
+
+  // Control flow keywords: if, else, for, while, do, switch, case, default, try, catch, finally
+  const controlKeywords = [
+    /\bif\s*\(/g,
+    /\belse\b(?!\s*if\b)/g,
+    /\bfor\s*\(/g,
+    /\bwhile\s*\(/g,
+    /\bdo\s*\{/g,
+    /\bswitch\s*\(/g,
+    /\bcase\b\s+[^:]+:/g,
+    /\bdefault\s*:/g,
+    /\btry\s*\{/g,
+    /\bcatch\s*\(/g,
+    /\bfinally\s*\{/g,
+  ];
+
+  for (const re of controlKeywords) {
+    const matches = clean.match(re);
+    if (matches) count += matches.length;
+  }
+
+  // Function / method definitions with body {
+  // e.g. int countInRange(...) { or void main() {
+  const funcDefRegex = /\b[a-zA-Z0-9_]+\s*\([^)]*\)\s*\{/g;
+  let match: RegExpExecArray | null;
+  while ((match = funcDefRegex.exec(clean)) !== null) {
+    const matchedStr = match[0];
+    const funcNameMatch = matchedStr.match(/^([a-zA-Z0-9_]+)/);
+    if (funcNameMatch) {
+      const name = funcNameMatch[1];
+      if (!['if', 'for', 'while', 'switch', 'catch', 'using', 'lock'].includes(name)) {
+        count++;
+      }
+    }
+  }
+
+  return count;
+}
+
+function stripCommentsAndStringsPython(code: string): string {
+  let result = '';
+  let i = 0;
+  const len = code.length;
+
+  while (i < len) {
+    // Single-line comment #
+    if (code[i] === '#') {
+      while (i < len && code[i] !== '\n') i++;
+      result += '\n';
+      continue;
+    }
+    // Triple double quote """ ... """
+    if (code.startsWith('"""', i)) {
+      i += 3;
+      while (i < len && !code.startsWith('"""', i)) {
+        if (code[i] === '\n') result += '\n';
+        i++;
+      }
+      i += 3;
+      result += ' ';
+      continue;
+    }
+    // Triple single quote ''' ... '''
+    if (code.startsWith("'''", i)) {
+      i += 3;
+      while (i < len && !code.startsWith("'''", i)) {
+        if (code[i] === '\n') result += '\n';
+        i++;
+      }
+      i += 3;
+      result += ' ';
+      continue;
+    }
+    // Double quoted string "..."
+    if (code[i] === '"') {
+      i++;
+      while (i < len && code[i] !== '"') {
+        if (code[i] === '\\') i++;
+        i++;
+      }
+      i++;
+      result += ' "" ';
+      continue;
+    }
+    // Single quoted string '...'
+    if (code[i] === "'") {
+      i++;
+      while (i < len && code[i] !== "'") {
+        if (code[i] === '\\') i++;
+        i++;
+      }
+      i++;
+      result += " '' ";
+      continue;
+    }
+    result += code[i];
+    i++;
+  }
+  return result;
+}
+
+function countOperatorsPython(code: string): number {
+  const clean = stripCommentsAndStringsPython(code);
+  const lines = clean.split(/\r?\n/);
+  let count = 0;
+  let bracketDepth = 0;
 
   for (let rawLine of lines) {
-    let line = rawLine.trim();
-    if (!line) continue; // blank line
+    const line = rawLine.trim();
+    if (!line) continue;
 
-    // If we are currently inside a multi-line block comment:
-    if (inBlockComment) {
-      if (blockCommentType === 'slash_star') {
-        const endIdx = line.indexOf('*/');
-        if (endIdx !== -1) {
-          inBlockComment = false;
-          blockCommentType = null;
-          line = line.substring(endIdx + 2).trim();
-          if (!line) continue;
-        } else {
-          continue;
-        }
-      } else if (blockCommentType === 'triple_double') {
-        const endIdx = line.indexOf('"""');
-        if (endIdx !== -1) {
-          inBlockComment = false;
-          blockCommentType = null;
-          line = line.substring(endIdx + 3).trim();
-          if (!line) continue;
-        } else {
-          continue;
-        }
-      } else if (blockCommentType === 'triple_single') {
-        const endIdx = line.indexOf("'''");
-        if (endIdx !== -1) {
-          inBlockComment = false;
-          blockCommentType = null;
-          line = line.substring(endIdx + 3).trim();
-          if (!line) continue;
-        } else {
-          continue;
-        }
-      } else if (blockCommentType === 'html') {
-        const endIdx = line.indexOf('-->');
-        if (endIdx !== -1) {
-          inBlockComment = false;
-          blockCommentType = null;
-          line = line.substring(endIdx + 3).trim();
-          if (!line) continue;
-        } else {
-          continue;
-        }
-      } else if (blockCommentType === 'brace') {
-        const endIdx = line.indexOf('}');
-        if (endIdx !== -1) {
-          inBlockComment = false;
-          blockCommentType = null;
-          line = line.substring(endIdx + 1).trim();
-          if (!line) continue;
-        } else {
-          continue;
-        }
+    // Check if bracket depth is 0 at start of line
+    const isTopLevel = bracketDepth === 0;
+
+    // Track bracket depth: (), [], {}
+    for (let c of line) {
+      if (c === '(' || c === '[' || c === '{') bracketDepth++;
+      else if (c === ')' || c === ']' || c === '}') {
+        if (bracketDepth > 0) bracketDepth--;
       }
     }
 
-    // Check start of block comment
-    if (line.startsWith('/*')) {
-      const endIdx = line.indexOf('*/', 2);
-      if (endIdx !== -1) {
-        // Comment opened and closed on same line
-        const rest = line.substring(endIdx + 2).trim();
-        if (rest) count++;
-        continue;
-      } else {
-        inBlockComment = true;
-        blockCommentType = 'slash_star';
-        continue;
+    // Only count as statement start if at top level or starting a major compound statement
+    if (isTopLevel) {
+      // Ignore lines that are just closing brackets
+      if (/^[}\]\)]+$/.test(line)) continue;
+
+      // Base statement for this line
+      count++;
+
+      // Multiple statements on one line separated by semicolons: a = 1; b = 2; c = 3
+      const semicolons = (line.match(/;/g) || []).length;
+      if (semicolons > 0) {
+        // Trailing semicolon shouldn't add an extra empty statement
+        const trailing = line.endsWith(';') ? 1 : 0;
+        count += (semicolons - trailing);
       }
     }
-
-    if (isPythonOrRuby && (line.startsWith('"""') || line.startsWith("'''"))) {
-      const marker = line.startsWith('"""') ? '"""' : "'''";
-      const endIdx = line.indexOf(marker, 3);
-      if (endIdx !== -1) {
-        const rest = line.substring(endIdx + 3).trim();
-        if (rest) count++;
-        continue;
-      } else {
-        inBlockComment = true;
-        blockCommentType = marker === '"""' ? 'triple_double' : 'triple_single';
-        continue;
-      }
-    }
-
-    if (isPascal && line.startsWith('{')) {
-      const endIdx = line.indexOf('}');
-      if (endIdx !== -1) {
-        const rest = line.substring(endIdx + 1).trim();
-        if (rest) count++;
-        continue;
-      } else {
-        inBlockComment = true;
-        blockCommentType = 'brace';
-        continue;
-      }
-    }
-
-    if (line.startsWith('<!--')) {
-      const endIdx = line.indexOf('-->', 4);
-      if (endIdx !== -1) {
-        const rest = line.substring(endIdx + 3).trim();
-        if (rest) count++;
-        continue;
-      } else {
-        inBlockComment = true;
-        blockCommentType = 'html';
-        continue;
-      }
-    }
-
-    // Single-line comments
-    if (line.startsWith('//')) continue;
-    if (line.startsWith('#')) continue;
-    if (line.startsWith('--')) continue;
-    if (line.startsWith(';')) continue;
-    if (line.startsWith('*') && (line.length === 1 || /\s/.test(line[1]))) continue;
-
-    // Significant code line!
-    count++;
   }
 
   return count;
 }
 
 /**
- * Calculates the cost in "Схемы" for generating a diagram based on significant lines of code.
- * 1 to 80 significant lines = 1 схема.
- * 81 to 160 significant lines = 2 схемы.
- * Every 80 significant lines adds 1 схема.
+ * Counts the total number of operators / statements in the given code snippet.
  */
-export function calculateSchemaCost(significantLines: number): number {
-  if (significantLines <= 0) return 1;
-  return Math.max(1, Math.ceil(significantLines / 80));
+export function countOperators(code: string, language?: string): number {
+  if (!code || !code.trim()) return 0;
+  const lang = (language || '').toLowerCase().trim();
+
+  if (lang === 'cpp' || lang === 'csharp' || lang === 'java' || lang === 'c++' || lang === 'c#') {
+    return countOperatorsCStyle(code);
+  }
+
+  return countOperatorsPython(code);
+}
+
+/**
+ * Backwards compatibility alias for countSignificantLines -> now counts operators.
+ */
+export function countSignificantLines(code: string, language?: string): number {
+  return countOperators(code, language);
+}
+
+/**
+ * Calculates the cost in "Схемы" for generating a diagram based on operators count.
+ * 1 to 70 operators = 1 схема.
+ * 71 to 140 operators = 2 схемы.
+ * Every 70 operators adds 1 схема.
+ */
+export function calculateSchemaCost(operatorCount: number): number {
+  if (operatorCount <= 0) return 1;
+  return Math.max(1, Math.ceil(operatorCount / OPERATORS_PER_SCHEMA));
+}
+
+/**
+ * Formats count with Russian noun declension for "оператор":
+ * 1 оператор, 2 оператора, 5 операторов
+ */
+export function formatOperatorsRu(count: number): string {
+  const abs = Math.abs(count) % 100;
+  const lastDigit = abs % 10;
+  if (abs > 10 && abs < 20) return `${count} операторов`;
+  if (lastDigit > 1 && lastDigit < 5) return `${count} оператора`;
+  if (lastDigit === 1) return `${count} оператор`;
+  return `${count} операторов`;
 }
 
 /**

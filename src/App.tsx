@@ -86,7 +86,7 @@ import { MobileCodeSheet } from './MobileCodeSheet';
 import { MobileExportSheet } from './MobileExportSheet';
 import { MobileMenuDrawer } from './MobileMenuDrawer';
 import { MobileBottomNav } from './MobileBottomNav';
-import { countSignificantLines, calculateSchemaCost, formatSchemaCountRu } from './utils/significantLines';
+import { countOperators, calculateSchemaCost, formatSchemaCountRu, formatOperatorsRu } from './utils/significantLines';
 
 export interface AppUserProfile {
   uid: string;
@@ -182,13 +182,13 @@ export default function App() {
   });
   const [lastGeneratedLanguage, setLastGeneratedLanguage] = useState("python");
 
-  const significantLines = useMemo(() => {
-    return countSignificantLines(code, language);
+  const operatorCount = useMemo(() => {
+    return countOperators(code, language);
   }, [code, language]);
 
   const schemaCost = useMemo(() => {
-    return calculateSchemaCost(significantLines);
-  }, [significantLines]);
+    return calculateSchemaCost(operatorCount);
+  }, [operatorCount]);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [previousBackup, setPreviousBackup] = useState<{
@@ -827,7 +827,7 @@ export default function App() {
           return;
       }
 
-      const cost = calculateSchemaCost(countSignificantLines(code, language));
+      const cost = calculateSchemaCost(countOperators(code, language));
 
       if (userTokens !== null && userTokens < cost) {
           showToast(`Для создания этой схемы требуется ${formatSchemaCountRu(cost)}. На вашем балансе: ${formatSchemaCountRu(userTokens)}`);
@@ -2243,8 +2243,8 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                   <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 select-none">
                     <span>{formatLinesRu(code.split('\n').length)}</span>
                     <span className="text-zinc-300 dark:text-zinc-700">•</span>
-                    <span title="Значимые строки (без пустых строк и комментариев)">
-                      {significantLines} знач.
+                    <span title="Количество операторов в коде">
+                      {formatOperatorsRu(operatorCount)}
                     </span>
                   </div>
 
@@ -2252,7 +2252,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
                     onClick={handleGenerateClick}
                     disabled={isGenerating}
                     className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-medium text-xs h-7 px-3 rounded-md shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                    title={`Стоимость: ${formatSchemaCountRu(schemaCost)} (каждые 80 значимых строк: +1 схема)`}
+                    title={`Стоимость: ${formatSchemaCountRu(schemaCost)} (каждые 70 операторов: +1 схема)`}
                   >
                     <Play className="w-3 h-3 fill-current shrink-0" />
                     <span>
@@ -3450,7 +3450,7 @@ const downloadDrawio = (title: string, fontFamily: string) => {
         }}
         isDark={isDark}
         schemaCost={schemaCost}
-        significantLines={significantLines}
+        operatorCount={operatorCount}
       />
 
       {/* Mobile Export Sheet */}
