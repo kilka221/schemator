@@ -58,9 +58,18 @@ export async function handleRobokassaInit(req: Request, res: Response) {
     return res.status(400).json({ success: false, error: 'Выбран неизвестный тариф' });
   }
 
-  const merchantLogin = process.env.ROBOKASSA_MERCHANT_LOGIN || '';
-  const password1 = process.env.ROBOKASSA_PASSWORD_1 || '';
-  const isTest = process.env.ROBOKASSA_IS_TEST === '1';
+  const merchantLogin = (process.env.ROBOKASSA_MERCHANT_LOGIN || '').trim();
+  // By default, enable test mode (IsTest=1) so payments can be tested before shop activation.
+  // To switch to live mode in production later, set ROBOKASSA_LIVE=1 in environment variables.
+  const isLive = process.env.ROBOKASSA_LIVE === '1';
+  const isTest = !isLive;
+
+  // In test mode, prefer test password #1 if provided, otherwise fallback to password 1
+  const password1 = (
+    isTest
+      ? (process.env.ROBOKASSA_TEST_PASSWORD_1 || process.env.ROBOKASSA_PASSWORD_1 || '')
+      : (process.env.ROBOKASSA_PASSWORD_1 || '')
+  ).trim();
 
   // If merchant credentials are not yet configured in production:
   if (!merchantLogin || !password1) {
@@ -105,6 +114,8 @@ export async function handleRobokassaInit(req: Request, res: Response) {
 
   const paymentUrl = `https://auth.robokassa.ru/Merchant/Index.aspx?${params.toString()}`;
 
+  console.log(`[Robokassa Init] MerchantLogin="${merchantLogin}", InvId=${invId}, OutSum=${outSum}, isTest=${isTest}`);
+
   return res.json({
     success: true,
     paymentUrl,
@@ -127,10 +138,12 @@ export async function handleRobokassaResult(req: Request, res: Response) {
     const shpUid = String(data.Shp_uid || '');
     const shpTokens = parseInt(String(data.Shp_tokens || '0'), 10);
 
-    const password2 = process.env.ROBOKASSA_PASSWORD_2 || '';
+    const testPassword2 = (process.env.ROBOKASSA_TEST_PASSWORD_2 || '').trim();
+    const livePassword2 = (process.env.ROBOKASSA_PASSWORD_2 || '').trim();
+    const password2 = testPassword2 || livePassword2;
 
     if (!password2) {
-      console.error('[Robokassa Webhook] ERROR: ROBOKASSA_PASSWORD_2 is not set in environment!');
+      console.error('[Robokassa Webhook] ERROR: ROBOKASSA_PASSWORD_2 or ROBOKASSA_TEST_PASSWORD_2 is not set in environment!');
       return res.status(500).send('ERROR: Robokassa password #2 not set');
     }
 
@@ -140,11 +153,19 @@ export async function handleRobokassaResult(req: Request, res: Response) {
     }
 
     // Verify digital signature: OutSum:InvId:Password2:Shp_tokens=...:Shp_uid=...
-    const expectedRaw = `${outSum}:${invId}:${password2}:Shp_tokens=${shpTokens}:Shp_uid=${shpUid}`;
-    const expectedSig = generateRobokassaSignature(expectedRaw).toLowerCase();
+    // Check against password2, and if not matching, check alternate password
+    const checkSig = (pass: string) => {
+      const raw = `${outSum}:${invId}:${pass}:Shp_tokens=${shpTokens}:Shp_uid=${shpUid}`;
+      return generateRobokassaSignature(raw).toLowerCase();
+    };
 
-    if (signatureValue !== expectedSig) {
-      console.error(`[Robokassa Webhook] Invalid signature! Received: ${signatureValue}, Expected: ${expectedSig}`);
+    const isSigValid =
+      signatureValue === checkSig(password2) ||
+      (livePassword2 && signatureValue === checkSig(livePassword2)) ||
+      (testPassword2 && signatureValue === checkSig(testPassword2));
+
+    if (!isSigValid) {
+      console.error(`[Robokassa Webhook] Invalid signature! Received: ${signatureValue}`);
       return res.status(400).send('ERROR: Invalid signature');
     }
 
