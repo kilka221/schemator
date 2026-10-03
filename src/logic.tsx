@@ -16,12 +16,74 @@ import { translatePythonLine } from './translate';
 import { DiagramStyleConfig, getDiagramStyle } from './diagramStyles';
 
 export type ASTNode = 
-  | { type: 'stmt', id: string, text: string, kind: 'process'|'io'|'subprogram'|'end', width?: number, leftW?: number, rightW?: number, lineIndex?: number }
+  | { type: 'stmt', id: string, text: string, kind: 'process'|'io'|'subprogram'|'end', width?: number, leftW?: number, rightW?: number, lineIndex?: number, retVal?: string }
   | { type: 'if', id: string, condition: string, trueBlock: ASTNode[], falseBlock: ASTNode[], width?: number, leftW?: number, rightW?: number, lineIndex?: number }
   | { type: 'while', id: string, condition: string, body: ASTNode[], width?: number, leftW?: number, rightW?: number, lineIndex?: number }
   | { type: 'for', id: string, condition: string, body: ASTNode[], width?: number, leftW?: number, rightW?: number, lineIndex?: number }
   | { type: 'match', id: string, condition: string, cases: { condition: string, block: ASTNode[] }[], defaultBlock?: ASTNode[], width?: number, leftW?: number, rightW?: number, lineIndex?: number }
   | { type: 'with', id: string, condition: string, closeCondition: string, body: ASTNode[], width?: number, leftW?: number, rightW?: number, lineIndex?: number };
+
+export function formatReturnExitValue(raw: string | undefined): string {
+    if (!raw) return '';
+    let val = raw.trim();
+    val = val.replace(/;+$/, '').trim();
+    if (!val) return '';
+
+    // Strip outer parentheses if balanced: e.g. (a, b) -> a, b
+    if (val.startsWith('(') && val.endsWith(')')) {
+        let depth = 0;
+        let balanced = true;
+        for (let i = 0; i < val.length - 1; i++) {
+            if (val[i] === '(') depth++;
+            else if (val[i] === ')') depth--;
+            if (depth === 0) {
+                balanced = false;
+                break;
+            }
+        }
+        if (balanced) {
+            val = val.slice(1, -1).trim();
+        }
+    }
+
+    // List comprehension or list literal or list() call
+    if ((val.startsWith('[') && val.endsWith(']')) || /^list\s*\(/.test(val) || /^sorted\s*\(/.test(val)) {
+        return 'список';
+    }
+
+    // Dictionary literal or dict() call
+    if ((val.startsWith('{') && val.endsWith('}') && val.includes(':')) || /^dict\s*\(/.test(val)) {
+        return 'словарь';
+    }
+
+    // Set literal or set() call
+    if (/^set\s*\(/.test(val) || (val.startsWith('{') && val.endsWith('}') && !val.includes(':'))) {
+        return 'множество';
+    }
+
+    // Generator expression
+    if (val.includes(' for ') && val.includes(' in ')) {
+        return 'список';
+    }
+
+    // Comma separated values (tuple/multiple returns)
+    if (val.includes(',')) {
+        let parts = val.split(',').map(s => s.trim()).filter(Boolean);
+        if (parts.length > 4 || val.length > 55) {
+            if (parts.length > 3) {
+                return `${parts.slice(0, 3).join(', ')}, ...`;
+            }
+        }
+        return parts.join(', ');
+    }
+
+    // Long complex expression or calculation
+    if (val.length > 40 && (val.includes('.') || val.includes('+') || val.includes('*'))) {
+        return 'результат';
+    }
+
+    return val;
+}
 
 export interface FlowNode { id: string; type: string; text: string; x: number; y: number; height?: number; hidden?: boolean; lineIndex?: number; kind?: string; }
 export interface FlowEdge { id?: string; points?: {x: number, y: number}[]; segments?: {startX: number, startY: number, endX: number, endY: number}[]; label?: string; noArrow?: boolean; labelPos?: {x: number, y: number}; hidden?: boolean; fromNodeId?: string; toNodeId?: string; }
@@ -952,27 +1014,18 @@ export function parsePythonSourceWhole(code: string) {
                         }
                     } else if (text.startsWith('return ') || text === 'return') {
                         let retVal = text.substring(6).trim();
-                        let isComplex = retVal !== '' && (retVal.includes('for') || retVal.includes('max(') || retVal.includes('sum(') || retVal.includes('any(') || retVal.includes('all(') || retVal.includes('len(') || retVal.length > 20);
-                        if (isComplex && currentFuncName) {
-                            let processText = '';
-                            if (currentFuncName === 'get_next_id') {
-                                processText = 'Присвоить next_id значение: максимальный id из всех элементов data, увеличенный на 1';
-                            } else {
-                                processText = `Присвоить возвращаемое значение: ${translatePythonLine(retVal)}`;
-                            }
-                            let matchingIndex = myLinesIndices ? myLinesIndices[i] : undefined;
-                            statements.push({ type: 'stmt', id: `node-${idCounter++}`, text: processText, kind: 'process', lineIndex: matchingIndex });
-                            
-                            kind = 'end';
-                            displayText = 'return';
-                        } else {
-                            kind = 'end';
-                            if (retVal) {
-                                displayText = `Возврат: ${retVal}`;
-                            } else {
-                                displayText = `Возврат`;
-                            }
-                        }
+                        let formattedRet = formatReturnExitValue(retVal);
+                        let matchingIndex = myLinesIndices ? myLinesIndices[i] : undefined;
+                        statements.push({
+                            type: 'stmt',
+                            id: `node-${idCounter++}`,
+                            text: formattedRet ? `return ${formattedRet}` : 'return',
+                            kind: 'end',
+                            retVal: formattedRet,
+                            lineIndex: matchingIndex
+                        });
+                        i++;
+                        continue;
                     } else {
                         // First see if it's a comprehension / generator we can translate
                         let translatedRightObj = translatePythonLine(text);
@@ -1185,9 +1238,20 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
              t = graphOverrides.nodes[node.id].text;
         } else {
             if (node.type === 'stmt' && node.kind === 'end') {
-                if (isMain) t = 'Конец';
-                else {
-                    t = `Выход из п/п\n${cleanTitle}` + (returnType ? ` (${returnType})` : ``);
+                if (isMain) {
+                    t = 'Конец';
+                } else {
+                    let ret = (node as any).retVal;
+                    if (ret === undefined) {
+                        if (node.text && node.text.startsWith('return ')) {
+                            ret = formatReturnExitValue(node.text.substring(7));
+                        } else if (node.text && node.text.startsWith('Выход ')) {
+                            ret = formatReturnExitValue(node.text.substring(6));
+                        } else {
+                            ret = returnType ? formatReturnExitValue(returnType) : '';
+                        }
+                    }
+                    t = ret ? `Выход из п/п\n${cleanTitle} (${ret})` : `Выход из п/п\n${cleanTitle}`;
                 }
             }
         }
@@ -1410,7 +1474,17 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
                     if (isMain) {
                         adjustedText = 'Конец';
                     } else {
-                        adjustedText = `Выход из п/п\n${cleanTitle}` + (returnType ? ` (${returnType})` : ``);
+                        let ret = (node as any).retVal;
+                        if (ret === undefined) {
+                            if (node.text && node.text.startsWith('return ')) {
+                                ret = formatReturnExitValue(node.text.substring(7));
+                            } else if (node.text && node.text.startsWith('Выход ')) {
+                                ret = formatReturnExitValue(node.text.substring(6));
+                            } else {
+                                ret = returnType ? formatReturnExitValue(returnType) : '';
+                            }
+                        }
+                        adjustedText = ret ? `Выход из п/п\n${cleanTitle} (${ret})` : `Выход из п/п\n${cleanTitle}`;
                     }
                 }
                 allNodes.push({ id: node.id, type: node.kind, text: adjustedText, x: cx, y: currentY, height: h, lineIndex: node.lineIndex });
@@ -2054,7 +2128,26 @@ function buildGraphForAst(ast: ASTNode[], title: string, returnType: string | un
     }
     let localColBottom = localColNode ? localColMaxY + getASTNodeHeight(localColNode)/2 : startY;
 
-    let endText = isMain ? 'Конец' : `Выход из п/п\n${cleanTitle}` + (returnType ? ` (${returnType})` : ``);
+    let endRet = returnType ? formatReturnExitValue(returnType) : '';
+    if (!endRet) {
+        const findLastRet = (nodes: ASTNode[]): string | undefined => {
+            for (let idx = nodes.length - 1; idx >= 0; idx--) {
+                const n = nodes[idx];
+                if (n.type === 'stmt' && n.kind === 'end' && (n as any).retVal) return (n as any).retVal;
+                if (n.type === 'if') {
+                    const r = findLastRet(n.falseBlock) || findLastRet(n.trueBlock);
+                    if (r) return r;
+                }
+                if (n.type === 'while' || n.type === 'for') {
+                    const r = findLastRet(n.body);
+                    if (r) return r;
+                }
+            }
+            return undefined;
+        };
+        endRet = findLastRet(ast) || '';
+    }
+    let endText = isMain ? 'Конец' : (endRet ? `Выход из п/п\n${cleanTitle} (${endRet})` : `Выход из п/п\n${cleanTitle}`);
     let endH = getNodeHeight(endText, 'end', style);
     let finalY = Math.max(maxYOfEnds, localColBottom) + Y_MARGIN + endH/2;
 

@@ -444,11 +444,11 @@ export function parseCppSourceWhole(code: string) {
             kind = 'end';
             let ret = text.substring(6).replace(/;$/, '').trim();
             if (ret === '0' || ret === 'EXIT_SUCCESS') {
-                displayText = 'Конец';
+                return { type: 'stmt', id: `node-${idCounter++}`, text: 'Конец', kind: 'end', lineIndex };
             } else if (ret) {
-                displayText = `Выход из п/п (${mathify(ret)})`;
+                return { type: 'stmt', id: `node-${idCounter++}`, text: `Выход из п/п (${mathify(ret)})`, kind: 'end', retVal: mathify(ret), lineIndex };
             } else {
-                displayText = `Выход из п/п`;
+                return { type: 'stmt', id: `node-${idCounter++}`, text: 'Выход из п/п', kind: 'end', lineIndex };
             }
         } 
         // 4. Subprogram calls and user functions
