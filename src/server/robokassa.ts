@@ -36,10 +36,18 @@ export const ROBOKASSA_PACKAGES: Record<string, { price: number; tokens: number;
 const processedInvoices = new Set<string>();
 
 /**
- * Generates MD5 signature for Robokassa protocol
+ * Generates cryptographic signature for Robokassa protocol.
+ * Default is sha256 (matches the modern Robokassa dashboard configuration).
  */
-function generateRobokassaSignature(str: string): string {
-  return crypto.createHash('md5').update(str).digest('hex');
+function getRobokassaHashAlgo(): string {
+  const algo = (process.env.ROBOKASSA_HASH_ALGO || 'sha256').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (algo === 'md5') return 'md5';
+  if (algo === 'sha1') return 'sha1';
+  return 'sha256';
+}
+
+function generateRobokassaSignature(str: string, algo: string = getRobokassaHashAlgo()): string {
+  return crypto.createHash(algo).update(str, 'utf-8').digest('hex');
 }
 
 /**
@@ -87,9 +95,8 @@ export async function handleRobokassaInit(req: Request, res: Response) {
   const shpTokens = String(pkg.tokens);
   const shpUid = String(uid);
 
-  // Robokassa signature string format for Payment Link:
-  // MerchantLogin:OutSum:InvId:Password1:Shp_tokens=...:Shp_uid=... (custom params ordered alphabetically)
-  const signatureRaw = `${merchantLogin}:${outSum}:${invId}:${password1}:Shp_tokens=${shpTokens}:Shp_uid=${shpUid}`;
+  // Canonical lowercase shp_ parameters according to Robokassa docs (ordered alphabetically)
+  const signatureRaw = `${merchantLogin}:${outSum}:${invId}:${password1}:shp_tokens=${shpTokens}:shp_uid=${shpUid}`;
   const signature = generateRobokassaSignature(signatureRaw);
 
   const params = new URLSearchParams({
@@ -98,8 +105,8 @@ export async function handleRobokassaInit(req: Request, res: Response) {
     InvId: String(invId),
     Description: pkg.description,
     SignatureValue: signature,
-    Shp_tokens: shpTokens,
-    Shp_uid: shpUid,
+    shp_tokens: shpTokens,
+    shp_uid: shpUid,
     Culture: 'ru',
     Encoding: 'utf-8',
   });
@@ -135,8 +142,8 @@ export async function handleRobokassaResult(req: Request, res: Response) {
     const outSum = String(data.OutSum || '');
     const invId = String(data.InvId || '');
     const signatureValue = String(data.SignatureValue || '').toLowerCase();
-    const shpUid = String(data.Shp_uid || '');
-    const shpTokens = parseInt(String(data.Shp_tokens || '0'), 10);
+    const shpUid = String(data.shp_uid || data.Shp_uid || '');
+    const shpTokens = parseInt(String(data.shp_tokens || data.Shp_tokens || '0'), 10);
 
     const testPassword2 = (process.env.ROBOKASSA_TEST_PASSWORD_2 || '').trim();
     const livePassword2 = (process.env.ROBOKASSA_PASSWORD_2 || '').trim();
@@ -152,17 +159,23 @@ export async function handleRobokassaResult(req: Request, res: Response) {
       return res.status(400).send('ERROR: Missing required fields');
     }
 
-    // Verify digital signature: OutSum:InvId:Password2:Shp_tokens=...:Shp_uid=...
-    // Check against password2, and if not matching, check alternate password
-    const checkSig = (pass: string) => {
-      const raw = `${outSum}:${invId}:${pass}:Shp_tokens=${shpTokens}:Shp_uid=${shpUid}`;
-      return generateRobokassaSignature(raw).toLowerCase();
+    // Verify digital signature: OutSum:InvId:Password2:shp_tokens=...:shp_uid=...
+    // Check with both lowercase shp_ and capitalized Shp_, and test sha256 + fallback algorithms
+    const checkSig = (pass: string, isUpper: boolean, algo: string) => {
+      const prefix = isUpper ? 'Shp_' : 'shp_';
+      const raw = `${outSum}:${invId}:${pass}:${prefix}tokens=${shpTokens}:${prefix}uid=${shpUid}`;
+      return generateRobokassaSignature(raw, algo).toLowerCase();
     };
 
-    const isSigValid =
-      signatureValue === checkSig(password2) ||
-      (livePassword2 && signatureValue === checkSig(livePassword2)) ||
-      (testPassword2 && signatureValue === checkSig(testPassword2));
+    const candidatePasswords = Array.from(new Set([password2, livePassword2, testPassword2])).filter(Boolean);
+    const candidateAlgos = ['sha256', 'md5', 'sha1'];
+
+    const isSigValid = candidatePasswords.some((pass) =>
+      candidateAlgos.some((algo) =>
+        checkSig(pass, false, algo) === signatureValue ||
+        checkSig(pass, true, algo) === signatureValue
+      )
+    );
 
     if (!isSigValid) {
       console.error(`[Robokassa Webhook] Invalid signature! Received: ${signatureValue}`);
