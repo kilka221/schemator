@@ -287,6 +287,14 @@ export default function App() {
 
     // Check for cached user session and sync with Yandex Database (YDB)
     const savedUser = localStorage.getItem('blockcraft_yandex_user');
+    
+    // Check if user returned from Robokassa payment
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.has('InvId') || searchParams.has('OutSum')) {
+      showToast('Оплата успешно завершена! Баланс схем обновляется...');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     if (savedUser) {
       try {
         const u = JSON.parse(savedUser);
