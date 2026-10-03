@@ -7,28 +7,28 @@ export const ROBOKASSA_PACKAGES: Record<string, { price: number; tokens: number;
   '5_coins': {
     price: 149,
     tokens: 5,
-    description: '5 Coins — Тариф «Сдать лабу» в Схематор',
+    description: '5 схем — Тариф «Сдать лабу» в Схематор',
   },
   '35_coins': {
     price: 399,
     tokens: 35,
-    description: '35 Coins — Тариф «Семестр» в Схематор',
+    description: '35 схем — Тариф «Семестр» в Схематор',
   },
   '50_coins': {
     price: 549,
     tokens: 50,
-    description: '50 Coins — Тариф «Курсач / Диплом» в Схематор',
+    description: '50 схем — Тариф «Курсач / Диплом» в Схематор',
   },
   // Backward compatibility alias keys:
   '10_coins': {
     price: 149,
     tokens: 5,
-    description: '5 Coins — Тариф «Сдать лабу» в Схематор',
+    description: '5 схем — Тариф «Сдать лабу» в Схематор',
   },
   '30_coins': {
     price: 399,
     tokens: 35,
-    description: '35 Coins — Тариф «Семестр» в Схематор',
+    description: '35 схем — Тариф «Семестр» в Схематор',
   },
 };
 
@@ -67,9 +67,8 @@ export async function handleRobokassaInit(req: Request, res: Response) {
   }
 
   const merchantLogin = (process.env.ROBOKASSA_MERCHANT_LOGIN || '').trim();
-  // By default, enable test mode (IsTest=1) so payments can be tested before shop activation.
-  // To switch to live mode in production later, set ROBOKASSA_LIVE=1 in environment variables.
-  const isLive = process.env.ROBOKASSA_LIVE === '1';
+  // Live mode when ROBOKASSA_IS_TEST is "0" or ROBOKASSA_LIVE is "1". Otherwise test mode.
+  const isLive = process.env.ROBOKASSA_IS_TEST === '0' || process.env.ROBOKASSA_LIVE === '1';
   const isTest = !isLive;
 
   // In test mode, prefer test password #1 if provided, otherwise fallback to password 1

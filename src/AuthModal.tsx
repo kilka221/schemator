@@ -171,7 +171,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     try {
       const verifiedUser = await verifyYdbCodeApi(verifyEmail, cleanCode);
       localStorage.setItem('blockcraft_yandex_user', JSON.stringify(verifiedUser));
-      setSuccessMsg('Email успешно подтвержден! Вам начислен 1 бесплатный Coin.');
+      setSuccessMsg('Email успешно подтвержден! Вам начислена 1 бесплатная схема.');
       setTimeout(() => {
         onSuccess(verifiedUser);
         onClose();
@@ -315,7 +315,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                 disabled={loading || verifyCode.length !== 6}
                 className="w-full py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 disabled:opacity-50 font-medium rounded-md text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <span>{loading ? 'Проверка...' : 'Подтвердить почту (+1 Coin)'}</span>
+                <span>{loading ? 'Проверка...' : 'Подтвердить почту (+1 схема)'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
 

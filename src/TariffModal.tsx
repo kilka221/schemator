@@ -102,7 +102,7 @@ export const TariffModal: React.FC<TariffModalProps> = ({
 
   const handlePay = async (tariff: TariffItem) => {
     if (!user) {
-      onNotify?.('Войдите в аккаунт, чтобы коины зачислились на ваш профиль.');
+      onNotify?.('Войдите в аккаунт, чтобы схемы зачислились на ваш профиль.');
       onClose();
       onOpenLogin();
       return;
